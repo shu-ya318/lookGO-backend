@@ -1,5 +1,0 @@
-spring:
-  datasource:
-    url: jdbc:sqlserver://localhost:1433;databaseName=lookGoDB;encrypt=true;trustServerCertificate=true
-    username: sa
-    password: lookGo@sa

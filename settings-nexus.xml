@@ -1,0 +1,39 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+<localRepository>/home/jboss/.m2/repository</localRepository>
+<interactiveMode/>
+<offline/>
+<pluginGroups/>
+<servers/>
+<mirrors>
+<mirror>
+<id>nexus</id>
+<name>nexus</name>
+<url>https://nexus.mli.com.corp/repository/maven-public/</url>
+<mirrorOf>*</mirrorOf>
+</mirror>
+</mirrors>
+<proxies/>
+<profiles>
+<!--  確保所有的 Source 都是 utf-8 編碼，避免亂碼  -->
+<profile>
+<id>source-encoding</id>
+<properties>
+<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+</properties>
+</profile>
+<!--  下載 Maven 套件的時候順便下載 Source/Document，日後方便 Trace 以及觀看 JavaDoc  -->
+<profile>
+<id>download-sources</id>
+<properties>
+<downloadSources>true</downloadSources>
+<downloadJavadocs>true</downloadJavadocs>
+</properties>
+</profile>
+</profiles>
+<activeProfiles>
+<!--  啟用上面的 Profile 設定  -->
+<activeProfile>source-encoding</activeProfile>
+<activeProfile>download-sources</activeProfile>
+</activeProfiles>
+</settings>

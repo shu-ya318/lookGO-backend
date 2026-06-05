@@ -4,10 +4,9 @@ FROM registry.access.redhat.com/ubi8/openjdk-17:1.20-2 AS builder
 
 WORKDIR /home/jboss
 
-# 預設指向外網設定檔
-ARG SETTINGS_FILE=settings-public.xml
-
+ARG SETTINGS_FILE
 COPY ${SETTINGS_FILE} /home/jboss/.m2/settings.xml
+
 COPY --chown=185:0 pom.xml .
 
 # 因應內網下載套件，跳過 SSL 

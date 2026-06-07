@@ -32,7 +32,7 @@ public class User {
     @Schema(description = "使用者名稱", example = "測試使用者")
     private String username;
 
-    @Schema(description = "生日(yyyy-MM-dd)", example = "2000-01-01")
+    @Schema(description = "出生日期(yyyy-MM-dd)", example = "2000-01-01")
     private LocalDate birthDate;
 
     @Schema(description = "狀態 (0=停用(軟刪除), 1=正常使用)", example = "1")

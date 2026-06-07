@@ -3,6 +3,10 @@ package com.mli.lookgo.module.auth.model.vo;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.mli.lookgo.module.auth.enums.MembershipTier;
+import com.mli.lookgo.module.auth.enums.UserRole;
+import com.mli.lookgo.module.auth.enums.UserStatus;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -23,38 +27,38 @@ public class UserVO {
     @Schema(description = "使用者名稱", example = "測試用使用者")
     private String username;
 
-    @Schema(description = "會員方案 id (1=FREE, 2=BASIC, 3=PREMIUM)", example = "1")
-    private Integer membershipTierId;
+    @Schema(description = "會員方案 (FREE, BASIC, PREMIUM)", example = "FREE")
+    private MembershipTier membershipTier;
 
-    @Schema(description = "角色 id", example = "1")
-    private Integer roleId;
+    @Schema(description = "角色 (USER, ADMIN)", example = "USER")
+    private UserRole role;
 
-    @Schema(description = "生日", example = "2000-01-01")
+    @Schema(description = "出生日期(yyyy-MM-dd)", example = "2000-01-01")
     private LocalDate birthDate;
 
-    @Schema(description = "狀態 (0=停用(軟刪除), 1=正常使用)", example = "1")
-    private Integer status;
+    @Schema(description = "狀態 (DISABLED, ACTIVE)", example = "ACTIVE")
+    private UserStatus status;
 
-    @Schema(description = "建立時間", example = "2026-05-25T10:00:00")
+    @Schema(description = "建立時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25T10:00:00")
     private LocalDateTime createdAt;
 
-    @Schema(description = "更新時間", example = "2026-05-25T10:00:00")
+    @Schema(description = "更新時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25T10:00:00")
     private LocalDateTime updatedAt;
 
-    @Schema(description = "最後登入時間", example = "2026-05-25T10:00:00")
+    @Schema(description = "最後登入時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25T10:00:00")
     private LocalDateTime lastLoginAt;
 
     public UserVO() {
     }
 
-    public UserVO(Integer id, String email, String username, Integer membershipTierId, Integer roleId,
-            LocalDate birthDate, Integer status, LocalDateTime createdAt, LocalDateTime updatedAt,
+    public UserVO(Integer id, String email, String username, MembershipTier membershipTier, UserRole role,
+            LocalDate birthDate, UserStatus status, LocalDateTime createdAt, LocalDateTime updatedAt,
             LocalDateTime lastLoginAt) {
         this.id = id;
         this.email = email;
         this.username = username;
-        this.membershipTierId = membershipTierId;
-        this.roleId = roleId;
+        this.membershipTier = membershipTier;
+        this.role = role;
         this.birthDate = birthDate;
         this.status = status;
         this.createdAt = createdAt;
@@ -86,20 +90,20 @@ public class UserVO {
         this.username = username;
     }
 
-    public Integer getMembershipTierId() {
-        return membershipTierId;
+    public MembershipTier getMembershipTier() {
+        return membershipTier;
     }
 
-    public void setMembershipTierId(Integer membershipTierId) {
-        this.membershipTierId = membershipTierId;
+    public void setMembershipTier(MembershipTier membershipTier) {
+        this.membershipTier = membershipTier;
     }
 
-    public Integer getRoleId() {
-        return roleId;
+    public UserRole getRole() {
+        return role;
     }
 
-    public void setRoleId(Integer roleId) {
-        this.roleId = roleId;
+    public void setRole(UserRole role) {
+        this.role = role;
     }
 
     public LocalDate getBirthDate() {
@@ -110,11 +114,11 @@ public class UserVO {
         this.birthDate = birthDate;
     }
 
-    public Integer getStatus() {
+    public UserStatus getStatus() {
         return status;
     }
 
-    public void setStatus(Integer status) {
+    public void setStatus(UserStatus status) {
         this.status = status;
     }
 

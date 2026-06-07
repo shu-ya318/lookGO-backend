@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mli.lookgo.module.auth.dao.AuthDao;
 import com.mli.lookgo.module.auth.dao.UserDao;
+import com.mli.lookgo.module.auth.enums.MembershipTier;
+import com.mli.lookgo.module.auth.enums.UserRole;
+import com.mli.lookgo.module.auth.enums.UserStatus;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserDuplicateException;
 import com.mli.lookgo.module.auth.model.dto.LoginDTO;
@@ -74,13 +77,13 @@ public class AuthService {
 
         User user = new User();
 
-        user.setMembershipTierId(1);
-        user.setRoleId(1);
+        user.setMembershipTierId(MembershipTier.FREE.getId());
+        user.setRoleId(UserRole.USER.getId());
         user.setEmail(signupDTO.getEmail());
         user.setPassword(hashedPassword);
         user.setUsername(signupDTO.getUsername());
         user.setBirthDate(signupDTO.getBirthDate());
-        user.setStatus(1);
+        user.setStatus(UserStatus.ACTIVE.getCode());
         user.setCreatedAt(currentTime);
         user.setUpdatedAt(currentTime);
         user.setLastLoginAt(currentTime);
@@ -106,7 +109,7 @@ public class AuthService {
         User user = userDao.getByEmail(loginDTO.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("帳號或密碼錯誤!"));
 
-        if (user.getStatus() != 1) {
+        if (user.getStatus() != UserStatus.ACTIVE.getCode()) {
             throw new InvalidCredentialsException("該帳號已被停用!");
         }
 
@@ -130,7 +133,7 @@ public class AuthService {
         User user = userDao.getByEmail(email)
                 .orElseThrow(() -> new InvalidCredentialsException("刷新憑證無效或已過期!"));
 
-        if (user.getStatus() != 1) {
+        if (user.getStatus() != UserStatus.ACTIVE.getCode()) {
             throw new InvalidCredentialsException("該帳號已被停用!");
         }
 

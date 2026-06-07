@@ -5,6 +5,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.mli.lookgo.module.auth.dao.UserDao;
+import com.mli.lookgo.module.auth.enums.MembershipTier;
+import com.mli.lookgo.module.auth.enums.UserRole;
+import com.mli.lookgo.module.auth.enums.UserStatus;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.auth.model.entity.User;
@@ -71,8 +74,16 @@ public class UserService {
      * @return UserVO
      */
     private UserVO toVO(User user) {
-        return new UserVO(user.getId(), user.getEmail(), user.getUsername(), user.getMembershipTierId(),
-                user.getRoleId(), user.getBirthDate(), user.getStatus(),
-                user.getCreatedAt(), user.getUpdatedAt(), user.getLastLoginAt());
+        return new UserVO(
+                user.getId(),
+                user.getEmail(),
+                user.getUsername(),
+                MembershipTier.fromId(user.getMembershipTierId()),
+                UserRole.fromId(user.getRoleId()),
+                user.getBirthDate(),
+                UserStatus.fromCode(user.getStatus()),
+                user.getCreatedAt(),
+                user.getUpdatedAt(),
+                user.getLastLoginAt());
     }
 }

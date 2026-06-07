@@ -12,7 +12,7 @@ public class SecurityConstants {
             "/actuator/health",
             "/auth/signup",
             "/auth/login",
-            "/auth/refresh",
+            "/auth/refreshTokens",
             "/user/get-current-user",
             "/swagger-ui.html",
             "/swagger-ui/**",

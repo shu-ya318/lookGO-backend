@@ -24,7 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
  * 處理使用者相關的 HTTP 請求的介面層。負責驗證請求參數，把資料傳給業務層處理，最後封裝結果為 HTTP 回應回傳給客戶端。
  *
  * @author D5042101
- * @since 2026.5.30
+ * @since 2026.06.06
  */
 @RestController
 @RequestMapping("/user")
@@ -44,21 +44,21 @@ public class UserController {
     }
 
     /**
-     * 解析 HttpOnly Cookie 中的刷新令牌，取得當前登入使用者的資訊。
+     * 解析 HttpOnly Cookie 中的刷新憑證，取得當前登入使用者的資訊。
      *
-     * @param request
+     * @param httpServletRequest
      * @return ResponseEntity<UserVO>
      */
-    @Operation(summary = "取得當前使用者資訊", description = "解析 HttpOnly Cookie 中的刷新令牌，取得當前登入使用者的資訊")
+    @Operation(summary = "取得當前使用者資訊", description = "解析 HttpOnly Cookie 中的刷新憑證，取得當前登入使用者的資訊")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "成功取得當前使用者的資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
-            @ApiResponse(responseCode = "401", description = "刷新令牌無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "刷新令牌無效或已過期!"))),
+            @ApiResponse(responseCode = "401", description = "刷新憑證無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "刷新憑證無效或已過期!"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/get-current-user")
-    public ResponseEntity<UserVO> getCurrentUser(HttpServletRequest request) {
+    public ResponseEntity<UserVO> getCurrentUser(HttpServletRequest httpServletRequest) {
         logger.info("收到查詢當前使用者資訊的請求");
-        UserVO userVO = userService.getCurrentUser(request);
+        UserVO userVO = userService.getCurrentUser(httpServletRequest);
 
         return ResponseEntity.ok(userVO);
     }

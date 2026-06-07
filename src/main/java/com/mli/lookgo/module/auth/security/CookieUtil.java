@@ -9,7 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * 處理 Cookie 操作的工具類別，提供刷新令牌 Cookie 的新增與清除功能。
+ * 處理 Cookie 操作的工具類別，提供刷新憑證 Cookie 的新增與清除功能。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -29,46 +29,49 @@ public class CookieUtil {
     }
 
     /**
-     * 在 HTTP 回應中新增刷新令牌的 Cookie。
+     * 在 HTTP 回應中新增刷新憑證的 Cookie。
      *
-     * @param response     HTTP 回應
-     * @param refreshToken 刷新令牌字串
+     * @param httpServletResponse
+     * @param refreshToken
      */
-    public void addRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
+    public void addRefreshTokenCookie(HttpServletResponse httpServletResponse, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken).httpOnly(true).secure(true).path("/")
                 .maxAge(jwtUtil.getRefreshTokenExpiration() / 1000).sameSite("None").build();
 
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     /**
-     * 從 HTTP 請求的 Cookie 中取得刷新令牌。
+     * 從 HTTP 請求的 Cookie 中取得刷新憑證。
      *
-     * @param request HTTP 請求
-     * @return 刷新令牌字串，若不存在則回傳 null
+     * @param httpServletRequest
+     * @return 刷新憑證字串，若不存在則回傳 null
      */
-    public String getRefreshTokenFromCookie(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
+    public String getRefreshTokenFromCookie(HttpServletRequest httpServletRequest) {
+        Cookie[] cookies = httpServletRequest.getCookies();
+
         if (cookies == null) {
             return null;
         }
+
         for (Cookie cookie : cookies) {
             if ("refreshToken".equals(cookie.getName())) {
                 return cookie.getValue();
             }
         }
+
         return null;
     }
 
     /**
-     * 清除 HTTP 回應中的刷新令牌 Cookie。
+     * 清除 HTTP 回應中的刷新憑證 Cookie。
      *
-     * @param response HTTP 回應
+     * @param httpServletResponse
      */
-    public void clearRefreshTokenCookie(HttpServletResponse response) {
+    public void clearRefreshTokenCookie(HttpServletResponse httpServletResponse) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "").httpOnly(true).secure(true).path("/").maxAge(0)
                 .sameSite("None").build();
 
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

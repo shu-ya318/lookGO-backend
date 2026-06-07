@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.mli.lookgo.module.auth.dao.AuthDao;
+import com.mli.lookgo.module.auth.dao.UserDao;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.auth.model.entity.User;
@@ -18,12 +18,12 @@ import jakarta.servlet.http.HttpServletRequest;
  * 處理使用者資料查詢相關的業務邏輯。
  *
  * @author D5042101
- * @since 2026.5.30
+ * @since 2026.06.06
  */
 @Service
 public class UserService {
 
-    private final AuthDao authDao;
+    private final UserDao userDao;
     private final JwtUtil jwtUtil;
     private final CookieUtil cookieUtil;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -35,30 +35,30 @@ public class UserService {
      * @param jwtUtil
      * @param cookieUtil
      */
-    public UserService(AuthDao authDao, JwtUtil jwtUtil, CookieUtil cookieUtil) {
-        this.authDao = authDao;
+    public UserService(UserDao userDao, JwtUtil jwtUtil, CookieUtil cookieUtil) {
+        this.userDao = userDao;
         this.jwtUtil = jwtUtil;
         this.cookieUtil = cookieUtil;
     }
 
     /**
-     * 解析 HttpOnly Cookie 中的刷新令牌，取得對應的使用者資訊。
+     * 解析 HttpOnly Cookie 中的刷新憑證，取得對應的使用者資訊。
      *
-     * @param request
+     * @param httpServletRequest
      * @return UserVO
-     * @throws InvalidCredentialsException 刷新令牌無效或已過期。
+     * @throws InvalidCredentialsException 刷新憑證無效或已過期。
      * @throws UserNotFoundException       找不到對應使用者。
      */
-    public UserVO getCurrentUser(HttpServletRequest request) {
-        String refreshToken = cookieUtil.getRefreshTokenFromCookie(request);
+    public UserVO getCurrentUser(HttpServletRequest httpServletRequest) {
+        String refreshToken = cookieUtil.getRefreshTokenFromCookie(httpServletRequest);
 
         if (refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken)) {
-            throw new InvalidCredentialsException("刷新令牌無效或已過期!");
+            throw new InvalidCredentialsException("刷新憑證無效或已過期!");
         }
 
         String email = jwtUtil.getEmailFromRefreshToken(refreshToken);
         logger.info("開始呼叫 API 來查詢當前使用者資料，email: {}", email);
-        User user = authDao.findByEmail(email)
+        User user = userDao.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
         return toVO(user);
@@ -72,6 +72,7 @@ public class UserService {
      */
     private UserVO toVO(User user) {
         return new UserVO(user.getId(), user.getEmail(), user.getUsername(), user.getMembershipTierId(),
-                user.getCreatedAt(), user.getUpdatedAt());
+                user.getRoleId(), user.getBirthDate(), user.getStatus(),
+                user.getCreatedAt(), user.getUpdatedAt(), user.getLastLoginAt());
     }
 }

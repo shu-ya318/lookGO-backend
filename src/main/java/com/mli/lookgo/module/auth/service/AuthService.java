@@ -11,16 +11,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mli.lookgo.module.auth.dao.AuthDao;
+import com.mli.lookgo.module.auth.dao.UserDao;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserDuplicateException;
 import com.mli.lookgo.module.auth.model.dto.LoginDTO;
 import com.mli.lookgo.module.auth.model.dto.SignupDTO;
 import com.mli.lookgo.module.auth.model.entity.User;
 import com.mli.lookgo.module.auth.model.vo.AuthVO;
-import com.mli.lookgo.module.auth.security.CookieUtil;
 import com.mli.lookgo.module.auth.security.JwtUtil;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
@@ -32,106 +31,137 @@ import jakarta.servlet.http.HttpServletResponse;
 @Service
 public class AuthService {
 
+    private final RedisService redisService;
     private final AuthDao authDao;
+    private final UserDao userDao;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final CookieUtil cookieUtil;
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
      *
+     * @param redisService
      * @param authDao
      * @param passwordEncoder
      * @param jwtUtil
-     * @param cookieUtil
      */
-    public AuthService(AuthDao authDao, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, CookieUtil cookieUtil) {
+    public AuthService(RedisService redisService, AuthDao authDao, UserDao userDao, PasswordEncoder passwordEncoder,
+            JwtUtil jwtUtil) {
+        this.redisService = redisService;
         this.authDao = authDao;
+        this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
-        this.cookieUtil = cookieUtil;
     }
 
     /**
      * 把傳入資訊寫入資料庫，建立一筆對應的使用者帳號，並回傳存取憑證。
      *
      * @param signupDTO
-     * @param response
+     * @param httpServletResponse
      * @return AuthVO
-     * @throws UserDuplicateException Email 已被使用的錯誤。
+     * @throws UserDuplicateException
      */
     @Transactional
-    public AuthVO signup(SignupDTO signupDTO, HttpServletResponse response) {
+    public AuthVO signup(SignupDTO signupDTO, HttpServletResponse httpServletResponse) {
         if (authDao.existsByEmail(signupDTO.getEmail())) {
             throw new UserDuplicateException("Email: " + signupDTO.getEmail() + " 已被使用，請換一個 email!");
         }
 
         String hashedPassword = passwordEncoder.encode(signupDTO.getPassword());
-        LocalDateTime now = LocalDateTime.now();
-        logger.info("開始呼叫 API 來建立使用者帳號，輸入內容: {}, 建立時間: {}", signupDTO, now);
-        authDao.createUser(signupDTO, hashedPassword, now);
-        // MyBatis @Options(useGeneratedKeys=true) 會將資料庫產生的 id 回填至 signupDTO.id
-        Long generatedId = signupDTO.getId();
+        LocalDateTime currentTime = LocalDateTime.now();
 
-        String accessToken = jwtUtil.generateAccessToken(generatedId, UUID.randomUUID(), signupDTO.getEmail(),
-                Set.of("ROLE_USER"));
-        String refreshToken = jwtUtil.generateRefreshToken(signupDTO.getEmail());
-        cookieUtil.addRefreshTokenCookie(response, refreshToken);
+        User user = new User();
 
-        return new AuthVO(accessToken, refreshToken);
+        user.setMembershipTierId(1);
+        user.setRoleId(1);
+        user.setEmail(signupDTO.getEmail());
+        user.setPassword(hashedPassword);
+        user.setUsername(signupDTO.getUsername());
+        user.setBirthDate(signupDTO.getBirthDate());
+        user.setStatus(1);
+        user.setCreatedAt(currentTime);
+        user.setUpdatedAt(currentTime);
+        user.setLastLoginAt(currentTime);
+
+        logger.info("開始呼叫 API 來建立使用者帳號，寫入資料: {}, 建立時間: {}", user, currentTime);
+        authDao.createUser(user);
+
+        Integer userId = user.getId();
+
+        return generateTokens(userId, user.getEmail());
     }
 
     /**
      * 驗證使用者帳號與密碼，通過後回傳存取憑證。
      *
      * @param loginDTO
-     * @param response
+     * @param httpServletResponse
      * @return AuthVO
      * @throws InvalidCredentialsException
      */
-    public AuthVO signin(LoginDTO loginDTO, HttpServletResponse response) {
+    public AuthVO login(LoginDTO loginDTO, HttpServletResponse httpServletResponse) {
         logger.info("開始呼叫 API 來驗證使用者身分，輸入內容: {}", loginDTO);
-        User user = authDao.findByEmail(loginDTO.getEmail())
+        User user = userDao.getByEmail(loginDTO.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("帳號或密碼錯誤!"));
+
+        if (user.getStatus() != 1) {
+            throw new InvalidCredentialsException("該帳號已被停用!");
+        }
 
         if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException("帳號或密碼錯誤!");
         }
 
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), UUID.randomUUID(), user.getEmail(),
-                Set.of("ROLE_USER"));
-        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
-        cookieUtil.addRefreshTokenCookie(response, refreshToken);
-
-        return new AuthVO(accessToken, refreshToken);
+        return generateTokens(user.getId(), user.getEmail());
     }
 
     /**
-     * 驗證 Cookie 中的刷新令牌，通過後核發新的存取憑證與刷新憑證。
+     * 驗證刷新憑證，通過後核發新的存取憑證與刷新憑證。
      *
-     * @param request
-     * @param response
+     * @param refreshToken
      * @return AuthVO
-     * @throws InvalidCredentialsException 刷新令牌無效或已過期。
+     * @throws InvalidCredentialsException
      */
-    public AuthVO refresh(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = cookieUtil.getRefreshTokenFromCookie(request);
-
-        if (refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken)) {
-            throw new InvalidCredentialsException("刷新令牌無效或已過期!");
-        }
-
+    public AuthVO refreshTokens(String refreshToken) {
         String email = jwtUtil.getEmailFromRefreshToken(refreshToken);
         logger.info("開始呼叫 API 來刷新憑證，email: {}", email);
-        User user = authDao.findByEmail(email)
-                .orElseThrow(() -> new InvalidCredentialsException("刷新令牌無效或已過期!"));
+        User user = userDao.getByEmail(email)
+                .orElseThrow(() -> new InvalidCredentialsException("刷新憑證無效或已過期!"));
 
-        String newAccessToken = jwtUtil.generateAccessToken(user.getId(), UUID.randomUUID(), user.getEmail(),
-                Set.of("ROLE_USER"));
-        String newRefreshToken = jwtUtil.generateRefreshToken(user.getEmail());
-        cookieUtil.addRefreshTokenCookie(response, newRefreshToken);
+        if (user.getStatus() != 1) {
+            throw new InvalidCredentialsException("該帳號已被停用!");
+        }
 
-        return new AuthVO(newAccessToken, newRefreshToken);
+        String storedRefreshTokenJti = redisService.getRefreshTokenJti(user.getId().toString());
+        String refreshTokenJti = jwtUtil.getJtiFromToken(refreshToken);
+        if (storedRefreshTokenJti == null || !storedRefreshTokenJti.equals(refreshTokenJti)) {
+            throw new InvalidCredentialsException("刷新憑證無效或已過期!");
+        }
+
+        return generateTokens(user.getId(), user.getEmail());
+    }
+
+    /**
+     * 生成新的存取憑證與刷新憑證，並將刷新憑證 JTI 存入 Redis。
+     * 
+     * @param userId
+     * @param email
+     * @return
+     */
+    private AuthVO generateTokens(Integer userId, String email) {
+        String accessToken = jwtUtil.generateAccessToken(userId, UUID.randomUUID(), email, Set.of("ROLE_USER"));
+
+        String refreshToken = jwtUtil.generateRefreshToken(email);
+
+        String refreshTokenJti = jwtUtil.getJtiFromToken(refreshToken);
+        redisService.saveRefreshTokenJti(
+                userId.toString(),
+                refreshTokenJti,
+                jwtUtil.getRefreshTokenExpiration(),
+                java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        return new AuthVO(accessToken, refreshToken);
     }
 }

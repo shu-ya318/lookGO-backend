@@ -16,7 +16,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import javax.crypto.SecretKey;
 
 /**
- * 處理 JWT 令牌的生成與驗證。
+ * 處理 JWT 憑證的生成與驗證。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -32,15 +32,15 @@ public class JwtUtil {
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入 JWT 相關配置。
      *
-     * @param secret                 JWT 密鑰
-     * @param accessTokenExpiration  存取令牌過期時間（毫秒）
-     * @param refreshTokenExpiration 刷新令牌過期時間（毫秒）
+     * @param secret
+     * @param accessTokenExpiration
+     * @param refreshTokenExpiration
      */
     public JwtUtil(@Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-expiration}") long accessTokenExpiration,
             @Value("${jwt.refresh-token-expiration}") long refreshTokenExpiration) {
         if (secret == null || secret.trim().isEmpty()) {
-            throw new IllegalArgumentException("JWT 密鑰不得為空");
+            throw new IllegalArgumentException("JWT 密鑰不得為空!");
         }
 
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
@@ -49,16 +49,40 @@ public class JwtUtil {
         this.jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
     }
 
+    // ----- 通用 -----
+
     /**
-     * 依據傳入資訊生成存取令牌。
+     * 從(存取或刷新)憑證中取得 JWT ID (jti)。
      *
-     * @param id    使用者 id
-     * @param uuid  唯一識別碼
-     * @param email 電子郵件地址
-     * @param roles 使用者角色清單
-     * @return 存取令牌字串
+     * @param token
+     * @return JWT ID (jti)
      */
-    public String generateAccessToken(Long id, UUID uuid, String email, Set<String> roles) {
+    public String getJtiFromToken(String token) {
+        return jwtParser.parseClaimsJws(token).getBody().getId();
+    }
+
+    /**
+     * 從(存取或刷新)憑證中取得過期時間。
+     *
+     * @param token
+     * @return 憑證過期時間
+     */
+    public Date getExpirationDateFromToken(String token) {
+        return jwtParser.parseClaimsJws(token).getBody().getExpiration();
+    }
+
+    // ----- Access Token -----
+
+    /**
+     * 依據傳入資訊生成存取憑證。
+     *
+     * @param id
+     * @param uuid
+     * @param email
+     * @param roles
+     * @return 存取憑證字串
+     */
+    public String generateAccessToken(Integer id, UUID uuid, String email, Set<String> roles) {
         return Jwts.builder()
                 .setId(UUID.randomUUID().toString())
                 .setSubject(uuid.toString())
@@ -72,10 +96,51 @@ public class JwtUtil {
     }
 
     /**
-     * 依據傳入資訊生成刷新令牌。
+     * 驗證存取憑證的有效性。
      *
-     * @param email 電子郵件地址
-     * @return 刷新令牌字串
+     * @param accessToken
+     * @return 驗證存取憑證是否有效的結果
+     */
+    public boolean validateAccessToken(String accessToken) {
+        try {
+            jwtParser.parseClaimsJws(accessToken);
+
+            return true;
+        } catch (JwtException | IllegalArgumentException error) {
+
+            return false;
+        }
+    }
+
+    /**
+     * 從存取憑證中取得 Email。
+     *
+     * @param accessToken
+     * @return Email
+     */
+    public String getEmailFromAccessToken(String accessToken) {
+        return jwtParser.parseClaimsJws(accessToken).getBody().get("email", String.class);
+    }
+
+    /**
+     * 從存取憑證中取得剩餘有效時間。
+     *
+     * @param accessToken 存取憑證
+     * @return 剩餘有效時間（毫秒）
+     */
+    public long getRemainingTtlFromAccessToken(String accessToken) {
+        Date expiration = getExpirationDateFromToken(accessToken);
+
+        return expiration.getTime() - System.currentTimeMillis();
+    }
+
+    // ----- Refresh Token -----
+
+    /**
+     * 依據傳入資訊生成刷新憑證。
+     *
+     * @param email
+     * @return String (刷新憑證)
      */
     public String generateRefreshToken(String email) {
         return Jwts.builder()
@@ -88,82 +153,39 @@ public class JwtUtil {
     }
 
     /**
-     * 驗證存取令牌的有效性。
+     * 驗證刷新憑證的有效性。
      *
-     * @param token 存取令牌
-     * @return 令牌是否有效
-     */
-    public boolean validateAccessToken(String token) {
-        try {
-            jwtParser.parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException error) {
-            return false;
-        }
-    }
-
-    /**
-     * 驗證刷新令牌的有效性。
-     *
-     * @param refreshToken 刷新令牌
-     * @return 令牌是否有效
+     * @param refreshToken
+     * @return 驗證刷新憑證是否有效的結果
      */
     public boolean validateRefreshToken(String refreshToken) {
         try {
             jwtParser.parseClaimsJws(refreshToken);
+
             return true;
         } catch (JwtException | IllegalArgumentException error) {
+
             return false;
         }
     }
 
     /**
-     * 取得刷新令牌的過期時間設定。
+     * 取得刷新憑證的過期時間設定。
      *
-     * @return 刷新令牌過期時間（毫秒）
+     * @return 刷新憑證過期時間（毫秒）
      */
     public long getRefreshTokenExpiration() {
         return refreshTokenExpiration;
     }
 
     /**
-     * 從存取令牌中取得電子郵件地址。
+     * 從刷新憑證中取得 Email。
      *
-     * @param token 存取令牌
-     * @return 電子郵件地址
-     */
-    public String getEmailFromToken(String token) {
-        return jwtParser.parseClaimsJws(token).getBody().get("email", String.class);
-    }
-
-    /**
-     * 從刷新令牌中取得電子郵件地址。
-     *
-     * @param refreshToken 刷新令牌
-     * @return 電子郵件地址
-     * @throws JwtException 令牌無效或解析失敗時拋出例外。
+     * @param refreshToken
+     * @return Email
+     * @throws JwtException
      */
     public String getEmailFromRefreshToken(String refreshToken) throws JwtException {
         return jwtParser.parseClaimsJws(refreshToken).getBody().getSubject();
-    }
-
-    /**
-     * 從存取令牌中取得 JWT ID (jti)。
-     *
-     * @param token 存取令牌
-     * @return JWT ID
-     */
-    public String getJtiFromToken(String token) {
-        return jwtParser.parseClaimsJws(token).getBody().getId();
-    }
-
-    /**
-     * 從存取令牌中取得過期時間。
-     *
-     * @param token 存取令牌
-     * @return 令牌過期時間
-     */
-    public Date getExpirationDateFromToken(String token) {
-        return jwtParser.parseClaimsJws(token).getBody().getExpiration();
     }
 }

@@ -1,5 +1,6 @@
 package com.mli.lookgo.module.auth.model.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,13 +15,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class User {
 
     @Schema(description = "id", example = "1")
-    private Long id;
+    private Integer id;
 
-    @Schema(description = "會員方案 id", example = "1")
-    private Long membershipTierId;
+    @Schema(description = "會員等級 id", example = "1")
+    private Integer membershipTierId;
 
     @Schema(description = "角色 id", example = "1")
-    private Long roleId;
+    private Integer roleId;
 
     @Schema(description = "電子郵件地址", example = "user@example.com")
     private String email;
@@ -28,51 +29,64 @@ public class User {
     @Schema(description = "使用者密碼", example = "password12345")
     private String password;
 
-    @Schema(description = "使用者名稱", example = "測試用使用者")
+    @Schema(description = "使用者名稱", example = "測試使用者")
     private String username;
 
-    @Schema(description = "建立時間", example = "2026-05-25T10:00:00")
+    @Schema(description = "生日(yyyy-MM-dd)", example = "2000-01-01")
+    private LocalDate birthDate;
+
+    @Schema(description = "狀態 (0=停用(軟刪除), 1=正常使用)", example = "1")
+    private Integer status;
+
+    @Schema(description = "建立時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25 10:00:00")
     private LocalDateTime createdAt;
 
-    @Schema(description = "更新時間", example = "2026-05-25T10:00:00")
+    @Schema(description = "更新時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25 10:00:00")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "最後登入時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25 10:00:00")
+    private LocalDateTime lastLoginAt;
 
     public User() {
     }
 
-    public User(Long id, Long membershipTierId, Long roleId, String email, String password, String username,
-            LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public User(Integer id, Integer membershipTierId, Integer roleId, String email, String password, String username,
+            LocalDate birthDate, Integer status, LocalDateTime createdAt, LocalDateTime updatedAt,
+            LocalDateTime lastLoginAt) {
         this.id = id;
         this.membershipTierId = membershipTierId;
         this.roleId = roleId;
         this.email = email;
         this.password = password;
         this.username = username;
+        this.birthDate = birthDate;
+        this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.lastLoginAt = lastLoginAt;
     }
 
-    public Long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
-    public Long getMembershipTierId() {
+    public Integer getMembershipTierId() {
         return membershipTierId;
     }
 
-    public void setMembershipTierId(Long membershipTierId) {
+    public void setMembershipTierId(Integer membershipTierId) {
         this.membershipTierId = membershipTierId;
     }
 
-    public Long getRoleId() {
+    public Integer getRoleId() {
         return roleId;
     }
 
-    public void setRoleId(Long roleId) {
+    public void setRoleId(Integer roleId) {
         this.roleId = roleId;
     }
 
@@ -100,6 +114,22 @@ public class User {
         this.username = username;
     }
 
+    public LocalDate getBirthDate() {
+        return birthDate;
+    }
+
+    public void setBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -116,8 +146,27 @@ public class User {
         this.updatedAt = updatedAt;
     }
 
+    public LocalDateTime getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
+    }
+
     @Override
     public String toString() {
-        return "User{email=" + email + "}";
+        return "User{" +
+                "id=" + id +
+                ", membershipTierId=" + membershipTierId +
+                ", roleId=" + roleId +
+                ", email='" + email + '\'' +
+                ", username='" + username + '\'' +
+                ", birthDate=" + birthDate +
+                ", status=" + status +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                ", lastLoginAt=" + lastLoginAt +
+                '}';
     }
 }

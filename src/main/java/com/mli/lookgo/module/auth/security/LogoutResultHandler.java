@@ -2,20 +2,23 @@ package com.mli.lookgo.module.auth.security;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mli.lookgo.module.auth.service.RedisService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * 處理使用者登出成功後的回應，清除刷新令牌 Cookie 並回傳結果訊息。
+ * 處理使用者登出成功後的回應，清除刷新憑證 Cookie 並回傳結果訊息。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -23,6 +26,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class LogoutResultHandler implements LogoutSuccessHandler {
 
+    private final JwtUtil jwtUtil;
+    private final RedisService redisService;
     private final CookieUtil cookieUtil;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -31,34 +36,58 @@ public class LogoutResultHandler implements LogoutSuccessHandler {
      *
      * @param cookieUtil
      */
-    public LogoutResultHandler(CookieUtil cookieUtil) {
+    public LogoutResultHandler(JwtUtil jwtUtil, RedisService redisService, CookieUtil cookieUtil) {
+        this.jwtUtil = jwtUtil;
+        this.redisService = redisService;
         this.cookieUtil = cookieUtil;
     }
 
     /**
-     * 處理登出成功的事件，清除刷新令牌 Cookie 並回傳對應的訊息。
+     * 處理登出成功的事件，清除刷新憑證 Cookie 並回傳對應的訊息。
      *
-     * @param request        HTTP 請求
-     * @param response       HTTP 回應
-     * @param authentication 身分驗證資訊
+     * @param httpServletRequest
+     * @param httpServletResponse
+     * @param authentication
      * @throws IOException
      */
     @Override
-    public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response,
+    public void onLogoutSuccess(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse,
             Authentication authentication) throws IOException {
         try {
-            cookieUtil.clearRefreshTokenCookie(response);
+            String bearerToken = httpServletRequest.getHeader("Authorization");
+            addValidTokenToBlacklist(bearerToken);
 
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            String refreshToken = cookieUtil.getRefreshTokenFromCookie(httpServletRequest);
+            if (refreshToken != null && jwtUtil.validateRefreshToken(refreshToken)) {
+                String email = jwtUtil.getEmailFromRefreshToken(refreshToken);
+                redisService.deleteRefreshTokenJti(email);
+            }
 
-            MAPPER.writeValue(response.getWriter(), Map.of("message", "登出成功!"));
+            cookieUtil.clearRefreshTokenCookie(httpServletResponse);
+
+            httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+            httpServletResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            MAPPER.writeValue(httpServletResponse.getWriter(), Map.of("message", "登出成功!"));
 
         } catch (Exception error) {
-            response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            httpServletResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            httpServletResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            MAPPER.writeValue(httpServletResponse.getWriter(), Map.of("message", "登出失敗!"));
+        }
+    }
 
-            MAPPER.writeValue(response.getWriter(), Map.of("message", "登出失敗!"));
+    private void addValidTokenToBlacklist(String bearerToken) {
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            String accessToken = bearerToken.substring(7);
+
+            if (jwtUtil.validateAccessToken(accessToken)) {
+                String jti = jwtUtil.getJtiFromToken(accessToken);
+                long ttl = jwtUtil.getRemainingTtlFromAccessToken(accessToken);
+
+                if (ttl > 0) {
+                    redisService.saveAccessTokenJtiToBlacklist(jti, ttl, TimeUnit.MILLISECONDS);
+                }
+            }
         }
     }
 }

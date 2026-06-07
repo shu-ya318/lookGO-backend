@@ -1,7 +1,6 @@
 package com.mli.lookgo.module.auth.config;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -20,8 +19,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -71,17 +68,12 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
                             String json = MAPPER
-                                    .writeValueAsString(Map.of("message", "未授權，Token 無效或已過期"));
+                                    .writeValueAsString(Map.of("message", "未授權錯誤，憑證無效或已過期"));
                             response.getWriter().write(json);
                         }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .authorizeHttpRequests(authorize -> {
-                    PathPatternRequestMatcher.Builder matcherBuilder = PathPatternRequestMatcher.withDefaults();
-                    RequestMatcher[] publicMatchers = Arrays.stream(SecurityConstants.API_PUBLIC_ALL)
-                            .map(matcherBuilder::matcher)
-                            .toArray(RequestMatcher[]::new);
-                    authorize.requestMatchers(publicMatchers).permitAll().anyRequest().authenticated();
-                })
+                .authorizeHttpRequests(authorize -> authorize.requestMatchers(SecurityConstants.API_PUBLIC_ALL)
+                        .permitAll().anyRequest().authenticated())
                 .logout(logout -> logout.logoutUrl("/auth/logout").logoutSuccessHandler(logoutResultHandler));
 
         return httpSecurity.build();

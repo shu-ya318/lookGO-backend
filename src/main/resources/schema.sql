@@ -39,8 +39,11 @@ CREATE TABLE [dbo].[users] (
     [email]              NVARCHAR(254)   NOT NULL,
     [password]           NVARCHAR(255)   NOT NULL,
     [username]           NVARCHAR(100)   NOT NULL,
+    [birth_date]         DATE            NULL,
+    [status]             TINYINT         NOT NULL,
     [created_at]         DATETIME2(0)    NOT NULL,
     [updated_at]         DATETIME2(0)    NOT NULL,
+    [last_login_at]      DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_users] PRIMARY KEY ([id]),
     CONSTRAINT [UK_users_email] UNIQUE ([email]),
     CONSTRAINT [FK_users_membership_tier_id]
@@ -174,17 +177,26 @@ IF NOT EXISTS (
 )
 CREATE TABLE [dbo].[user_station_bookmarks] (
     [id]         INT             NOT NULL IDENTITY(1, 1),
-    [user_id]    INT             NOT NULL,
     [station_id] INT             NOT NULL,
+    [user_id]    INT             NOT NULL,
     [created_at] DATETIME2(0)    NOT NULL,
     [deleted_at] DATETIME2(0)    NULL,
     CONSTRAINT [PK_user_station_bookmarks] PRIMARY KEY ([id]),
-    CONSTRAINT [UK_user_station_bookmarks_user_station] UNIQUE ([user_id], [station_id]),
     CONSTRAINT [FK_user_station_bookmarks_user_id]
         FOREIGN KEY ([user_id]) REFERENCES [dbo].[users] ([id]),
     CONSTRAINT [FK_user_station_bookmarks_station_id]
         FOREIGN KEY ([station_id]) REFERENCES [dbo].[stations] ([id])
 );
+
+-- Create Filtered Index for unique active bookmarks (handling soft deletes)
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes 
+    WHERE name = 'UK_user_station_bookmarks_active' AND object_id = OBJECT_ID('dbo.user_station_bookmarks')
+)
+CREATE UNIQUE NONCLUSTERED INDEX [UK_user_station_bookmarks_active]
+    ON [dbo].[user_station_bookmarks] ([user_id], [station_id])
+    WHERE [deleted_at] IS NULL;
+
 
 -- user_trip_plans
 IF NOT EXISTS (
@@ -224,6 +236,7 @@ CREATE TABLE [dbo].[user_chat_messages] (
     [sender_type] TINYINT         NOT NULL,
     [content]     NVARCHAR(2000)  NOT NULL,
     [created_at]  DATETIME2(0)    NOT NULL,
+    [deleted_at]       DATETIME2(0)    NULL,
     CONSTRAINT [PK_user_chat_messages] PRIMARY KEY ([id]),
     CONSTRAINT [FK_user_chat_messages_user_id]
         FOREIGN KEY ([user_id]) REFERENCES [dbo].[users] ([id])

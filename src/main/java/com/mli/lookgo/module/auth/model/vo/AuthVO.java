@@ -11,10 +11,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "回傳顯示身分驗證相關資料的物件")
 public class AuthVO {
 
-    @Schema(description = "存取憑證", example = "")
+    @Schema(description = "存取憑證", example = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJmNGU2NjJmZC1mZDEzLTQ2MjgtOTk3Ni1lZTc0ZGY3ZGNhMGEiLCJzdWIiOiJjMjQ4ODYwYS05ZGMxLTQ0MGMtYjIxOC0zYTZiNjMyN2RhYWUiLCJpZCI6MSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwicm9sZXMiOlsiUk9MRV9VU0VSIl0sImlhdCI6MTc4MDgzODk4MiwiZXhwIjoxNzgwODM5ODgyfQ.4E2N7KxE2O9t9kizcYT77zXY99Y3o8z7_aW8_x9kXNk")
     String accessToken;
 
-    @Schema(description = "刷新憑證", example = "")
+    @Schema(description = "刷新憑證", example = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJlZjZkYWRiMC0wYjdmLTQ4OWYtOTIwOC0yOTg4MmRiNGY3NjIiLCJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNzgwODM4OTgyLCJleHAiOjE3ODE0NDM3ODJ9.uBF2AFlNZK8XymVk0DyYbTKQHkVF6BhbK-s1_kl1PgE")
     String refreshToken;
 
     public AuthVO() {

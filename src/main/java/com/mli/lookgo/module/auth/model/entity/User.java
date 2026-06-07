@@ -38,13 +38,13 @@ public class User {
     @Schema(description = "狀態 (0=停用(軟刪除), 1=正常使用)", example = "1")
     private Integer status;
 
-    @Schema(description = "建立時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25 10:00:00")
+    @Schema(description = "建立時間 (UTC, ISO 8601)", example = "2026-06-07T21:29:20Z")
     private LocalDateTime createdAt;
 
-    @Schema(description = "更新時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25 10:00:00")
+    @Schema(description = "更新時間 (UTC, ISO 8601)", example = "2026-06-07T21:29:20Z")
     private LocalDateTime updatedAt;
 
-    @Schema(description = "最後登入時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25 10:00:00")
+    @Schema(description = "最後登入時間 (UTC, ISO 8601)", example = "2026-06-07T21:29:20Z")
     private LocalDateTime lastLoginAt;
 
     public User() {

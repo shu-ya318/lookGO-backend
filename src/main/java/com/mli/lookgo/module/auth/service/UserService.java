@@ -1,5 +1,9 @@
 package com.mli.lookgo.module.auth.service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -69,6 +73,7 @@ public class UserService {
 
     /**
      * 定義一個私有輔助方法，把傳入的 entity 轉換為 VO。
+     * 資料庫檢存 UTC 的 LocalDateTime，轉換時明確附加 UTC 時區。
      *
      * @param user
      * @return UserVO
@@ -82,8 +87,18 @@ public class UserService {
                 UserRole.fromId(user.getRoleId()),
                 user.getBirthDate(),
                 UserStatus.fromCode(user.getStatus()),
-                user.getCreatedAt(),
-                user.getUpdatedAt(),
-                user.getLastLoginAt());
+                toUTC(user.getCreatedAt()),
+                toUTC(user.getUpdatedAt()),
+                toUTC(user.getLastLoginAt()));
+    }
+
+    /**
+     * 將資料庫取出的 LocalDateTime（視為 UTC）轉換為含時區的 ZonedDateTime(UTC)。
+     *
+     * @param ldt 資料庫取出的 LocalDateTime，可能為 null
+     * @return ZonedDateTime(UTC)，若輸入為 null 則回傳 null
+     */
+    private ZonedDateTime toUTC(LocalDateTime ldt) {
+        return ldt == null ? null : ldt.atZone(ZoneOffset.UTC);
     }
 }

@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -66,12 +65,12 @@ public class LogoutResultHandler implements LogoutSuccessHandler {
             cookieUtil.clearRefreshTokenCookie(httpServletResponse);
 
             httpServletResponse.setStatus(HttpServletResponse.SC_OK);
-            httpServletResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            httpServletResponse.setContentType("application/json;charset=UTF-8");
             MAPPER.writeValue(httpServletResponse.getWriter(), Map.of("message", "登出成功!"));
 
         } catch (Exception error) {
             httpServletResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-            httpServletResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            httpServletResponse.setContentType("application/json;charset=UTF-8");
             MAPPER.writeValue(httpServletResponse.getWriter(), Map.of("message", "登出失敗!"));
         }
     }

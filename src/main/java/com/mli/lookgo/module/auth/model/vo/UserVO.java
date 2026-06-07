@@ -1,7 +1,7 @@
 package com.mli.lookgo.module.auth.model.vo;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import com.mli.lookgo.module.auth.enums.MembershipTier;
 import com.mli.lookgo.module.auth.enums.UserRole;
@@ -39,21 +39,21 @@ public class UserVO {
     @Schema(description = "狀態 (DISABLED, ACTIVE)", example = "ACTIVE")
     private UserStatus status;
 
-    @Schema(description = "建立時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25T10:00:00")
-    private LocalDateTime createdAt;
+    @Schema(description = "建立時間 (ISO 8601 UTC)", example = "2026-06-07T21:29:20Z")
+    private ZonedDateTime createdAt;
 
-    @Schema(description = "更新時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25T10:00:00")
-    private LocalDateTime updatedAt;
+    @Schema(description = "更新時間 (ISO 8601 UTC)", example = "2026-06-07T21:29:20Z")
+    private ZonedDateTime updatedAt;
 
-    @Schema(description = "最後登入時間(yyyy-MM-dd HH:mm:ss)", example = "2026-05-25T10:00:00")
-    private LocalDateTime lastLoginAt;
+    @Schema(description = "最後登入時間 (ISO 8601 UTC)", example = "2026-06-07T21:29:20Z")
+    private ZonedDateTime lastLoginAt;
 
     public UserVO() {
     }
 
     public UserVO(Integer id, String email, String username, MembershipTier membershipTier, UserRole role,
-            LocalDate birthDate, UserStatus status, LocalDateTime createdAt, LocalDateTime updatedAt,
-            LocalDateTime lastLoginAt) {
+            LocalDate birthDate, UserStatus status, ZonedDateTime createdAt, ZonedDateTime updatedAt,
+            ZonedDateTime lastLoginAt) {
         this.id = id;
         this.email = email;
         this.username = username;
@@ -122,27 +122,27 @@ public class UserVO {
         this.status = status;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public ZonedDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(ZonedDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() {
+    public ZonedDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
+    public void setUpdatedAt(ZonedDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 
-    public LocalDateTime getLastLoginAt() {
+    public ZonedDateTime getLastLoginAt() {
         return lastLoginAt;
     }
 
-    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+    public void setLastLoginAt(ZonedDateTime lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
     }
 

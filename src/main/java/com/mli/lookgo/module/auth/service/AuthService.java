@@ -1,6 +1,7 @@
 package com.mli.lookgo.module.auth.service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.UUID;
 
@@ -73,7 +74,7 @@ public class AuthService {
         }
 
         String hashedPassword = passwordEncoder.encode(signupDTO.getPassword());
-        LocalDateTime currentTime = LocalDateTime.now();
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         User user = new User();
 

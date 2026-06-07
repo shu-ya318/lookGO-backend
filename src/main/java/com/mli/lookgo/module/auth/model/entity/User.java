@@ -1,6 +1,6 @@
 package com.mli.lookgo.module.auth.model.entity;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -16,31 +16,40 @@ public class User {
     @Schema(description = "id", example = "1")
     private Long id;
 
+    @Schema(description = "會員方案 id", example = "1")
+    private Long membershipTierId;
+
+    @Schema(description = "角色 id", example = "1")
+    private Long roleId;
+
     @Schema(description = "電子郵件地址", example = "user@example.com")
     private String email;
-
-    @Schema(description = "使用者名稱", example = "測試用使用者")
-    private String username;
 
     @Schema(description = "使用者密碼", example = "password12345")
     private String password;
 
-    @Schema(description = "部門 id", example = "1")
-    private Long departmentId;
+    @Schema(description = "使用者名稱", example = "測試用使用者")
+    private String username;
 
-    @Schema(description = "建立時間(當下，格式yyyy-mm-dd)", example = "2026-05-25")
-    private LocalDate createdAt;
+    @Schema(description = "建立時間", example = "2026-05-25T10:00:00")
+    private LocalDateTime createdAt;
+
+    @Schema(description = "更新時間", example = "2026-05-25T10:00:00")
+    private LocalDateTime updatedAt;
 
     public User() {
     }
 
-    public User(Long id, String email, String username, String password, Long departmentId, LocalDate createdAt) {
+    public User(Long id, Long membershipTierId, Long roleId, String email, String password, String username,
+            LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
+        this.membershipTierId = membershipTierId;
+        this.roleId = roleId;
         this.email = email;
-        this.username = username;
         this.password = password;
-        this.departmentId = departmentId;
+        this.username = username;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public Long getId() {
@@ -51,20 +60,28 @@ public class User {
         this.id = id;
     }
 
+    public Long getMembershipTierId() {
+        return membershipTierId;
+    }
+
+    public void setMembershipTierId(Long membershipTierId) {
+        this.membershipTierId = membershipTierId;
+    }
+
+    public Long getRoleId() {
+        return roleId;
+    }
+
+    public void setRoleId(Long roleId) {
+        this.roleId = roleId;
+    }
+
     public String getEmail() {
         return email;
     }
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
     }
 
     public String getPassword() {
@@ -75,20 +92,28 @@ public class User {
         this.password = password;
     }
 
-    public Long getDepartmentId() {
-        return departmentId;
+    public String getUsername() {
+        return username;
     }
 
-    public void setDepartmentId(Long departmentId) {
-        this.departmentId = departmentId;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
-    public LocalDate getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDate createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     @Override

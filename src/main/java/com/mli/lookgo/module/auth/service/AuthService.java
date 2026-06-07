@@ -1,6 +1,6 @@
 package com.mli.lookgo.module.auth.service;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
@@ -68,9 +68,11 @@ public class AuthService {
         }
 
         String hashedPassword = passwordEncoder.encode(signupDTO.getPassword());
-        LocalDate createdAt = LocalDate.now();
-        logger.info("開始呼叫 API 來建立使用者帳號，輸入內容: {}, 建立時間: {}", signupDTO, createdAt);
-        Long generatedId = authDao.createUser(signupDTO, hashedPassword, createdAt);
+        LocalDateTime now = LocalDateTime.now();
+        logger.info("開始呼叫 API 來建立使用者帳號，輸入內容: {}, 建立時間: {}", signupDTO, now);
+        authDao.createUser(signupDTO, hashedPassword, now);
+        // MyBatis @Options(useGeneratedKeys=true) 會將資料庫產生的 id 回填至 signupDTO.id
+        Long generatedId = signupDTO.getId();
 
         String accessToken = jwtUtil.generateAccessToken(generatedId, UUID.randomUUID(), signupDTO.getEmail(),
                 Set.of("ROLE_USER"));

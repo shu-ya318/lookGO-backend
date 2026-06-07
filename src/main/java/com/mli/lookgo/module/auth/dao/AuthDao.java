@@ -1,18 +1,15 @@
 package com.mli.lookgo.module.auth.dao;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Objects;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.DataClassRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Result;
+import org.apache.ibatis.annotations.Results;
+import org.apache.ibatis.annotations.Select;
 
 import com.mli.lookgo.module.auth.model.dto.SignupDTO;
 import com.mli.lookgo.module.auth.model.entity.User;
@@ -23,89 +20,62 @@ import com.mli.lookgo.module.auth.model.entity.User;
  * @author D5042101
  * @since 2026.5.30
  */
-@Repository
-public class AuthDao {
-
-    private final JdbcTemplate jdbcTemplate;
+@Mapper
+public interface AuthDao {
 
     /**
-     * 初始化使用者身分驗證的存取物件，並設定所需的 JDBC 操作依賴。
+     * 建立一個使用者，預設 role_id = 1 (USER)，並將自動產生的 id 回填至 entity。
      *
-     * @param jdbcTemplate {@link JdbcTemplate}
+     * @param signupDTO      前端傳入的註冊資料
+     * @param hashedPassword 加密後的密碼
+     * @param now            建立與更新時間
+     * @return 影響筆數
      */
-    public AuthDao(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
+    @Insert("""
+            INSERT INTO [dbo].[users]
+                (membership_tier_id, role_id, email, password, username, created_at, updated_at)
+            VALUES
+                (#{signupDTO.membershipTierId}, 1, #{signupDTO.email}, #{hashedPassword},
+                 #{signupDTO.username}, #{now}, #{now})
+            """)
+    @Options(useGeneratedKeys = true, keyProperty = "signupDTO.id", keyColumn = "id")
+    int createUser(@Param("signupDTO") SignupDTO signupDTO,
+            @Param("hashedPassword") String hashedPassword,
+            @Param("now") LocalDateTime now);
 
     /**
-     * 建立一個使用者。
-     *
-     * @param signupDTO
-     * @param hashedPassword
-     * @param createdAt
-     * @return id (資料庫自動產生)
-     */
-    public Long createUser(SignupDTO signupDTO, String hashedPassword, LocalDate createdAt) {
-        String sql = """
-                INSERT INTO users (email, username, password, department_id, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """;
-
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-
-        jdbcTemplate.update(connection -> {
-            PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-
-            preparedStatement.setString(1, signupDTO.getEmail());
-            preparedStatement.setString(2, signupDTO.getUsername());
-            preparedStatement.setString(3, hashedPassword);
-            preparedStatement.setLong(4, signupDTO.getDepartmentId());
-            preparedStatement.setObject(5, createdAt);
-
-            return preparedStatement;
-        }, keyHolder);
-
-        return Objects.requireNonNull(keyHolder.getKey()).longValue();
-    }
-
-    /**
-     * 用 email 查詢指定使用者的資料是否存在。
+     * 用 email 查詢指定使用者是否存在。
      *
      * @param email
-     * @return 查詢使用者是否存在的結果
+     * @return 存在為 true，否則 false
      */
-    public boolean existsByEmail(String email) {
-        String sql = """
-                SELECT 1
-                FROM users
-                WHERE email = ?
-                LIMIT 1
-                """;
-
-        List<Integer> rows = jdbcTemplate.queryForList(sql, Integer.class, email);
-
-        return !rows.isEmpty();
-    }
+    @Select("""
+            SELECT COUNT(1)
+            FROM [dbo].[users]
+            WHERE email = #{email}
+            """)
+    boolean existsByEmail(@Param("email") String email);
 
     /**
      * 用 email 查詢指定使用者的資料。
      *
      * @param email
-     * @return Optional<User>
+     * @return Optional 包裝的 User entity
      */
-    public Optional<User> findByEmail(String email) {
-        String sql = """
-                SELECT id, email, username, password, department_id, created_at
-                FROM users
-                WHERE email = ?
-                """;
-
-        try {
-            User user = jdbcTemplate.queryForObject(sql, new DataClassRowMapper<>(User.class), email);
-
-            return Optional.ofNullable(user);
-        } catch (EmptyResultDataAccessException error) {
-            return Optional.empty();
-        }
-    }
+    @Select("""
+            SELECT id, membership_tier_id, role_id, email, password, username, created_at, updated_at
+            FROM [dbo].[users]
+            WHERE email = #{email}
+            """)
+    @Results(id = "userResultMap", value = {
+            @Result(property = "id",               column = "id"),
+            @Result(property = "membershipTierId", column = "membership_tier_id"),
+            @Result(property = "roleId",           column = "role_id"),
+            @Result(property = "email",            column = "email"),
+            @Result(property = "password",         column = "password"),
+            @Result(property = "username",         column = "username"),
+            @Result(property = "createdAt",        column = "created_at"),
+            @Result(property = "updatedAt",        column = "updated_at")
+    })
+    Optional<User> findByEmail(@Param("email") String email);
 }

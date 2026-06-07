@@ -71,7 +71,7 @@ public class UserService {
      * @return UserVO
      */
     private UserVO toVO(User user) {
-        return new UserVO(user.getId(), user.getEmail(), user.getUsername(), user.getDepartmentId(),
-                user.getCreatedAt());
+        return new UserVO(user.getId(), user.getEmail(), user.getUsername(), user.getMembershipTierId(),
+                user.getCreatedAt(), user.getUpdatedAt());
     }
 }

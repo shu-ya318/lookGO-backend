@@ -1,6 +1,6 @@
 package com.mli.lookgo.module.auth.model.vo;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -22,21 +22,26 @@ public class UserVO {
     @Schema(description = "使用者名稱", example = "測試用使用者")
     private String username;
 
-    @Schema(description = "部門 id", example = "1")
-    private Long departmentId;
+    @Schema(description = "會員方案 id (1=FREE, 2=BASIC, 3=PREMIUM)", example = "1")
+    private Long membershipTierId;
 
-    @Schema(description = "建立時間(當下，格式yyyy-mm-dd)", example = "2026-05-25")
-    private LocalDate createdAt;
+    @Schema(description = "建立時間", example = "2026-05-25T10:00:00")
+    private LocalDateTime createdAt;
+
+    @Schema(description = "更新時間", example = "2026-05-25T10:00:00")
+    private LocalDateTime updatedAt;
 
     public UserVO() {
     }
 
-    public UserVO(Long id, String email, String username, Long departmentId, LocalDate createdAt) {
+    public UserVO(Long id, String email, String username, Long membershipTierId,
+            LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.email = email;
         this.username = username;
-        this.departmentId = departmentId;
+        this.membershipTierId = membershipTierId;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public Long getId() {
@@ -63,20 +68,28 @@ public class UserVO {
         this.username = username;
     }
 
-    public Long getDepartmentId() {
-        return departmentId;
+    public Long getMembershipTierId() {
+        return membershipTierId;
     }
 
-    public void setDepartmentId(Long departmentId) {
-        this.departmentId = departmentId;
+    public void setMembershipTierId(Long membershipTierId) {
+        this.membershipTierId = membershipTierId;
     }
 
-    public LocalDate getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDate createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     @Override

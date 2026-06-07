@@ -1,9 +1,11 @@
 package com.mli.lookgo;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
+@MapperScan("com.mli.lookgo.module.auth.dao")
 public class LookGoBackendApplication {
 
     public static void main(String[] args) {

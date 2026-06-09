@@ -1,6 +1,5 @@
 # ===== Stage 1: Build the app =====
 FROM registry.access.redhat.com/ubi8/openjdk-17:1.20-2 AS builder
-# FROM harbor.mli.com.corp/rhscl/ubi8/openjdk-17:1.20-2 AS builder
 
 WORKDIR /home/jboss
 

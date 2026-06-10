@@ -35,7 +35,7 @@ import jakarta.validation.Valid;
  * @since 2026.06.06
  */
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 @Tag(name = "Auth", description = "處理身分驗證相關操作的 API")
 public class AuthController {
 

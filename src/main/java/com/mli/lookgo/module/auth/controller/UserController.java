@@ -27,7 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
  * @since 2026.06.06
  */
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/v1/user")
 @Tag(name = "User", description = "處理使用者資料相關操作的 API")
 public class UserController {
 

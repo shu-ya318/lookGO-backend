@@ -10,10 +10,10 @@ public class SecurityConstants {
 
     public static final String[] API_PUBLIC_ALL = {
             "/actuator/health",
-            "/auth/signup",
-            "/auth/login",
-            "/auth/refreshTokens",
-            "/user/get-current-user",
+            "/api/v1/auth/signup",
+            "/api/v1/auth/login",
+            "/api/v1/auth/refreshTokens",
+            "/api/v1/user/get-current-user",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**"

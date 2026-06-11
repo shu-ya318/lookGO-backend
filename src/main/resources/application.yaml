@@ -3,17 +3,14 @@ spring:
     name: lookGo-backend
   profiles:
     active: dev
-
   datasource:
-    url: jdbc:sqlserver://${DB_HOST}:${DB_PORT};databaseName=${DB_NAME};encrypt=true;trustServerCertificate=true
+    url: jdbc:sqlserver://${DB_HOST:localhost}:${DB_PORT:1433};databaseName=${DB_NAME};encrypt=true;trustServerCertificate=true
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
-
   sql:
     init:
       mode: always
-
   data:
     redis:
       host: ${REDIS_HOST:localhost}

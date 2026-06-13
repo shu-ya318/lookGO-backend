@@ -41,7 +41,7 @@ public class SecurityConfig {
             // 本地 Vite 啟動的前端應用程式
             "http://localhost:5173",
             "http://127.0.0.1:5173",
-            // Docker 容器化後的前端應用程式
+            // 容器化的前端應用程式
             "http://localhost:8081",
             "http://127.0.0.1:8081");
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -80,7 +80,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(authorize -> authorize.requestMatchers(SecurityConstants.API_PUBLIC_ALL)
                         .permitAll().anyRequest().authenticated())
-                .logout(logout -> logout.logoutUrl("/auth/logout").logoutSuccessHandler(logoutResultHandler));
+                .logout(logout -> logout.logoutUrl("/api/v1/auth/logout").logoutSuccessHandler(logoutResultHandler));
 
         return httpSecurity.build();
     }

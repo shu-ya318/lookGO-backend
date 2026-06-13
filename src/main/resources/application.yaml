@@ -16,6 +16,17 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  mail:
+    host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 management:
   endpoint:
@@ -25,3 +36,6 @@ management:
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
+
+frontend:
+  base-url: ${FRONTEND_BASE_URL:http://localhost:8081}

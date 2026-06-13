@@ -12,6 +12,8 @@ public class SecurityConstants {
             "/actuator/health",
             "/api/v1/auth/signup",
             "/api/v1/auth/login",
+            "/api/v1/auth/forget-password",
+            "/api/v1/auth/reset-password",
             "/api/v1/auth/refreshTokens",
             "/api/v1/user/get-current-user",
             "/swagger-ui.html",

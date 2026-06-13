@@ -1,16 +1,23 @@
 package com.mli.lookgo.module.auth.service;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Base64;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mli.lookgo.common.result.ApiResult;
 import com.mli.lookgo.module.auth.dao.AuthDao;
 import com.mli.lookgo.module.auth.dao.UserDao;
 import com.mli.lookgo.module.auth.enums.MembershipTier;
@@ -18,7 +25,9 @@ import com.mli.lookgo.module.auth.enums.UserRole;
 import com.mli.lookgo.module.auth.enums.UserStatus;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserDuplicateException;
+import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.LoginDTO;
+import com.mli.lookgo.module.auth.model.dto.ResetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.SignupDTO;
 import com.mli.lookgo.module.auth.model.entity.User;
 import com.mli.lookgo.module.auth.model.vo.AuthVO;
@@ -40,7 +49,13 @@ public class AuthService {
     private final UserDao userDao;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final JavaMailSender javaMailSender;
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
+    private static final SecureRandom secureRandom = new SecureRandom();
+    private static final Base64.Encoder base64Encoder = Base64.getUrlEncoder().withoutPadding();
+
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -51,12 +66,13 @@ public class AuthService {
      * @param jwtUtil
      */
     public AuthService(RedisService redisService, AuthDao authDao, UserDao userDao, PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil) {
+            JwtUtil jwtUtil, JavaMailSender javaMailSender) {
         this.redisService = redisService;
         this.authDao = authDao;
         this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.javaMailSender = javaMailSender;
     }
 
     /**
@@ -148,6 +164,59 @@ public class AuthService {
     }
 
     /**
+     * 驗證電子郵件，通過後發送請求重設密碼到電子郵件並返回成功請求訊息。
+     *
+     * @param forgetPasswordDTO
+     * @return ResponseEntity<ApiResult>
+     */
+    public ApiResult forgetPassword(ForgetPasswordDTO forgetPasswordDTO) {
+        logger.info("開始呼叫 API 來驗證使用者身分，輸入內容: {}", forgetPasswordDTO);
+        Optional<User> user = userDao.getByEmail(forgetPasswordDTO.getEmail());
+
+        if (user.isEmpty()) {
+            logger.warn("請求重設密碼失敗，不存在此 Email!: {}", forgetPasswordDTO.getEmail());
+            return new ApiResult("重設密碼請求成功!");
+        }
+
+        String resetPasswordToken = generateResetPasswordToken(forgetPasswordDTO.getEmail());
+        redisService.saveResetPasswordToken(
+                resetPasswordToken,
+                forgetPasswordDTO.getEmail(),
+                15,
+                java.util.concurrent.TimeUnit.MINUTES);
+
+        sendEmail(forgetPasswordDTO.getEmail(), resetPasswordToken);
+
+        return new ApiResult("重設密碼請求成功!");
+    }
+
+    /**
+     * 驗證重設密碼憑證，通過後更新使用者密碼並使憑證失效。
+     *
+     * @param resetPasswordDTO
+     * @return ApiResult
+     * @throws InvalidCredentialsException
+     */
+    @Transactional
+    public ApiResult resetPassword(ResetPasswordDTO resetPasswordDTO) {
+        String resetPasswordToken = resetPasswordDTO.getResetPasswordToken();
+        logger.info("開始呼叫 API 來重設使用者密碼");
+
+        String email = redisService.getEmailByResetPasswordToken(resetPasswordToken);
+        // 不拋出具體的使用者不存在錯誤，避免猜到使用者是否存在遭到攻擊
+        if (email == null) {
+            throw new InvalidCredentialsException("重設密碼憑證無效或已過期!");
+        }
+
+        String newPassword = passwordEncoder.encode(resetPasswordDTO.getNewPassword());
+        authDao.updatePasswordByEmail(email, newPassword, LocalDateTime.now(ZoneOffset.UTC));
+
+        redisService.deleteResetPasswordToken(resetPasswordToken);
+
+        return new ApiResult("密碼重設成功!");
+    }
+
+    /**
      * 生成新的存取憑證與刷新憑證，並將刷新憑證 JTI 存入 Redis。
      * 
      * @param userId
@@ -167,5 +236,39 @@ public class AuthService {
                 java.util.concurrent.TimeUnit.MILLISECONDS);
 
         return new AuthVO(accessToken, refreshToken);
+    }
+
+    /**
+     * 生成重設密碼的憑證。
+     * 
+     * @param email
+     * @return resetPasswordToken
+     */
+    private String generateResetPasswordToken(String email) {
+        byte[] randomBytes = new byte[32];
+        secureRandom.nextBytes(randomBytes);
+
+        return base64Encoder.encodeToString(randomBytes);
+    }
+
+    /**
+     * 發送重設密碼的電子郵件。
+     * 
+     * @param email
+     * @param resetPasswordToken
+     */
+    private void sendEmail(String email, String resetPasswordToken) {
+        logger.info("開始呼叫 API 來發送重設密碼的電子郵件，email: {}", email);
+
+        String resetPasswordUrl = frontendBaseUrl + "/auth/reset-password?token=" + resetPasswordToken;
+        String body = "請點擊以下連結以重設密碼:\n" + resetPasswordUrl;
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(email);
+        message.setSubject("重設密碼");
+        message.setText(body);
+
+        javaMailSender.send(message);
     }
 }

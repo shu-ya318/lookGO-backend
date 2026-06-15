@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mli.lookgo.common.result.ApiResult;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
-import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
+// import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.LoginDTO;
 import com.mli.lookgo.module.auth.model.dto.ResetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.SignupDTO;
@@ -102,25 +102,33 @@ public class AuthController {
 
         return ResponseEntity.ok(authVO);
     }
-    
+
     /**
      * 輸入電子郵件進行請求重設密碼，驗證成功後回傳請求成功訊息。
      *
      * @param forgetPasswordDTO
      * @return ResponseEntity<ApiResult>
      */
-    @Operation(summary = "請求重設密碼",description = "發送密碼重設連結到電子郵件。(注意:不返回電子郵件有效性的驗證結果)(目前只提供寄送測試信件)")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "請求成功(電子郵件有效才會收到信件)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
-            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入有效的電子郵件!"))),
-            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-    @PostMapping("/forget-password")
-    public ResponseEntity<ApiResult> forgetPassword(@RequestBody ForgetPasswordDTO forgetPasswordDTO){
-    	logger.info("收到忘記密碼的請求");
-    	ApiResult apiresult = authService.forgetPassword(forgetPasswordDTO);
-    	
-    	return ResponseEntity.ok(apiresult);
-    }
+    // @Operation(summary = "請求重設密碼",description =
+    // "發送密碼重設連結到電子郵件。(注意:不返回電子郵件有效性的驗證結果)(目前只提供寄送測試信件)")
+    // @ApiResponses(value = {
+    // @ApiResponse(responseCode = "200", description = "請求成功(電子郵件有效才會收到信件)",
+    // content = @Content(mediaType = "application/json", schema =
+    // @Schema(implementation = AuthVO.class))),
+    // @ApiResponse(responseCode = "400", description = "請求參數錯誤", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // String.class, example = "請輸入有效的電子郵件!"))),
+    // @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // String.class, example = "伺服器端錯誤!"))) })
+    // @PostMapping("/forget-password")
+    // public ResponseEntity<ApiResult> forgetPassword(@RequestBody
+    // ForgetPasswordDTO forgetPasswordDTO){
+    // logger.info("收到忘記密碼的請求");
+    // ApiResult apiresult = authService.forgetPassword(forgetPasswordDTO);
+    //
+    // return ResponseEntity.ok(apiresult);
+    // }
 
     /**
      * 輸入重設密碼憑證與新密碼，驗證通過後更新密碼並回傳成功訊息。
@@ -141,7 +149,6 @@ public class AuthController {
 
         return ResponseEntity.ok(apiResult);
     }
-    
 
     /**
      * 使用 Cookie 中的刷新憑證核發新的存取憑證與刷新憑證。

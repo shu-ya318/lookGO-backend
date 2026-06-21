@@ -86,35 +86,59 @@ public class JwtFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse httpServletResponse,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
+        String requestUri = httpServletRequest.getRequestURI();
+        String method = httpServletRequest.getMethod();
+        logger.debug("[JwtFilter] 收到請求: {} {}", method, requestUri);
+
         String bearerToken = httpServletRequest.getHeader("Authorization");
 
         if (!StringUtils.hasText(bearerToken) || !bearerToken.startsWith("Bearer ")) {
+            logger.debug("[JwtFilter] 未帶有效 Authorization header，跳過 JWT 驗證 (uri={})", requestUri);
             filterChain.doFilter(httpServletRequest, httpServletResponse);
 
             return;
         }
 
+        logger.debug("[JwtFilter] 偵測到 Bearer token，開始驗證 (uri={})", requestUri);
+
         try {
             String authToken = bearerToken.substring(7);
 
-            if (jwtUtil.validateAccessToken(authToken)) {
+            boolean isValid = jwtUtil.validateAccessToken(authToken);
+            logger.debug("[JwtFilter] JWT 驗證結果: {} (uri={})", isValid, requestUri);
+
+            if (isValid) {
                 String jti = jwtUtil.getJtiFromToken(authToken);
-                if (redisService.isAccessTokenJtiInBlacklist(jti)) {
-                    logger.warn("憑證已被列入黑名單，拒絕存取!");
+                logger.debug("[JwtFilter] JWT jti={}", jti);
+
+                boolean isBlacklisted = redisService.isAccessTokenJtiInBlacklist(jti);
+                logger.debug("[JwtFilter] JWT 是否在黑名單: {} (jti={})", isBlacklisted, jti);
+
+                if (isBlacklisted) {
+                    logger.warn("[JwtFilter] 憑證已被列入黑名單，拒絕存取! (jti={})", jti);
                     filterChain.doFilter(httpServletRequest, httpServletResponse);
 
                     return;
                 }
 
                 String username = jwtUtil.getEmailFromAccessToken(authToken);
+                logger.debug("[JwtFilter] 從 JWT 解析出 email(username)={}", username);
+
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                logger.debug("[JwtFilter] 載入 UserDetails 成功，username={}, authorities={}",
+                        userDetails.getUsername(), userDetails.getAuthorities());
 
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
+                logger.debug("[JwtFilter] SecurityContext 已設定，principal={}, authorities={}",
+                        authenticationToken.getName(), authenticationToken.getAuthorities());
+            } else {
+                logger.debug("[JwtFilter] JWT 驗證失敗，SecurityContext 不會被設定 (uri={})", requestUri);
             }
         } catch (Exception error) {
-            logger.error("無法設定使用者身分驗證: {}", error.getMessage());
+            logger.error("[JwtFilter] 無法設定使用者身分驗證: {} (uri={})", error.getMessage(), requestUri, error);
             SecurityContextHolder.clearContext();
         }
 

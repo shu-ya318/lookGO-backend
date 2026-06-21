@@ -1,13 +1,9 @@
 package com.mli.lookgo.module.auth.dao;
 
-import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
-import com.mli.lookgo.module.auth.model.entity.User;
+import com.mli.lookgo.module.user.model.entity.User;
 
 /**
  * 和資料庫交互，處理使用者身分驗證相關的操作。
@@ -24,14 +20,6 @@ public interface AuthDao {
          * @param signupDTO
          * @return 影響筆數
          */
-        @Insert("""
-                        INSERT INTO [dbo].[users]
-                            (membership_tier_id, role_id, email, password, username, birth_date, status, created_at, updated_at, last_login_at)
-                        VALUES
-                            (#{user.membershipTierId}, #{user.roleId}, #{user.email}, #{user.password},
-                             #{user.username}, #{user.birthDate}, #{user.status}, #{user.createdAt}, #{user.updatedAt}, #{user.lastLoginAt})
-                        """)
-        @Options(useGeneratedKeys = true, keyProperty = "user.id", keyColumn = "id")
         int createUser(@Param("user") User user);
 
         /**
@@ -40,11 +28,6 @@ public interface AuthDao {
          * @param email
          * @return 存在為 true，否則 false
          */
-        @Select("""
-                        SELECT COUNT(1)
-                        FROM [dbo].[users]
-                        WHERE email = #{email}
-                        """)
         boolean existsByEmail(@Param("email") String email);
 
         /**
@@ -55,11 +38,6 @@ public interface AuthDao {
          * @param updatedAt
          * @return 影響筆數
          */
-        @Update("""
-                        UPDATE [dbo].[users]
-                        SET password = #{newPassword}, updated_at = #{updatedAt}
-                        WHERE email = #{email}
-                        """)
         int updatePasswordByEmail(@Param("email") String email,
                         @Param("newPassword") String newPassword,
                         @Param("updatedAt") java.time.LocalDateTime updatedAt);

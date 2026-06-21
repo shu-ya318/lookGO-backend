@@ -1,11 +1,11 @@
-package com.mli.lookgo.module.auth.model.vo;
+package com.mli.lookgo.module.user.model.vo;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
-import com.mli.lookgo.module.auth.enums.MembershipTier;
-import com.mli.lookgo.module.auth.enums.UserRole;
-import com.mli.lookgo.module.auth.enums.UserStatus;
+import com.mli.lookgo.module.user.enums.MembershipTier;
+import com.mli.lookgo.module.user.enums.UserRole;
+import com.mli.lookgo.module.user.enums.UserStatus;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

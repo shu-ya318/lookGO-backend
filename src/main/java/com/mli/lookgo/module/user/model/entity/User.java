@@ -1,4 +1,4 @@
-package com.mli.lookgo.module.auth.model.entity;
+package com.mli.lookgo.module.user.model.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

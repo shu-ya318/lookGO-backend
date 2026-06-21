@@ -1,8 +1,8 @@
-package com.mli.lookgo.module.auth.enums;
+package com.mli.lookgo.module.user.enums;
 
 /**
  * 使用者角色相關的列舉。
- * 
+ *
  * @author D5042101
  * @since 2026.06.07
  */

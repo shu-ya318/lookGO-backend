@@ -9,10 +9,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.mli.lookgo.common.result.ApiResult;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserDuplicateException;
-import com.mli.lookgo.module.auth.exceptions.UserNotFoundException;
+import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import org.springframework.security.access.AccessDeniedException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +80,24 @@ public class GlobalExceptionHandler {
         ApiResult apiErrorResponse = new ApiResult(exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(apiErrorResponse);
+    }
+
+    // ----- 權限相關 -----
+
+    /**
+     * 處理存取被拒絕的例外（權限不足）。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 403 (Forbidden) 給客戶端。
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResult> handleAccessDeniedException(AccessDeniedException exception) {
+        logger.error("存取被拒絕: {}", exception.getMessage());
+        logger.error("錯誤細節: ", exception);
+
+        ApiResult apiResult = new ApiResult("權限不足，無法操作!");
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResult);
     }
 
     // ----- 使用者相關 -----

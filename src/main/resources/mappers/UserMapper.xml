@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mli.lookgo.module.user.dao.UserDao">
+
+    <select id="getByEmail" resultType="com.mli.lookgo.module.user.model.entity.User">
+        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, status,
+               created_at, updated_at, last_login_at
+        FROM [dbo].[users]
+        WHERE email = #{email}
+    </select>
+
+    <select id="getAll" resultType="com.mli.lookgo.module.user.model.entity.User">
+        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, status,
+               created_at, updated_at, last_login_at
+        FROM [dbo].[users]
+    </select>
+
+    <update id="updateUsernameByEmail">
+        UPDATE [dbo].[users]
+        SET username = #{username}, updated_at = #{updatedAt}
+        WHERE email = #{email}
+    </update>
+
+    <update id="updatePasswordByEmail">
+        UPDATE [dbo].[users]
+        SET password = #{newPassword}, updated_at = #{updatedAt}
+        WHERE email = #{email}
+    </update>
+
+    <update id="updateBirthDateByEmail">
+        UPDATE [dbo].[users]
+        SET birth_date = #{birthDate, jdbcType=DATE}, updated_at = #{updatedAt}
+        WHERE email = #{email}
+    </update>
+
+</mapper>

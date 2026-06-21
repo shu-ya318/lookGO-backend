@@ -224,20 +224,22 @@ CREATE TABLE [dbo].[user_trip_plans] (
         FOREIGN KEY ([to_station_id]) REFERENCES [dbo].[stations] ([id])
 );
 
--- user_chat_messages
+-- station_chat_messages
 IF NOT EXISTS (
     SELECT 1 FROM sys.tables
-    WHERE [name] = 'user_chat_messages' AND [schema_id] = SCHEMA_ID('dbo')
+    WHERE [name] = 'station_chat_messages' AND [schema_id] = SCHEMA_ID('dbo')
 )
-CREATE TABLE [dbo].[user_chat_messages] (
+CREATE TABLE [dbo].[station_chat_messages] (
     [id]          INT             NOT NULL IDENTITY(1, 1),
+    [station_id]  INT             NOT NULL,
     [user_id]     INT             NOT NULL,
     [chat_type]   TINYINT         NOT NULL,
-    [sender_type] TINYINT         NOT NULL,
     [content]     NVARCHAR(2000)  NOT NULL,
     [created_at]  DATETIME2(0)    NOT NULL,
-    [deleted_at]       DATETIME2(0)    NULL,
-    CONSTRAINT [PK_user_chat_messages] PRIMARY KEY ([id]),
-    CONSTRAINT [FK_user_chat_messages_user_id]
+    [deleted_at]  DATETIME2(0)    NULL,
+    CONSTRAINT [PK_station_chat_messages] PRIMARY KEY ([id]),
+    CONSTRAINT [FK_station_chat_messages_station_id]
+        FOREIGN KEY ([station_id]) REFERENCES [dbo].[stations] ([id]),
+    CONSTRAINT [FK_station_chat_messages_user_id]
         FOREIGN KEY ([user_id]) REFERENCES [dbo].[users] ([id])
 );

@@ -1,4 +1,4 @@
-package com.mli.lookgo.module.auth.exceptions;
+package com.mli.lookgo.module.user.exceptions;
 
 /**
  * 找不到指定使用者時拋出的例外。

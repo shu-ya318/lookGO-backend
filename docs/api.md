@@ -436,14 +436,15 @@ Includes basic station info, facility availability (direct columns on `stations`
 
 ---
 
-### User Chat Messages
+### Station Chat Messages
 
 #### Send Message
-- **Endpoint**: `/user-chat-messages/create-message`
+- **Endpoint**: `/station-chat-messages/create-message`
 - **Request Body**:
 ```json
 {
   "message": {
+    "station_id": 1,
     "chat_type": 1,
     "content": "Where is the lost and found center?"
   }
@@ -454,9 +455,9 @@ Includes basic station info, facility availability (direct columns on `stations`
 {
   "message": {
     "id": 1,
+    "station_id": 1,
     "user_id": 1,
     "chat_type": 1,
-    "sender_type": 1,
     "content": "Where is the lost and found center?",
     "created_at": "2023-01-01T12:00:00Z"
   }
@@ -464,11 +465,12 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Get Message List
-- **Endpoint**: `/user-chat-messages/get-list`
+- **Endpoint**: `/station-chat-messages/get-list`
 - **Request Body**:
 ```json
 {
   "query": {
+    "station_id": 1,
     "limit": 50,
     "offset": 0
   }
@@ -480,9 +482,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   "messages": [
     {
       "id": 1,
+      "station_id": 1,
       "user_id": 1,
       "chat_type": 1,
-      "sender_type": 1,
       "content": "Where is the lost and found center?",
       "created_at": "2023-01-01T12:00:00Z"
     }

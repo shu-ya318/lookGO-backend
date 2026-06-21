@@ -40,8 +40,20 @@ management:
       show-details: always
 
 mybatis:
+  mapper-locations: classpath:mappers/*.xml
   configuration:
     map-underscore-to-camel-case: true
 
+app:
+  admin:
+    email: ${ADMIN_EMAIL:admin@example.com}
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD}
+
 frontend:
   base-url: ${FRONTEND_BASE_URL:http://localhost:8081}
+
+logging:
+  level:
+    com.mli.lookgo.module.auth.security: DEBUG
+    com.mli.lookgo.module.user.controller: DEBUG

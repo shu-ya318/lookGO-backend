@@ -1,4 +1,4 @@
-package com.mli.lookgo.module.auth.enums;
+package com.mli.lookgo.module.user.enums;
 
 /**
  * 使用者帳號狀態相關的列舉。

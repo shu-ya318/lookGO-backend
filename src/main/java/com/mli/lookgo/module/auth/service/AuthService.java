@@ -19,17 +19,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mli.lookgo.common.result.ApiResult;
 import com.mli.lookgo.module.auth.dao.AuthDao;
-import com.mli.lookgo.module.auth.dao.UserDao;
-import com.mli.lookgo.module.auth.enums.MembershipTier;
-import com.mli.lookgo.module.auth.enums.UserRole;
-import com.mli.lookgo.module.auth.enums.UserStatus;
+import com.mli.lookgo.module.user.dao.UserDao;
+import com.mli.lookgo.module.user.enums.MembershipTier;
+import com.mli.lookgo.module.user.enums.UserRole;
+import com.mli.lookgo.module.user.enums.UserStatus;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserDuplicateException;
 // import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.LoginDTO;
 import com.mli.lookgo.module.auth.model.dto.ResetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.SignupDTO;
-import com.mli.lookgo.module.auth.model.entity.User;
+import com.mli.lookgo.module.user.model.entity.User;
 import com.mli.lookgo.module.auth.model.vo.AuthVO;
 import com.mli.lookgo.module.auth.security.JwtUtil;
 
@@ -96,7 +96,7 @@ public class AuthService {
 
         User user = new User();
 
-        user.setMembershipTierId(MembershipTier.FREE.getId());
+        user.setMembershipTierId(MembershipTier.BASIC.getId());
         user.setRoleId(UserRole.USER.getId());
         user.setEmail(signupDTO.getEmail());
         user.setPassword(hashedPassword);

@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-@MapperScan("com.mli.lookgo.module.auth.dao")
+@MapperScan("com.mli.lookgo.module.*.dao")
 public class LookGoBackendApplication {
 
     public static void main(String[] args) {

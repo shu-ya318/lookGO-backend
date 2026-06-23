@@ -97,7 +97,7 @@ public class AuthService {
     }
 
     /**
-     * 把傳入資訊寫入資料庫，建立一筆對應的使用者帳號，並回傳存取憑證。
+     * 把傳入資訊寫入資料庫，建立一筆對應的使用者帳號，並回傳存取token。
      *
      * @param signupDTO
      * @param httpServletResponse
@@ -135,7 +135,7 @@ public class AuthService {
     }
 
     /**
-     * 驗證使用者帳號與密碼，通過後回傳存取憑證。
+     * 驗證使用者帳號與密碼，通過後回傳存取token。
      *
      * @param loginDTO
      * @param httpServletResponse
@@ -159,7 +159,7 @@ public class AuthService {
     }
 
     /**
-     * 驗證刷新憑證，通過後核發新的存取憑證與刷新憑證。
+     * 驗證刷新token，通過後核發新的存取token與刷新token。
      *
      * @param refreshToken
      * @return AuthVO
@@ -167,9 +167,9 @@ public class AuthService {
      */
     public AuthVO refreshTokens(String refreshToken) {
         String email = jwtUtil.getEmailFromRefreshToken(refreshToken);
-        logger.debug("開始呼叫 API 來刷新憑證，email: {}", email);
+        logger.debug("開始呼叫 API 來刷新token，email: {}", email);
         User user = userDao.getByEmail(email)
-                .orElseThrow(() -> new InvalidCredentialsException("刷新憑證無效或已過期!"));
+                .orElseThrow(() -> new InvalidCredentialsException("刷新token無效或已過期!"));
 
         if (user.getStatus() != UserStatus.ACTIVE.getCode()) {
             throw new InvalidCredentialsException("該帳號已被停用!");
@@ -178,7 +178,7 @@ public class AuthService {
         String storedRefreshTokenJti = redisService.getRefreshTokenJti(user.getId().toString());
         String refreshTokenJti = jwtUtil.getJtiFromToken(refreshToken);
         if (storedRefreshTokenJti == null || !storedRefreshTokenJti.equals(refreshTokenJti)) {
-            throw new InvalidCredentialsException("刷新憑證無效或已過期!");
+            throw new InvalidCredentialsException("刷新token無效或已過期!");
         }
 
         return generateTokens(user.getId(), user.getEmail());
@@ -218,7 +218,7 @@ public class AuthService {
     }
 
     /**
-     * 生成新的存取憑證與刷新憑證，並將刷新憑證 JTI 存入 Redis。
+     * 生成新的存取token與刷新token，並將刷新token JTI 存入 Redis。
      * 
      * @param userId
      * @param email
@@ -240,7 +240,7 @@ public class AuthService {
     }
 
     /**
-     * 生成重設密碼的憑證。
+     * 生成重設密碼的token。
      * 
      * @param email
      * @return resetPasswordToken
@@ -293,7 +293,7 @@ public class AuthService {
     // }
 
     /**
-     * 驗證重設密碼憑證，通過後更新使用者密碼並使憑證失效。
+     * 驗證重設密碼token，通過後更新使用者密碼並使token失效。
      *
      * @param resetPasswordDTO
      * @return ApiResult
@@ -307,7 +307,7 @@ public class AuthService {
         String email = redisService.getEmailByResetPasswordToken(resetPasswordToken);
         // 不拋出具體的使用者不存在錯誤，避免猜到使用者是否存在遭到攻擊
         if (email == null) {
-            throw new InvalidCredentialsException("重設密碼憑證無效或已過期!");
+            throw new InvalidCredentialsException("重設密碼token無效或已過期!");
         }
 
         String newPassword = passwordEncoder.encode(resetPasswordDTO.getNewPassword());

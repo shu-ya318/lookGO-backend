@@ -9,7 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * 處理 Cookie 操作的工具類別，提供刷新憑證 Cookie 的新增與清除功能。
+ * 處理 Cookie 操作的工具類別，提供刷新token Cookie 的新增與清除功能。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -29,7 +29,7 @@ public class CookieUtil {
     }
 
     /**
-     * 在 HTTP 回應中新增刷新憑證的 Cookie。
+     * 在 HTTP 回應中新增刷新token的 Cookie。
      *
      * @param httpServletResponse
      * @param refreshToken
@@ -42,10 +42,10 @@ public class CookieUtil {
     }
 
     /**
-     * 從 HTTP 請求的 Cookie 中取得刷新憑證。
+     * 從 HTTP 請求的 Cookie 中取得刷新token。
      *
      * @param httpServletRequest
-     * @return 刷新憑證字串，若不存在則回傳 null
+     * @return 刷新token字串，若不存在則回傳 null
      */
     public String getRefreshTokenFromCookie(HttpServletRequest httpServletRequest) {
         Cookie[] cookies = httpServletRequest.getCookies();
@@ -64,7 +64,7 @@ public class CookieUtil {
     }
 
     /**
-     * 清除 HTTP 回應中的刷新憑證 Cookie。
+     * 清除 HTTP 回應中的刷新token Cookie。
      *
      * @param httpServletResponse
      */

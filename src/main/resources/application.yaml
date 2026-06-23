@@ -32,14 +32,14 @@ app:
     email: ${ADMIN_EMAIL:admin@example.com}
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD}
-  sendgrid:
-    api:
-      key: ${SENDGRID_API_KEY}
-    from:
-      email: test@domain.com
-      name: LookGo
-    sandbox:
-      mode: true
+  # sendgrid:
+  #   api:
+  #     key: ${SENDGRID_API_KEY}
+  #   from:
+  #     email: test@domain.com
+  #     name: LookGo
+  #   sandbox:
+  #     mode: true
 
 frontend:
   base-url: ${FRONTEND_BASE_URL:http://localhost:8081}

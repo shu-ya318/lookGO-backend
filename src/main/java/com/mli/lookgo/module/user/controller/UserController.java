@@ -57,10 +57,10 @@ public class UserController {
      *
      * @return ResponseEntity<UserVO>
      */
-    @Operation(summary = "取得當前使用者資訊", description = "依據存取憑證取得當前已驗證使用者的資訊")
+    @Operation(summary = "取得當前使用者資訊", description = "依據存取token取得當前已驗證使用者的資訊")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "成功取得當前使用者的資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
-            @ApiResponse(responseCode = "401", description = "存取憑證無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，憑證無效或已過期"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/get-current-user")
@@ -79,7 +79,7 @@ public class UserController {
     @Operation(summary = "取得所有使用者資訊", description = "取得所有使用者的資訊，僅限 ADMIN 角色存取")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "成功取得所有使用者的資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
-            @ApiResponse(responseCode = "401", description = "存取憑證無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，憑證無效或已過期"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PreAuthorize("hasRole('ADMIN')")
@@ -101,7 +101,7 @@ public class UserController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "使用者名稱更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiResult.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入使用者名稱!"))),
-            @ApiResponse(responseCode = "401", description = "存取憑證無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，憑證無效或已過期"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-username")
@@ -122,7 +122,7 @@ public class UserController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "密碼更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiResult.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "密碼長度必須為 8-20 個字元!"))),
-            @ApiResponse(responseCode = "401", description = "存取憑證無效或已過期，或舊密碼錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "舊密碼錯誤!"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期，或舊密碼錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "舊密碼錯誤!"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-password")
@@ -143,7 +143,7 @@ public class UserController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "出生日期更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiResult.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "出生日期不得大於今日!"))),
-            @ApiResponse(responseCode = "401", description = "存取憑證無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，憑證無效或已過期"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-birth-date")

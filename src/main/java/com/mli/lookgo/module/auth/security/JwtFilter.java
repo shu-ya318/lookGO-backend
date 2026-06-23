@@ -25,7 +25,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * 攔截每次 HTTP 請求，驗證請求標頭中的 JWT 存取憑證，並在通過驗證後設定 Spring Security 的身分驗證資訊。
+ * 攔截每次 HTTP 請求，驗證請求標頭中的 JWT 存取token，並在通過驗證後設定 Spring Security 的身分驗證資訊。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -73,7 +73,7 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 從請求標頭中取得 JWT 存取憑證，驗證有效後將身分驗證資訊寫入 Spring Security Context。
+     * 從請求標頭中取得 JWT 存取token，驗證有效後將身分驗證資訊寫入 Spring Security Context。
      *
      * @param httpServletRequest
      * @param httpServletResponse
@@ -115,7 +115,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 logger.debug("[JwtFilter] JWT 是否在黑名單: {} (jti={})", isBlacklisted, jti);
 
                 if (isBlacklisted) {
-                    logger.warn("[JwtFilter] 憑證已被列入黑名單，拒絕存取! (jti={})", jti);
+                    logger.warn("[JwtFilter] token已被列入黑名單，拒絕存取! (jti={})", jti);
                     filterChain.doFilter(httpServletRequest, httpServletResponse);
 
                     return;

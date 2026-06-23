@@ -76,7 +76,7 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
                             String json = MAPPER
-                                    .writeValueAsString(Map.of("message", "未授權錯誤，憑證無效或已過期"));
+                                    .writeValueAsString(Map.of("message", "未授權錯誤，token無效或已過期"));
                             response.getWriter().write(json);
                         }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

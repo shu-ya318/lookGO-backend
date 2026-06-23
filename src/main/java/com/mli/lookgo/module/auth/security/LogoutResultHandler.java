@@ -17,7 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * 處理使用者登出成功後的回應，清除刷新憑證 Cookie 並回傳結果訊息。
+ * 處理使用者登出成功後的回應，清除刷新token Cookie 並回傳結果訊息。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -42,7 +42,7 @@ public class LogoutResultHandler implements LogoutSuccessHandler {
     }
 
     /**
-     * 處理登出成功的事件，清除刷新憑證 Cookie 並回傳對應的訊息。
+     * 處理登出成功的事件，清除刷新token Cookie 並回傳對應的訊息。
      *
      * @param httpServletRequest
      * @param httpServletResponse

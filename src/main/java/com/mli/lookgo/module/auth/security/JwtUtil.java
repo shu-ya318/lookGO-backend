@@ -16,7 +16,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import javax.crypto.SecretKey;
 
 /**
- * 處理 JWT 憑證的生成與驗證。
+ * 處理 JWT token的生成與驗證。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -52,7 +52,7 @@ public class JwtUtil {
     // ----- 通用 -----
 
     /**
-     * 從(存取或刷新)憑證中取得 JWT ID (jti)。
+     * 從(存取或刷新)token中取得 JWT ID (jti)。
      *
      * @param token
      * @return JWT ID (jti)
@@ -62,10 +62,10 @@ public class JwtUtil {
     }
 
     /**
-     * 從(存取或刷新)憑證中取得過期時間。
+     * 從(存取或刷新)token中取得過期時間。
      *
      * @param token
-     * @return 憑證過期時間
+     * @return token過期時間
      */
     public Date getExpirationDateFromToken(String token) {
         return jwtParser.parseClaimsJws(token).getBody().getExpiration();
@@ -74,13 +74,13 @@ public class JwtUtil {
     // ----- Access Token -----
 
     /**
-     * 依據傳入資訊生成存取憑證。
+     * 依據傳入資訊生成存取token。
      *
      * @param id
      * @param uuid
      * @param email
      * @param roles
-     * @return 存取憑證字串
+     * @return 存取token字串
      */
     public String generateAccessToken(Integer id, UUID uuid, String email, Set<String> roles) {
         return Jwts.builder()
@@ -96,10 +96,10 @@ public class JwtUtil {
     }
 
     /**
-     * 驗證存取憑證的有效性。
+     * 驗證存取token的有效性。
      *
      * @param accessToken
-     * @return 驗證存取憑證是否有效的結果
+     * @return 驗證存取token是否有效的結果
      */
     public boolean validateAccessToken(String accessToken) {
         try {
@@ -113,7 +113,7 @@ public class JwtUtil {
     }
 
     /**
-     * 從存取憑證中取得 Email。
+     * 從存取token中取得 Email。
      *
      * @param accessToken
      * @return Email
@@ -123,9 +123,9 @@ public class JwtUtil {
     }
 
     /**
-     * 從存取憑證中取得剩餘有效時間。
+     * 從存取token中取得剩餘有效時間。
      *
-     * @param accessToken 存取憑證
+     * @param accessToken 存取token
      * @return 剩餘有效時間（毫秒）
      */
     public long getRemainingTtlFromAccessToken(String accessToken) {
@@ -137,10 +137,10 @@ public class JwtUtil {
     // ----- Refresh Token -----
 
     /**
-     * 依據傳入資訊生成刷新憑證。
+     * 依據傳入資訊生成刷新token。
      *
      * @param email
-     * @return String (刷新憑證)
+     * @return String (刷新token)
      */
     public String generateRefreshToken(String email) {
         return Jwts.builder()
@@ -153,10 +153,10 @@ public class JwtUtil {
     }
 
     /**
-     * 驗證刷新憑證的有效性。
+     * 驗證刷新token的有效性。
      *
      * @param refreshToken
-     * @return 驗證刷新憑證是否有效的結果
+     * @return 驗證刷新token是否有效的結果
      */
     public boolean validateRefreshToken(String refreshToken) {
         try {
@@ -170,16 +170,16 @@ public class JwtUtil {
     }
 
     /**
-     * 取得刷新憑證的過期時間設定。
+     * 取得刷新token的過期時間設定。
      *
-     * @return 刷新憑證過期時間（毫秒）
+     * @return 刷新token過期時間（毫秒）
      */
     public long getRefreshTokenExpiration() {
         return refreshTokenExpiration;
     }
 
     /**
-     * 從刷新憑證中取得 Email。
+     * 從刷新token中取得 Email。
      *
      * @param refreshToken
      * @return Email

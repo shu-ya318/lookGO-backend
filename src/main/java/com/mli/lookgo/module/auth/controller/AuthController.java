@@ -60,15 +60,15 @@ public class AuthController {
     }
 
     /**
-     * 輸入使用者相關資訊來建立帳號，建立成功後自動登入並回傳存取憑證。
+     * 輸入使用者相關資訊來建立帳號，建立成功後自動登入並回傳存取token。
      *
      * @param signupDTO
      * @param httpServletResponse
      * @return ResponseEntity<AuthVO>
      */
-    @Operation(summary = "使用者註冊", description = "依據輸入的使用者資訊建立帳號，成功後回傳存取憑證")
+    @Operation(summary = "使用者註冊", description = "依據輸入的使用者資訊建立帳號，成功後回傳存取token")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功建立帳號並取得存取憑證", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
+            @ApiResponse(responseCode = "200", description = "成功建立帳號並取得存取token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "電子郵件已被使用，請換一個電子郵件!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/sign-up")
@@ -82,15 +82,15 @@ public class AuthController {
     }
 
     /**
-     * 輸入使用者帳號與密碼進行登入，驗證成功後回傳存取憑證。
+     * 輸入使用者帳號與密碼進行登入，驗證成功後回傳存取token。
      *
      * @param loginDTO
      * @param httpServletResponse
      * @return ResponseEntity<AuthVO>
      */
-    @Operation(summary = "使用者登入", description = "依據輸入的帳號與密碼進行身分驗證，成功後回傳存取憑證")
+    @Operation(summary = "使用者登入", description = "依據輸入的帳號與密碼進行身分驗證，成功後回傳存取token")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功登入並取得存取憑證", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
+            @ApiResponse(responseCode = "200", description = "成功登入並取得存取token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入有效的帳號與密碼!"))),
             @ApiResponse(responseCode = "401", description = "帳號或密碼錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "帳號或密碼錯誤!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
@@ -124,16 +124,16 @@ public class AuthController {
     }
 
     /**
-     * 輸入重設密碼憑證與新密碼，驗證通過後更新密碼並回傳成功訊息。
+     * 輸入重設密碼token與新密碼，驗證通過後更新密碼並回傳成功訊息。
      *
      * @param resetPasswordDTO
      * @return ResponseEntity<ApiResult>
      */
-    @Operation(summary = "重設密碼", description = "驗證重設密碼憑證，成功後更新使用者密碼")
+    @Operation(summary = "重設密碼", description = "驗證重設密碼token，成功後更新使用者密碼")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "密碼重設成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiResult.class))),
-            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入合法的憑證與密碼!"))),
-            @ApiResponse(responseCode = "401", description = "憑證無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "重設密碼憑證無效或已過期!"))),
+            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入合法的token與密碼!"))),
+            @ApiResponse(responseCode = "401", description = "token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "重設密碼token無效或已過期!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResult> resetPassword(@Valid @RequestBody ResetPasswordDTO resetPasswordDTO) {
@@ -144,24 +144,24 @@ public class AuthController {
     }
 
     /**
-     * 使用 Cookie 中的刷新憑證核發新的存取憑證與刷新憑證。
+     * 使用 Cookie 中的刷新token核發新的存取token與刷新token。
      *
      * @param httpServletRequest
      * @param httpServletResponse
      * @return ResponseEntity<AuthVO>
      */
-    @Operation(summary = "刷新憑證", description = "驗證 HttpOnly Cookie 中的刷新憑證，成功後核發新的存取憑證與刷新憑證")
+    @Operation(summary = "刷新token", description = "驗證 HttpOnly Cookie 中的刷新token，成功後核發新的存取token與刷新token")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功刷新並取得新的憑證", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
-            @ApiResponse(responseCode = "401", description = "刷新憑證無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "刷新憑證無效或已過期!"))),
+            @ApiResponse(responseCode = "200", description = "成功刷新並取得新的token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
+            @ApiResponse(responseCode = "401", description = "刷新token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "刷新token無效或已過期!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/refresh-tokens")
     public ResponseEntity<AuthVO> refreshTokens(HttpServletRequest httpServletRequest,
             HttpServletResponse httpServletResponse) {
-        logger.debug("收到刷新憑證的請求");
+        logger.debug("收到刷新token的請求");
         String refreshToken = cookieUtil.getRefreshTokenFromCookie(httpServletRequest);
         if (refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken)) {
-            throw new InvalidCredentialsException("刷新憑證無效或已過期!");
+            throw new InvalidCredentialsException("刷新token無效或已過期!");
         }
 
         AuthVO authVO = authService.refreshTokens(refreshToken);
@@ -171,11 +171,11 @@ public class AuthController {
     }
 
     /**
-     * 把使用者登出並清除憑證。
+     * 把使用者登出並清除token。
      * 為了讓 Swagger UI 能正常調用這支 API 而定義。
      * 實際登出功能由 JwtLogoutSuccessHandler 處理，在前端以呼叫 /log-out API 作為登出觸發。
      */
-    @Operation(summary = "使用者登出", description = "把使用者登出並清除憑證")
+    @Operation(summary = "使用者登出", description = "把使用者登出並清除token")
     @PostMapping("/log-out")
     public void logout() {
     }

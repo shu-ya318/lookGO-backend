@@ -89,4 +89,24 @@ public interface UserDao {
         int updateBirthDateByEmail(@Param("email") String email,
                         @Param("birthDate") LocalDate birthDate,
                         @Param("updatedAt") LocalDateTime updatedAt);
+
+        /**
+         * 用 id 查詢指定使用者的資料。
+         *
+         * @param id
+         * @return Optional<User>
+         */
+        Optional<User> getById(@Param("id") Integer id);
+
+        /**
+         * 用 id 更新指定使用者的帳號狀態。
+         *
+         * @param id
+         * @param status
+         * @param updatedAt
+         * @return 影響筆數
+         */
+        int updateStatusById(@Param("id") Integer id,
+                        @Param("status") Integer status,
+                        @Param("updatedAt") LocalDateTime updatedAt);
 }

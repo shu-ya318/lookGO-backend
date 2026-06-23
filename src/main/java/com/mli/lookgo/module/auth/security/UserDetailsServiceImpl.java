@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import com.mli.lookgo.module.user.dao.UserDao;
 import com.mli.lookgo.module.user.enums.UserRole;
+import com.mli.lookgo.module.user.enums.UserStatus;
 import com.mli.lookgo.module.user.model.entity.User;
 
 /**
@@ -39,6 +40,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("找不到 email: " + email + " 的使用者!"));
 
         logger.debug("[UserDetailsService] 資料庫查詢成功，userId={}, roleId={}", user.getId(), user.getRoleId());
+
+        if (user.getStatus() == UserStatus.DISABLED.getCode()) {
+            logger.warn("[UserDetailsService] 使用者帳號已被禁用，email={}", email);
+            throw new UsernameNotFoundException("該帳號已被禁用，如有問題請洽管理者!");
+        }
 
         UserRole userRole = UserRole.fromId(user.getRoleId());
         String role = "ROLE_" + userRole.getLabel();

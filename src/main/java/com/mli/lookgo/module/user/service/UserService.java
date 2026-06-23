@@ -20,9 +20,11 @@ import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
 import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUsernameDTO;
+import com.mli.lookgo.module.user.model.dto.UpdateUserStatusDTO;
 import com.mli.lookgo.module.user.model.entity.User;
 import com.mli.lookgo.module.user.model.vo.UserVO;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
+import com.mli.lookgo.module.auth.service.RedisService;
 import com.mli.lookgo.common.result.PaginatedVO;
 
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,6 +40,7 @@ public class UserService {
 
     private final UserDao userDao;
     private final PasswordEncoder passwordEncoder;
+    private final RedisService redisService;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     /**
@@ -45,10 +48,12 @@ public class UserService {
      *
      * @param userDao
      * @param passwordEncoder
+     * @param redisService
      */
-    public UserService(UserDao userDao, PasswordEncoder passwordEncoder) {
+    public UserService(UserDao userDao, PasswordEncoder passwordEncoder, RedisService redisService) {
         this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
+        this.redisService = redisService;
     }
 
     /**
@@ -154,6 +159,37 @@ public class UserService {
         userDao.updateBirthDateByEmail(email, updateBirthDateDTO.getBirthDate(), LocalDateTime.now(ZoneOffset.UTC));
 
         return new ApiResult("出生日期更新成功!");
+    }
+
+    /**
+     * 更新指定使用者的帳號狀態。若狀態被修改為 DISABLED，會強制將其 Redis 中的 refresh token 移除。
+     *
+     * @param updateUserStatusDTO
+     * @return ApiResult
+     * @throws UserNotFoundException
+     */
+    @Transactional
+    public ApiResult updateUserStatus(UpdateUserStatusDTO updateUserStatusDTO) {
+        logger.debug("開始呼叫 API 來更新使用者狀態，userId: {}, status: {}",
+                updateUserStatusDTO.getUserId(), updateUserStatusDTO.getStatus());
+
+        User user = userDao.getById(updateUserStatusDTO.getUserId())
+                .orElseThrow(() -> new UserNotFoundException("找不到指定使用者!"));
+
+        UserStatus targetStatus = UserStatus.fromCode(updateUserStatusDTO.getStatus());
+
+        if (user.getStatus().equals(targetStatus.getCode())) {
+            return new ApiResult("使用者已經是指定的狀態，不需更新!");
+        }
+
+        userDao.updateStatusById(user.getId(), targetStatus.getCode(), LocalDateTime.now(ZoneOffset.UTC));
+
+        if (targetStatus == UserStatus.DISABLED) {
+            redisService.deleteRefreshTokenJti(user.getId().toString());
+            logger.debug("使用者 id: {} 已被禁用，移除其 refresh token", user.getId());
+        }
+
+        return new ApiResult("更新使用者狀態成功!");
     }
 
     /**

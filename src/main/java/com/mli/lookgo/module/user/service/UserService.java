@@ -23,6 +23,7 @@ import com.mli.lookgo.module.user.model.dto.UpdateUsernameDTO;
 import com.mli.lookgo.module.user.model.entity.User;
 import com.mli.lookgo.module.user.model.vo.UserVO;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
+import com.mli.lookgo.common.result.PaginatedVO;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -54,11 +55,11 @@ public class UserService {
      * 從 Spring Security Context 中取得當前已驗證使用者的資訊。
      *
      * @return UserVO
-     * @throws UserNotFoundException 找不到對應使用者。
+     * @throws UserNotFoundException
      */
     public UserVO getCurrentUser() {
         String email = getAuthenticatedEmail();
-        logger.info("開始呼叫 API 來查詢當前使用者資料，email: {}", email);
+        logger.debug("開始呼叫 API 來查詢當前使用者資料，email: {}", email);
         User user = userDao.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
@@ -66,15 +67,27 @@ public class UserService {
     }
 
     /**
-     * 取得所有使用者的資訊。角色權限由 Controller 層的 @PreAuthorize 控制。
+     * 取得分頁與模糊搜尋後的所有使用者資料。角色權限由 Controller 層的 @PreAuthorize 控制。
      *
-     * @return List<UserVO>
+     * @param keyword
+     * @param page
+     * @param size
+     * @return PaginatedVO<UserVO>
      */
-    public List<UserVO> getAllUser() {
-        logger.info("開始呼叫 API 來查詢所有使用者資料");
-        List<User> users = userDao.getAll();
+    public PaginatedVO<UserVO> getAllUser(String keyword, int page, int size) {
+        logger.debug("開始呼叫 API 來分頁查詢所有使用者資料，keyword: {}, page: {}, size: {}", keyword, page, size);
+        List<User> users = userDao.getAllPaginated(keyword, page * size, size);
+        long totalElements = userDao.countAll(keyword);
+        int totalPages = (int) Math.ceil((double) totalElements / size);
 
-        return users.stream().map(this::toVO).toList();
+        List<UserVO> userVOs = users.stream().map(this::toVO).toList();
+
+        return new PaginatedVO<>(
+                userVOs,
+                page,
+                size,
+                totalElements,
+                totalPages);
     }
 
     /**
@@ -87,7 +100,7 @@ public class UserService {
     @Transactional
     public ApiResult updateUsername(UpdateUsernameDTO updateUsernameDTO) {
         String email = getAuthenticatedEmail();
-        logger.info("開始呼叫 API 來更新使用者名稱，email: {}", email);
+        logger.debug("開始呼叫 API 來更新使用者名稱，email: {}", email);
 
         userDao.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
@@ -108,7 +121,7 @@ public class UserService {
     @Transactional
     public ApiResult updatePassword(UpdatePasswordDTO updatePasswordDTO) {
         String email = getAuthenticatedEmail();
-        logger.info("開始呼叫 API 來更新使用者密碼，email: {}", email);
+        logger.debug("開始呼叫 API 來更新使用者密碼，email: {}", email);
 
         User user = userDao.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
@@ -133,7 +146,7 @@ public class UserService {
     @Transactional
     public ApiResult updateBirthDate(UpdateBirthDateDTO updateBirthDateDTO) {
         String email = getAuthenticatedEmail();
-        logger.info("開始呼叫 API 來更新使用者出生日期，email: {}", email);
+        logger.debug("開始呼叫 API 來更新使用者出生日期，email: {}", email);
 
         userDao.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));

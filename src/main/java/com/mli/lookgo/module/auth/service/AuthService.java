@@ -66,17 +66,17 @@ public class AuthService {
     @Value("${frontend.base-url}")
     private String frontendBaseUrl;
 
-    @Value("${app.sendgrid.api.key}")
-    private String apiKey;
+    // @Value("${app.sendgrid.api.key}")
+    // private String apiKey;
 
-    @Value("${app.sendgrid.from.email}")
-    private String fromEmail;
+    // @Value("${app.sendgrid.from.email}")
+    // private String fromEmail;
 
-    @Value("${app.sendgrid.from.name}")
-    private String fromName;
+    // @Value("${app.sendgrid.from.name}")
+    // private String fromName;
 
-    @Value("${app.sendgrid.sandbox.mode}")
-    private boolean sandboxMode;
+    // @Value("${app.sendgrid.sandbox.mode}")
+    // private boolean sandboxMode;
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。

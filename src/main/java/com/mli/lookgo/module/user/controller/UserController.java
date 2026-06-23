@@ -9,9 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.mli.lookgo.common.result.ApiResult;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
@@ -19,6 +18,7 @@ import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUsernameDTO;
 import com.mli.lookgo.module.user.model.vo.UserVO;
 import com.mli.lookgo.module.user.service.UserService;
+import com.mli.lookgo.common.result.PaginatedVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,6 +26,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameter;
 
 import jakarta.validation.Valid;
 
@@ -74,21 +75,27 @@ public class UserController {
     /**
      * 取得所有使用者的資訊，僅限 ADMIN 角色存取。
      *
-     * @return ResponseEntity<List<UserVO>>
+     * @param keyword
+     * @param page
+     * @param size
+     * @return ResponseEntity<PaginatedVO<UserVO>>
      */
-    @Operation(summary = "取得所有使用者資訊", description = "取得所有使用者的資訊，僅限 ADMIN 角色存取")
+    @Operation(summary = "取得所有使用者資訊", description = "取得所有使用者的資訊，僅限 ADMIN 角色存取，支援分頁與模糊搜尋")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功取得所有使用者的資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
+            @ApiResponse(responseCode = "200", description = "成功取得所有使用者的資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.mli.lookgo.common.result.PaginatedVO.class))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/get-all-user")
-    public ResponseEntity<List<UserVO>> getAllUser() {
-        logger.debug("收到查詢所有使用者資訊的請求");
-        List<UserVO> userVOs = userService.getAllUser();
+    public ResponseEntity<PaginatedVO<UserVO>> getAllUser(
+            @Parameter(description = "搜尋關鍵字") @RequestParam(name = "keyword", required = false) String keyword,
+            @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "16") int size) {
+        logger.debug("收到分頁查詢所有使用者資訊的請求，keyword: {}, page: {}, size: {}", keyword, page, size);
+        PaginatedVO<UserVO> paginatedUsers = userService.getAllUser(keyword, page, size);
 
-        return ResponseEntity.ok(userVOs);
+        return ResponseEntity.ok(paginatedUsers);
     }
 
     /**

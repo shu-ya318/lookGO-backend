@@ -10,10 +10,27 @@
         WHERE email = #{email}
     </select>
 
-    <select id="getAll" resultType="com.mli.lookgo.module.user.model.entity.User">
+    <select id="getAllPaginated" resultType="com.mli.lookgo.module.user.model.entity.User">
         SELECT id, membership_tier_id, role_id, email, password, username, birth_date, status,
                created_at, updated_at, last_login_at
         FROM [dbo].[users]
+        <where>
+            <if test="keyword != null and keyword != ''">
+                username LIKE CONCAT('%', #{keyword}, '%') OR email LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY id ASC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(id)
+        FROM [dbo].[users]
+        <where>
+            <if test="keyword != null and keyword != ''">
+                username LIKE CONCAT('%', #{keyword}, '%') OR email LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
     </select>
 
     <update id="updateUsernameByEmail">

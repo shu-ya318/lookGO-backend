@@ -1,6 +1,7 @@
 # TrtcGo - Backend API Specification
 
 ## Shared Error Response Format
+
 ```json
 {
   "error": {
@@ -13,9 +14,11 @@
 
 ### Users
 
-#### Create User 
+#### Create User
+
 - **Endpoint**: `/users/create-user`
 - **Request Body**:
+
 ```json
 {
   "user": {
@@ -25,7 +28,9 @@
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "user": {
@@ -41,9 +46,11 @@
 }
 ```
 
-#### Login User 
-- **Endpoint**: `/users/login-user`
+#### Login User
+
+- **Endpoint**: `/users/log-in-user`
 - **Request Body**:
+
 ```json
 {
   "credentials": {
@@ -52,7 +59,9 @@
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "token": "jwt_token_string",
@@ -66,12 +75,16 @@
 ```
 
 #### Get User Profile
+
 - **Endpoint**: `/users/get-profile`
 - **Request Body**:
+
 ```json
 {}
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "user": {
@@ -90,8 +103,10 @@
 ```
 
 #### Update User Profile
+
 - **Endpoint**: `/users/update-profile`
 - **Request Body**:
+
 ```json
 {
   "user": {
@@ -101,7 +116,9 @@
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "user": {
@@ -122,12 +139,16 @@
 ### Stations
 
 #### Get Station List
+
 - **Endpoint**: `/stations/get-list`
 - **Request Body**:
+
 ```json
 {}
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "stations": [
@@ -142,9 +163,12 @@
 ```
 
 #### Get Station Details
+
 Includes basic station info, facility availability (direct columns on `stations`), line-station mappings (`lines_stations`), and exits (`station_exits`).
+
 - **Endpoint**: `/stations/get-details`
 - **Request Body**:
+
 ```json
 {
   "station": {
@@ -152,7 +176,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "station": {
@@ -173,7 +199,7 @@ Includes basic station info, facility availability (direct columns on `stations`
         "line_id": 1,
         "station_code": "BL12",
         "station_sequence": 12,
-        "cumulative_distance": 8420.50,
+        "cumulative_distance": 8420.5,
         "cumulative_time": 900
       }
     ],
@@ -192,8 +218,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Query Fares
+
 - **Endpoint**: `/stations/get-fares`
 - **Request Body**:
+
 ```json
 {
   "fare_query": {
@@ -202,7 +230,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "fares": [
@@ -215,8 +245,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Query Travel Times
+
 - **Endpoint**: `/stations/get-travel-times`
 - **Request Body**:
+
 ```json
 {
   "travel_time_query": {
@@ -225,7 +257,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "travel_times": [
@@ -242,8 +276,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ### User Station Bookmarks
 
 #### Add Bookmark
+
 - **Endpoint**: `/user-station-bookmarks/create-bookmark`
 - **Request Body**:
+
 ```json
 {
   "bookmark": {
@@ -251,7 +287,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "bookmark": {
@@ -264,12 +302,16 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Get Bookmark List
+
 - **Endpoint**: `/user-station-bookmarks/get-list`
 - **Request Body**:
+
 ```json
 {}
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "bookmarks": [
@@ -283,8 +325,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Delete Bookmark
+
 - **Endpoint**: `/user-station-bookmarks/delete-bookmark`
 - **Request Body**:
+
 ```json
 {
   "bookmark": {
@@ -292,7 +336,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true
@@ -304,8 +350,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ### User Trip Plans
 
 #### Create Trip Plan
+
 - **Endpoint**: `/user-trip-plans/create-plan`
 - **Request Body**:
+
 ```json
 {
   "trip_plan": {
@@ -319,7 +367,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "trip_plan": {
@@ -338,12 +388,16 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Get Trip Plan List
+
 - **Endpoint**: `/user-trip-plans/get-list`
 - **Request Body**:
+
 ```json
 {}
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "trip_plans": [
@@ -361,8 +415,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Get Trip Plan Details
+
 - **Endpoint**: `/user-trip-plans/get-plan`
 - **Request Body**:
+
 ```json
 {
   "trip_plan": {
@@ -370,7 +426,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "trip_plan": {
@@ -389,8 +447,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Update Trip Plan
+
 - **Endpoint**: `/user-trip-plans/update-plan`
 - **Request Body**:
+
 ```json
 {
   "trip_plan": {
@@ -399,7 +459,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "trip_plan": {
@@ -418,8 +480,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Delete Trip Plan
+
 - **Endpoint**: `/user-trip-plans/delete-plan`
 - **Request Body**:
+
 ```json
 {
   "trip_plan": {
@@ -427,7 +491,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true
@@ -439,8 +505,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ### Station Chat Messages
 
 #### Send Message
+
 - **Endpoint**: `/station-chat-messages/create-message`
 - **Request Body**:
+
 ```json
 {
   "message": {
@@ -450,7 +518,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "message": {
@@ -465,8 +535,10 @@ Includes basic station info, facility availability (direct columns on `stations`
 ```
 
 #### Get Message List
+
 - **Endpoint**: `/station-chat-messages/get-list`
 - **Request Body**:
+
 ```json
 {
   "query": {
@@ -476,7 +548,9 @@ Includes basic station info, facility availability (direct columns on `stations`
   }
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "messages": [

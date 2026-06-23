@@ -82,7 +82,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(authorize -> authorize.requestMatchers(SecurityConstants.API_PUBLIC_ALL)
                         .permitAll().anyRequest().authenticated())
-                .logout(logout -> logout.logoutUrl("/api/v1/auth/logout").logoutSuccessHandler(logoutResultHandler));
+                .logout(logout -> logout.logoutUrl("/api/v1/auth/log-out").logoutSuccessHandler(logoutResultHandler));
 
         return httpSecurity.build();
     }

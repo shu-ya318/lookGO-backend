@@ -153,7 +153,6 @@ public class UserService {
     }
 
     /**
-     * 定義一個私有輔助方法，把傳入的 entity 轉換為 VO。
      * 資料庫檢存 UTC 的 LocalDateTime，轉換時明確附加 UTC 時區。
      *
      * @param user

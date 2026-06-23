@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mli.lookgo.common.result.ApiResult;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
+import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
 // import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.LoginDTO;
 import com.mli.lookgo.module.auth.model.dto.ResetPasswordDTO;
@@ -73,7 +74,7 @@ public class AuthController {
     @PostMapping("/sign-up")
     public ResponseEntity<AuthVO> signup(@Valid @RequestBody SignupDTO signupDTO,
             HttpServletResponse httpServletResponse) {
-        logger.info("收到使用者註冊的請求，輸入內容: {}", signupDTO);
+        logger.debug("收到使用者註冊的請求，輸入內容: {}", signupDTO);
         AuthVO authVO = authService.signup(signupDTO, httpServletResponse);
         cookieUtil.addRefreshTokenCookie(httpServletResponse, authVO.getRefreshToken());
 
@@ -96,7 +97,7 @@ public class AuthController {
     @PostMapping("/log-in")
     public ResponseEntity<AuthVO> login(@Valid @RequestBody LoginDTO loginDTO,
             HttpServletResponse httpServletResponse) {
-        logger.info("收到使用者登入的請求，輸入內容: {}", loginDTO);
+        logger.debug("收到使用者登入的請求，輸入內容: {}", loginDTO);
         AuthVO authVO = authService.login(loginDTO, httpServletResponse);
         cookieUtil.addRefreshTokenCookie(httpServletResponse, authVO.getRefreshToken());
 
@@ -109,26 +110,18 @@ public class AuthController {
      * @param forgetPasswordDTO
      * @return ResponseEntity<ApiResult>
      */
-    // @Operation(summary = "請求重設密碼",description =
-    // "發送密碼重設連結到電子郵件。(注意:不返回電子郵件有效性的驗證結果)(目前只提供寄送測試信件)")
-    // @ApiResponses(value = {
-    // @ApiResponse(responseCode = "200", description = "請求成功(電子郵件有效才會收到信件)",
-    // content = @Content(mediaType = "application/json", schema =
-    // @Schema(implementation = AuthVO.class))),
-    // @ApiResponse(responseCode = "400", description = "請求參數錯誤", content =
-    // @Content(mediaType = "application/json", schema = @Schema(implementation =
-    // String.class, example = "請輸入有效的電子郵件!"))),
-    // @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content =
-    // @Content(mediaType = "application/json", schema = @Schema(implementation =
-    // String.class, example = "伺服器端錯誤!"))) })
-    // @PostMapping("/forget-password")
-    // public ResponseEntity<ApiResult> forgetPassword(@RequestBody
-    // ForgetPasswordDTO forgetPasswordDTO){
-    // logger.info("收到忘記密碼的請求");
-    // ApiResult apiresult = authService.forgetPassword(forgetPasswordDTO);
-    //
-    // return ResponseEntity.ok(apiresult);
-    // }
+    @Operation(summary = "請求重設密碼", description = "發送密碼重設連結到電子郵件。(注意:不返回電子郵件有效性的驗證結果)(目前只提供寄送測試信件)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "請求成功(電子郵件有效才會收到信件)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
+            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入有效的電子郵件!"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/forget-password")
+    public ResponseEntity<ApiResult> forgetPassword(@RequestBody ForgetPasswordDTO forgetPasswordDTO) {
+        logger.debug("收到忘記密碼的請求");
+        ApiResult apiresult = authService.forgetPassword(forgetPasswordDTO);
+
+        return ResponseEntity.ok(apiresult);
+    }
 
     /**
      * 輸入重設密碼憑證與新密碼，驗證通過後更新密碼並回傳成功訊息。
@@ -144,7 +137,7 @@ public class AuthController {
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResult> resetPassword(@Valid @RequestBody ResetPasswordDTO resetPasswordDTO) {
-        logger.info("收到重設密碼的請求");
+        logger.debug("收到重設密碼的請求");
         ApiResult apiResult = authService.resetPassword(resetPasswordDTO);
 
         return ResponseEntity.ok(apiResult);
@@ -165,7 +158,7 @@ public class AuthController {
     @PostMapping("/refresh-tokens")
     public ResponseEntity<AuthVO> refreshTokens(HttpServletRequest httpServletRequest,
             HttpServletResponse httpServletResponse) {
-        logger.info("收到刷新憑證的請求");
+        logger.debug("收到刷新憑證的請求");
         String refreshToken = cookieUtil.getRefreshTokenFromCookie(httpServletRequest);
         if (refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken)) {
             throw new InvalidCredentialsException("刷新憑證無效或已過期!");

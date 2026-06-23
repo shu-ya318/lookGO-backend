@@ -51,8 +51,8 @@ public class SecurityConfig {
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
      *
-     * @param jwtFilter           JWT 過濾器
-     * @param logoutResultHandler 登出結果處理器
+     * @param jwtFilter
+     * @param logoutResultHandler
      */
     public SecurityConfig(JwtFilter jwtFilter, LogoutResultHandler logoutResultHandler) {
         this.jwtFilter = jwtFilter;
@@ -113,7 +113,7 @@ public class SecurityConfig {
     /**
      * 防止 JWT 過濾器被 Spring Boot 自動注冊為 Servlet Filter，避免重複執行。
      *
-     * @param jwtFilter JWT 過濾器
+     * @param jwtFilter
      * @return FilterRegistrationBean
      */
     @Bean

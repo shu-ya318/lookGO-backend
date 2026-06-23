@@ -4,18 +4,25 @@ package com.mli.lookgo.module.auth.service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 // import java.util.Base64;
-// import java.util.Optional;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-// import org.springframework.mail.SimpleMailMessage;
 import org.springframework.beans.factory.annotation.Value;
-// import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+// import com.sendgrid.Method;
+// import com.sendgrid.Request;
+// import com.sendgrid.SendGrid;
+// import com.sendgrid.helpers.mail.Mail;
+// import com.sendgrid.helpers.mail.objects.Content;
+// import com.sendgrid.helpers.mail.objects.Email;
+
+// import com.sendgrid.Response;
 
 import com.mli.lookgo.common.result.ApiResult;
 import com.mli.lookgo.module.auth.dao.AuthDao;
@@ -23,9 +30,10 @@ import com.mli.lookgo.module.user.dao.UserDao;
 import com.mli.lookgo.module.user.enums.MembershipTier;
 import com.mli.lookgo.module.user.enums.UserRole;
 import com.mli.lookgo.module.user.enums.UserStatus;
+// import com.mli.lookgo.module.auth.exceptions.EmailDeliveryException;
 import com.mli.lookgo.module.auth.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.module.auth.exceptions.UserDuplicateException;
-// import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
+import com.mli.lookgo.module.auth.model.dto.ForgetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.LoginDTO;
 import com.mli.lookgo.module.auth.model.dto.ResetPasswordDTO;
 import com.mli.lookgo.module.auth.model.dto.SignupDTO;
@@ -49,7 +57,7 @@ public class AuthService {
     private final UserDao userDao;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    // private final JavaMailSender javaMailSender;
+    // private final SendGrid sendGrid;
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     // private static final SecureRandom secureRandom = new SecureRandom();
     // private static final Base64.Encoder base64Encoder =
@@ -57,6 +65,18 @@ public class AuthService {
 
     @Value("${frontend.base-url}")
     private String frontendBaseUrl;
+
+    @Value("${app.sendgrid.api.key}")
+    private String apiKey;
+
+    @Value("${app.sendgrid.from.email}")
+    private String fromEmail;
+
+    @Value("${app.sendgrid.from.name}")
+    private String fromName;
+
+    @Value("${app.sendgrid.sandbox.mode}")
+    private boolean sandboxMode;
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -66,7 +86,7 @@ public class AuthService {
      * @param passwordEncoder
      * @param jwtUtil
      */
-    // , JavaMailSender javaMailSender
+    // , JavaMailSender sendGrid (SMTP 連線) 或 , SendGrid sendGrid (HTTP 連線)
     public AuthService(RedisService redisService, AuthDao authDao, UserDao userDao, PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil) {
         this.redisService = redisService;
@@ -74,7 +94,6 @@ public class AuthService {
         this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
-        // this.javaMailSender = javaMailSender;
     }
 
     /**
@@ -107,7 +126,7 @@ public class AuthService {
         user.setUpdatedAt(currentTime);
         user.setLastLoginAt(currentTime);
 
-        logger.info("開始呼叫 API 來建立使用者帳號，寫入資料: {}, 建立時間: {}", user, currentTime);
+        logger.debug("開始呼叫 API 來建立使用者帳號，寫入資料: {}, 建立時間: {}", user, currentTime);
         authDao.createUser(user);
 
         Integer userId = user.getId();
@@ -124,7 +143,7 @@ public class AuthService {
      * @throws InvalidCredentialsException
      */
     public AuthVO login(LoginDTO loginDTO, HttpServletResponse httpServletResponse) {
-        logger.info("開始呼叫 API 來驗證使用者身分，輸入內容: {}", loginDTO);
+        logger.debug("開始呼叫 API 來驗證使用者身分，輸入內容: {}", loginDTO);
         User user = userDao.getByEmail(loginDTO.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("帳號或密碼錯誤!"));
 
@@ -148,7 +167,7 @@ public class AuthService {
      */
     public AuthVO refreshTokens(String refreshToken) {
         String email = jwtUtil.getEmailFromRefreshToken(refreshToken);
-        logger.info("開始呼叫 API 來刷新憑證，email: {}", email);
+        logger.debug("開始呼叫 API 來刷新憑證，email: {}", email);
         User user = userDao.getByEmail(email)
                 .orElseThrow(() -> new InvalidCredentialsException("刷新憑證無效或已過期!"));
 
@@ -171,53 +190,31 @@ public class AuthService {
      * @param forgetPasswordDTO
      * @return ResponseEntity<ApiResult>
      */
-    // public ApiResult forgetPassword(ForgetPasswordDTO forgetPasswordDTO) {
-    // logger.info("開始呼叫 API 來驗證使用者身分，輸入內容: {}", forgetPasswordDTO);
-    // Optional<User> user = userDao.getByEmail(forgetPasswordDTO.getEmail());
-    //
-    // if (user.isEmpty()) {
-    // logger.warn("請求重設密碼失敗，不存在此 Email!: {}", forgetPasswordDTO.getEmail());
-    // return new ApiResult("重設密碼請求成功!");
-    // }
-    //
-    // String resetPasswordToken =
-    // generateResetPasswordToken(forgetPasswordDTO.getEmail());
-    // logger.info(resetPasswordToken);
-    // redisService.saveResetPasswordToken(
-    // resetPasswordToken,
-    // forgetPasswordDTO.getEmail(),
-    // 15,
-    // java.util.concurrent.TimeUnit.MINUTES);
-    // logger.info("存入redis");
-    // sendEmail(forgetPasswordDTO.getEmail(), resetPasswordToken);
-    // logger.info("發送信件完成");
-    // return new ApiResult("重設密碼請求成功!");
-    // }
+    public ApiResult forgetPassword(ForgetPasswordDTO forgetPasswordDTO) {
+        logger.debug("開始呼叫 API 來驗證使用者身分，輸入內容: {}", forgetPasswordDTO);
+        Optional<User> user = userDao.getByEmail(forgetPasswordDTO.getEmail());
 
-    /**
-     * 驗證重設密碼憑證，通過後更新使用者密碼並使憑證失效。
-     *
-     * @param resetPasswordDTO
-     * @return ApiResult
-     * @throws InvalidCredentialsException
-     */
-    @Transactional
-    public ApiResult resetPassword(ResetPasswordDTO resetPasswordDTO) {
-        String resetPasswordToken = resetPasswordDTO.getResetPasswordToken();
-        logger.info("開始呼叫 API 來重設使用者密碼");
-
-        String email = redisService.getEmailByResetPasswordToken(resetPasswordToken);
-        // 不拋出具體的使用者不存在錯誤，避免猜到使用者是否存在遭到攻擊
-        if (email == null) {
-            throw new InvalidCredentialsException("重設密碼憑證無效或已過期!");
+        if (user.isEmpty()) {
+            logger.warn("請求重設密碼失敗，不存在此 Email!: {}", forgetPasswordDTO.getEmail());
+            return new ApiResult("重設密碼請求成功!");
         }
 
-        String newPassword = passwordEncoder.encode(resetPasswordDTO.getNewPassword());
-        authDao.updatePasswordByEmail(email, newPassword, LocalDateTime.now(ZoneOffset.UTC));
+        // String resetPasswordToken =
+        // generateResetPasswordToken(forgetPasswordDTO.getEmail());
+        // logger.debug("重設密碼 token 建立成功: {}", resetPasswordToken);
 
-        redisService.deleteResetPasswordToken(resetPasswordToken);
+        // redisService.saveResetPasswordToken(
+        // resetPasswordToken,
+        // forgetPasswordDTO.getEmail(),
+        // 15,
+        // java.util.concurrent.TimeUnit.MINUTES);
+        // logger.debug("重設密碼 token 已存入 Redis");
 
-        return new ApiResult("密碼重設成功!");
+        // sendResetPasswordEmail(forgetPasswordDTO.getEmail(),
+        // frontendBaseUrl + "/auth/reset-password?token=" + resetPasswordToken);
+        // logger.debug("發送重設密碼信件完成");
+
+        return new ApiResult("重設密碼請求成功!");
     }
 
     /**
@@ -251,29 +248,73 @@ public class AuthService {
     // private String generateResetPasswordToken(String email) {
     // byte[] randomBytes = new byte[32];
     // secureRandom.nextBytes(randomBytes);
-    //
+
     // return base64Encoder.encodeToString(randomBytes);
     // }
 
     /**
      * 發送重設密碼的電子郵件。
      * 
-     * @param email
+     * @param toEmail
+     * @param resetPasswordUrl
      * @param resetPasswordToken
      */
-    // private void sendEmail(String email, String resetPasswordToken) {
-    // logger.info("開始呼叫 API 來發送重設密碼的電子郵件，email: {}", email);
-    //
-    // String resetPasswordUrl = frontendBaseUrl + "/auth/reset-password?token=" +
-    // resetPasswordToken;
-    // String body = "請點擊以下連結以重設密碼:\n" + resetPasswordUrl;
-    //
-    // SimpleMailMessage message = new SimpleMailMessage();
-    //
-    // message.setTo(email);
-    // message.setSubject("重設密碼");
-    // message.setText(body);
-    //
-    // javaMailSender.send(message);
+    // private void sendResetPasswordEmail(String toEmail, String resetPasswordUrl)
+    // {
+    // logger.debug("開始呼叫 API 來發送重設密碼的電子郵件，email: {}", toEmail);
+
+    // // 組裝完整 mail 內容
+    // Email from = new Email(fromEmail, fromName);
+    // String subject = "重設密碼通知";
+    // Email to = new Email(toEmail);
+    // Content content = new Content("text/plain", "請點擊以下連結來重設密碼:\n" +
+    // resetPasswordUrl);
+    // Mail mail = new Mail(from, subject, to, content);
+
+    // // 組裝完整 request 內容
+    // Request request = new Request();
+
+    // try {
+    // request.setMethod(Method.POST);
+    // request.setEndpoint("mail/send");
+    // request.setBody(mail.build());
+
+    // Response response = sendGrid.api(request);
+
+    // if (response.getStatusCode() != 202) {
+    // throw new EmailDeliveryException("SendGrid 回應錯誤，狀態碼: " +
+    // response.getStatusCode());
     // }
+    // // mail.build() 和 sendGrid.api(request) 要求處理具體的 java.io.IOException
+    // } catch (java.io.IOException exception) {
+    // logger.error("發送密碼重設信件錯誤: ", exception);
+    // throw new EmailDeliveryException("發送密碼重設信件發生網路連線失敗!");
+    // }
+    // }
+
+    /**
+     * 驗證重設密碼憑證，通過後更新使用者密碼並使憑證失效。
+     *
+     * @param resetPasswordDTO
+     * @return ApiResult
+     * @throws InvalidCredentialsException
+     */
+    @Transactional
+    public ApiResult resetPassword(ResetPasswordDTO resetPasswordDTO) {
+        String resetPasswordToken = resetPasswordDTO.getResetPasswordToken();
+        logger.debug("開始呼叫 API 來重設使用者密碼");
+
+        String email = redisService.getEmailByResetPasswordToken(resetPasswordToken);
+        // 不拋出具體的使用者不存在錯誤，避免猜到使用者是否存在遭到攻擊
+        if (email == null) {
+            throw new InvalidCredentialsException("重設密碼憑證無效或已過期!");
+        }
+
+        String newPassword = passwordEncoder.encode(resetPasswordDTO.getNewPassword());
+        authDao.updatePasswordByEmail(email, newPassword, LocalDateTime.now(ZoneOffset.UTC));
+
+        redisService.deleteResetPasswordToken(resetPasswordToken);
+
+        return new ApiResult("密碼重設成功!");
+    }
 }

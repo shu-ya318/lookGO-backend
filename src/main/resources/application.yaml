@@ -16,23 +16,6 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-#  mail:
-#    host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
-#    port: ${MAIL_PORT:465}
-#    username: ${MAIL_USERNAME}
-#    password: ${MAIL_PASSWORD}
-#    properties:
-#      mail:
-#        debug:
-#          true
-#        smtp:
-#          connectiontimeout: 5000
-#          timeout: 5000
-#          writetimeout: 5000
-#          auth: true
-#          starttls:
-#            enable: true
-#            required: true
 
 management:
   endpoint:
@@ -49,6 +32,14 @@ app:
     email: ${ADMIN_EMAIL:admin@example.com}
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD}
+  sendgrid:
+    api:
+      key: ${SENDGRID_API_KEY}
+    from:
+      email: test@domain.com
+      name: LookGo
+    sandbox:
+      mode: true
 
 frontend:
   base-url: ${FRONTEND_BASE_URL:http://localhost:8081}

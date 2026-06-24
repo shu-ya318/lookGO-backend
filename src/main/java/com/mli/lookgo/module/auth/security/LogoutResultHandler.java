@@ -68,7 +68,7 @@ public class LogoutResultHandler implements LogoutSuccessHandler {
             httpServletResponse.setContentType("application/json;charset=UTF-8");
             MAPPER.writeValue(httpServletResponse.getWriter(), Map.of("message", "登出成功!"));
 
-        } catch (Exception error) {
+        } catch (Exception exception) {
             httpServletResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
             httpServletResponse.setContentType("application/json;charset=UTF-8");
             MAPPER.writeValue(httpServletResponse.getWriter(), Map.of("message", "登出失敗!"));

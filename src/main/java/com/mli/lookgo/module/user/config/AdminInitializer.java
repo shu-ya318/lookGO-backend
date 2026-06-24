@@ -27,13 +27,13 @@ public class AdminInitializer implements ApplicationRunner {
     private final AuthDao authDao;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.admin.email:admin@example.com}")
+    @Value("${app.admin.email}")
     private String adminEmail;
 
-    @Value("${app.admin.password:admin123}")
+    @Value("${app.admin.password}")
     private String adminPassword;
 
-    @Value("${app.admin.username:admin}")
+    @Value("${app.admin.username}")
     private String adminUsername;
 
     public AdminInitializer(AuthDao authDao, PasswordEncoder passwordEncoder) {

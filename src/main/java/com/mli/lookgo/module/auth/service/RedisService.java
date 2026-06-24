@@ -14,7 +14,7 @@ public class RedisService {
     this.stringRedisTemplate = stringRedisTemplate;
   }
 
-  // ===== Black list of Access Token (jti) =====
+  // Black list of Access Token (jti)
   public void saveAccessTokenJtiToBlacklist(String jti, long duration, TimeUnit unit) {
     stringRedisTemplate.opsForValue().set("blacklist:access_token:" + jti, "true", duration, unit);
   }
@@ -23,7 +23,7 @@ public class RedisService {
     return Boolean.TRUE.equals(stringRedisTemplate.hasKey("blacklist:access_token:" + jti));
   }
 
-  // ===== White list of Refresh Token (jti) =====
+  // White list of Refresh Token (jti)
   public void saveRefreshTokenJti(String userId, String jti, long duration, TimeUnit unit) {
     stringRedisTemplate.opsForValue().set("refresh_token_jti:" + userId, jti, duration, unit);
   }
@@ -36,7 +36,22 @@ public class RedisService {
     stringRedisTemplate.delete("refresh_token_jti:" + userId);
   }
 
-  // ===== Reset Password Token =====
+  // ===== 使用外部第三方 API =====
+
+  // Reset Password Token
+  public void saveTdxAccessToken(String accessToken, long duration, TimeUnit unit) {
+    stringRedisTemplate.opsForValue().set("tdx:access_token", accessToken, duration, unit);
+  }
+
+  public String getTdxAccessToken() {
+    return stringRedisTemplate.opsForValue().get("tdx:access_token");
+  }
+
+  public void deleteTdxAccessToken() {
+    stringRedisTemplate.delete("tdx:access_token");
+  }
+
+  // Reset Password Token
   public void saveResetPasswordToken(String resetPasswordToken, String email, long duration, TimeUnit unit) {
     stringRedisTemplate.opsForValue().set("reset_password_token:" + resetPasswordToken, email, duration, unit);
   }

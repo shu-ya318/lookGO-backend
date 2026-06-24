@@ -27,10 +27,25 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 
+rail:
+  proxy:
+    # 繞過內網的 SSL 憑證驗證
+    host: ${RAIL_PROXY_HOST}
+    port: ${RAIL_PROXY_PORT}
+  api:
+    tdx:
+      base-url: https://tdx.transportdata.tw/api/basic # 整個網域 # 不含 /v2/Rail/Metro
+      token-url: https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token
+      client:
+        id: ${TDX_CLIENT_ID}
+        secret: ${TDX_CLIENT_SECRET}
+      rail:
+        system: TRTC # 目的: 方便之後更換或支援多個
+
 app:
   admin:
-    email: ${ADMIN_EMAIL:admin@example.com}
-    username: ${ADMIN_USERNAME:admin}
+    email: admin@example.com
+    username: admin
     password: ${ADMIN_PASSWORD}
   # sendgrid:
   #   api:

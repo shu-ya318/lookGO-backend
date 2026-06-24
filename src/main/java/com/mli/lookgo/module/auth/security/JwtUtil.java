@@ -106,7 +106,7 @@ public class JwtUtil {
             jwtParser.parseClaimsJws(accessToken);
 
             return true;
-        } catch (JwtException | IllegalArgumentException error) {
+        } catch (JwtException | IllegalArgumentException exception) {
 
             return false;
         }
@@ -163,7 +163,7 @@ public class JwtUtil {
             jwtParser.parseClaimsJws(refreshToken);
 
             return true;
-        } catch (JwtException | IllegalArgumentException error) {
+        } catch (JwtException | IllegalArgumentException exception) {
 
             return false;
         }

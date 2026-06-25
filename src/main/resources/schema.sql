@@ -58,7 +58,7 @@ IF NOT EXISTS (
     WHERE [name] = 'lines' AND [schema_id] = SCHEMA_ID('dbo')
 )
 CREATE TABLE [dbo].[lines] (
-    [id]         SMALLINT        NOT NULL,
+    [id]         SMALLINT        NOT NULL IDENTITY(1, 1),
     [letter]     NVARCHAR(10)    NOT NULL,
     [name_zh_tw] NVARCHAR(50)    NOT NULL,
     [name_en]    NVARCHAR(100)   NOT NULL,
@@ -75,7 +75,7 @@ IF NOT EXISTS (
     WHERE [name] = 'stations' AND [schema_id] = SCHEMA_ID('dbo')
 )
 CREATE TABLE [dbo].[stations] (
-    [id]              INT             NOT NULL,
+    [id]              INT             NOT NULL IDENTITY(1, 1),
     [name_zh_tw]      NVARCHAR(100)   NOT NULL,
     [name_en]         NVARCHAR(200)   NOT NULL,
     [status]          TINYINT         NOT NULL,

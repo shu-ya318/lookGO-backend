@@ -1,4 +1,4 @@
-package com.mli.lookgo.core.config;
+package com.mli.lookgo.module.metro.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,20 +31,24 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 @Configuration
 public class RailClientConfig {
 
-    @Value("${rail.proxy.host}")
+    @Value("${rail.proxy.host:}")
     private String proxyHost;
 
-    @Value("${rail.proxy.port}")
+    @Value("${rail.proxy.port:0}")
     private int proxyPort;
 
     /**
-     * 配置並建立一個有客製化 SSL 和 proxy 設定的 {@link RestTemplate} Bean。
-     * 
+     * 配置並建立 {@link RestTemplate} Bean。有設定 proxy 時自動加上 proxy 和 SSL 繞過；沒設定時建立普通的 RestTemplate。
+     *
      * @param builder {@link RestTemplateBuilder} (配置和建立{@link RestTemplate} 的建構器。)
      * @return 封裝客製化配置的 {@link RestTemplate} 物件實體。
      */
     @Bean
     RestTemplate railRestTemplate(RestTemplateBuilder builder) {
+        if (proxyHost == null || proxyHost.isBlank()) {
+            return builder.build();
+        }
+
         TlsSocketStrategy tlsStrategy = new DefaultClientTlsStrategy(generateSslContext(), (hostname, session) -> true);
 
         CloseableHttpClient httpClient = HttpClients.custom().setProxy(new HttpHost(proxyHost, proxyPort))

@@ -29,18 +29,14 @@ mybatis:
 
 rail:
   proxy:
-    # 繞過內網的 SSL 憑證驗證
-    host: ${RAIL_PROXY_HOST}
-    port: ${RAIL_PROXY_PORT}
+    # 公司內網需設定 proxy 繞過 SSL 憑證驗證；個人裝置不設定則跳過 proxy
+    host: ${RAIL_PROXY_HOST:}
+    port: ${RAIL_PROXY_PORT:0}
   api:
     tdx:
-      base-url: https://tdx.transportdata.tw/api/basic # 整個網域 # 不含 /v2/Rail/Metro
-      token-url: https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token
       client:
         id: ${TDX_CLIENT_ID}
         secret: ${TDX_CLIENT_SECRET}
-      rail:
-        system: TRTC # 目的: 方便之後更換或支援多個
 
 app:
   admin:

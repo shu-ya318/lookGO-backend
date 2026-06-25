@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mli.lookgo.module.metro.dao.MetroDao">
+
+    <insert id="upsertAllLine">
+        <foreach collection="lines" item="line" separator=";">
+            MERGE [dbo].[lines] AS target
+            USING (
+                SELECT
+                    #{line.letter} AS letter,
+                    #{line.nameZhTw} AS name_zh_tw,
+                    #{line.nameEn} AS name_en,
+                    #{line.color} AS color,
+                    #{line.status} AS status,
+                    #{line.updatedAt} AS updated_at
+            ) AS source
+            ON target.letter = source.letter
+            WHEN MATCHED THEN
+                UPDATE SET
+                    name_zh_tw = source.name_zh_tw,
+                    name_en    = source.name_en,
+                    color      = source.color,
+                    status     = source.status,
+                    updated_at = source.updated_at
+            WHEN NOT MATCHED THEN
+                INSERT (letter, name_zh_tw, name_en, color, status, updated_at)
+                VALUES (source.letter, source.name_zh_tw, source.name_en,
+                        source.color, source.status, source.updated_at);
+        </foreach>
+    </insert>
+
+    <select id="getAllLine" resultType="com.mli.lookgo.module.metro.model.entity.Line">
+        SELECT id, letter, name_zh_tw, name_en, color, status, updated_at
+        FROM [dbo].[lines]
+        ORDER BY id ASC
+    </select>
+
+    <insert id="upsertAllStation">
+        <foreach collection="stations" item="station" separator=";">
+            MERGE [dbo].[stations] AS target
+            USING (
+                SELECT
+                    #{station.nameZhTw} AS name_zh_tw,
+                    #{station.nameEn} AS name_en,
+                    #{station.status} AS status,
+                    #{station.atm} AS atm,
+                    #{station.nursingRoom} AS nursing_room,
+                    #{station.diaperTable} AS diaper_table,
+                    #{station.chargingStation} AS charging_station,
+                    #{station.ticketMachine} AS ticket_machine,
+                    #{station.drinkingWater} AS drinking_water,
+                    #{station.restroom} AS restroom,
+                    #{station.updatedAt} AS updated_at
+            ) AS source
+            ON target.name_zh_tw = source.name_zh_tw
+            WHEN MATCHED THEN
+                UPDATE SET
+                    name_en          = source.name_en,
+                    status           = source.status,
+                    atm              = source.atm,
+                    nursing_room     = source.nursing_room,
+                    diaper_table     = source.diaper_table,
+                    charging_station = source.charging_station,
+                    ticket_machine   = source.ticket_machine,
+                    drinking_water   = source.drinking_water,
+                    restroom         = source.restroom,
+                    updated_at       = source.updated_at
+            WHEN NOT MATCHED THEN
+                INSERT (name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
+                        charging_station, ticket_machine, drinking_water, restroom,
+                        created_at, updated_at)
+                VALUES (source.name_zh_tw, source.name_en, source.status, source.atm,
+                        source.nursing_room, source.diaper_table, source.charging_station,
+                        source.ticket_machine, source.drinking_water, source.restroom,
+                        source.updated_at, source.updated_at);
+        </foreach>
+    </insert>
+
+    <select id="getAllStation" resultType="com.mli.lookgo.module.metro.model.entity.Station">
+        SELECT id, name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
+               charging_station, ticket_machine, locker, drinking_water, restroom,
+               created_at, updated_at
+        FROM [dbo].[stations]
+        ORDER BY id ASC
+    </select>
+
+</mapper>

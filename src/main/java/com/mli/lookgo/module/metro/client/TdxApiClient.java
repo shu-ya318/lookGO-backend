@@ -1,4 +1,4 @@
-package com.mli.lookgo.core.client;
+package com.mli.lookgo.module.metro.client;
 
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -16,29 +16,24 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.mli.lookgo.core.enums.tdx.TdxRailSystem;
 import com.mli.lookgo.module.auth.service.RedisService;
+import com.mli.lookgo.module.metro.enums.tdx.TdxRailSystem;
+import com.mli.lookgo.module.metro.model.vo.LineVO;
+import com.mli.lookgo.module.metro.model.vo.StationVO;
 
 // 考量: 建立獨立於 Dao 和 Service 層之外的 Client 層，專門負責呼叫第三方服務。
 @Component
 public class TdxApiClient {
 
-    // Auth
-    @Value("${rail.api.tdx.token-url}")
-    private String tokenUrl;
+    private static final String BASE_URL = "https://tdx.transportdata.tw/api/basic";
+    private static final String TOKEN_URL = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token";
+    private static final TdxRailSystem RAIL_SYSTEM = TdxRailSystem.TRTC;
 
     @Value("${rail.api.tdx.client.id}")
     private String clientId;
 
     @Value("${rail.api.tdx.client.secret}")
     private String clientSecret;
-
-    // Url
-    @Value("${rail.api.tdx.base-url}")
-    private String baseUrl;
-
-    @Value("${rail.api.tdx.rail.system}")
-    private TdxRailSystem railSystem;
 
     private final RestTemplate railRestTemplate;
     private final RedisService redisService;
@@ -49,11 +44,27 @@ public class TdxApiClient {
     }
 
     // ----- 通用的所有 API 請求定義 -----
-    private <T> T sendGetRequest(String path, Class<T> responseType, MultiValueMap<String, String> queryParams) {
+    // 考量: 以 overload 的方式，提供 1. 指定固定的請求參數 (少量資料) 2. 支援額外的請求參數 (如: 大量資料需分頁)
+    private <T> T sendGetRequest(String subPath, Class<T> responseType) {
+        return sendGetRequest(subPath, responseType, new LinkedMultiValueMap<>());
+    }
+
+    private <T> T sendGetRequest(String subPath, Class<T> responseType, MultiValueMap<String, String> queryParams) {
+        // 考量: 傳入 queryParams 時建立新的 Map ，避免改變原始 Map 的值
+        MultiValueMap<String, String> params;
+        if (queryParams != null) {
+            params = new LinkedMultiValueMap<>(queryParams);
+        } else {
+            params = new LinkedMultiValueMap<>();
+        }
+
+        // 自動加上必填參數 // 考量: 參數有重複時，set 能覆蓋原值 (add 則會累加)
+        params.set("$format", "JSON");
+
         // 建立 Request URL
-        String url = UriComponentsBuilder.fromUriString(baseUrl)
-                .path(path)
-                .queryParams(queryParams)
+        String url = UriComponentsBuilder.fromUriString(BASE_URL)
+                .path("/v2/Rail/Metro" + subPath + "/" + RAIL_SYSTEM.getOperatorCode())
+                .queryParams(params)
                 .build()
                 .toUriString();
         // 不用處理 gzip (因 HttpClient 預設自動加上 Accept-Encoding: gzip : 接收 gzip 解壓縮為 JSON 字串)
@@ -72,14 +83,12 @@ public class TdxApiClient {
     }
 
     // ----- 具體的各 API 請求定義 -----
-    // 各自定義 請求參數 + endpoint + 回應型別
-    public JsonNode getMetroLines() {
-        LinkedMultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+    public LineVO[] getAllLine() {
+        return sendGetRequest("/Line", LineVO[].class);
+    }
 
-        // 必填參數
-        params.add("$format", "JSON");
-
-        return sendGetRequest("/v2/Rail/Metro/Line/TRTC", JsonNode.class, params);
+    public StationVO[] getAllStation() {
+        return sendGetRequest("/Station", StationVO[].class);
     }
 
     // ----- Private Helpers -----
@@ -112,7 +121,7 @@ public class TdxApiClient {
         formData.add("client_secret", clientSecret);
 
         // 實際發送 Request + 用 JsonNode 接收 (考量: 省去手動轉換 ObjectMapper)
-        JsonNode response = railRestTemplate.postForObject(tokenUrl, formData, JsonNode.class);
+        JsonNode response = railRestTemplate.postForObject(TOKEN_URL, formData, JsonNode.class);
 
         // 把新的 token 存入 Redis
         if (response != null && response.has("access_token")) {

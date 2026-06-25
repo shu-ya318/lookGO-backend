@@ -1,4 +1,4 @@
-package com.mli.lookgo.core.enums.tdx;
+package com.mli.lookgo.module.metro.enums.tdx;
 
 /**
  * TDX 鐵路系統相關的列舉。
@@ -8,8 +8,8 @@ package com.mli.lookgo.core.enums.tdx;
  * @since 2026.06.24
  */
 public enum TdxRailSystem {
-	
-	TRTC("TRTC", "臺北捷運"),
+
+    TRTC("TRTC", "臺北捷運"),
     KRTC("KRTC", "高雄捷運"),
     TYMC("TYMC", "桃園捷運"),
     TMRT("TMRT", "臺中捷運"),
@@ -21,15 +21,15 @@ public enum TdxRailSystem {
     private final String chineseName;
 
     TdxRailSystem(String operatorCode, String chineseName) {
-    	 this.operatorCode = operatorCode;
-         this.chineseName = chineseName;
+        this.operatorCode = operatorCode;
+        this.chineseName = chineseName;
     }
 
-	public String getOperatorCode() {
-		return operatorCode;
-	}
+    public String getOperatorCode() {
+        return operatorCode;
+    }
 
-	public String getChineseName() {
-		return chineseName;
-	}
+    public String getChineseName() {
+        return chineseName;
+    }
 }

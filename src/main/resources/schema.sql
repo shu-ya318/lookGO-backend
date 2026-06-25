@@ -87,7 +87,6 @@ CREATE TABLE [dbo].[stations] (
     [locker]          NVARCHAR(100)   NULL,
     [drinking_water]  NVARCHAR(100)   NULL,
     [restroom]        NVARCHAR(100)   NULL,
-    [created_at]      DATETIME2(0)    NOT NULL,
     [updated_at]      DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_stations] PRIMARY KEY ([id])
 );

@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.mli.lookgo.module.metro.model.entity.Line;
+import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.Station;
 
 /**
@@ -16,6 +17,8 @@ import com.mli.lookgo.module.metro.model.entity.Station;
  */
 @Mapper
 public interface MetroDao {
+
+    // ----- 路線 -----
 
     /**
      * 批次新增或更新路線資料。
@@ -31,6 +34,8 @@ public interface MetroDao {
      */
     List<Line> getAllLine();
 
+    // ----- 車站 (去重) -----
+
     /**
      * 批次新增或更新車站資料。
      *
@@ -44,4 +49,19 @@ public interface MetroDao {
      * @return List<Station>
      */
     List<Station> getAllStation();
+
+    // ----- 所有路線的車站 (同車站保留重複資料，因為 station_sequence 不同) -----
+    /**
+     * 批次新增或更新所有路線的車站資料。
+     *
+     * @param linesStations
+     */
+    void upsertAllLineStation(@Param("linesStations") List<LineStation> linesStations);
+
+    /**
+     * 取得所有路線的車站資料。
+     *
+     * @return List<LineStation>
+     */
+    List<LineStation> getAllLineStation();
 }

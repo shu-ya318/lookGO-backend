@@ -2,6 +2,7 @@ package com.mli.lookgo.module.metro.service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +19,8 @@ import com.mli.lookgo.module.metro.client.TpeApiClient;
 import com.mli.lookgo.module.metro.dao.MetroDao;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.Station;
-import com.mli.lookgo.module.metro.model.vo.LineVO;
-import com.mli.lookgo.module.metro.model.vo.StationVO;
+import com.mli.lookgo.module.metro.model.vo.TdxLineVO;
+import com.mli.lookgo.module.metro.model.vo.TdxStationVO;
 import com.mli.lookgo.module.metro.model.vo.TpeStationVO;
 
 /**
@@ -58,11 +59,13 @@ public class MetroSyncService {
     public ApiResult syncAllLine() {
         logger.debug("開始從 TDX 同步路線資料");
 
-        LineVO[] lineVOs = tdxApiClient.getAllLine();
+        List<TdxLineVO> tdxStationVOs = tdxApiClient.getAllLine();
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        List<Line> lines = Arrays.stream(lineVOs)
-                .map(vo -> toLineEntity(vo, now))
-                .toList();
+
+        List<Line> lines = new ArrayList<>(tdxStationVOs.size());
+        for (TdxLineVO tdxLineVO : tdxStationVOs) {
+            lines.add(this.toLineEntity(tdxLineVO, now));
+        }
 
         metroDao.upsertAllLine(lines);
         logger.debug("路線資料同步完成，共 {} 筆", lines.size());
@@ -75,60 +78,62 @@ public class MetroSyncService {
      *
      * @return ApiResult
      */
-    // @Transactional
-    // public ApiResult syncAllStation() {
-    // logger.debug("開始從 TDX + TPE 同步車站資料");
+    @Transactional
+    public ApiResult syncAllStation() {
+        logger.debug("開始從 TDX + TPE 同步車站資料");
 
-    // StationVO[] tdxStationVOs = tdxApiClient.getAllStation();
-    // List<TpeStationVO> tpeStationVOs = tpeApiClient.getAllStation();
+        List<TdxStationVO> tdxStationVOs = tdxApiClient.getAllStation();
+        // List<TpeStationVO> tpeStationVOs = tpeApiClient.getAllStation();
 
-    // // 以車站中文名稱為 key，建立 TPE 設施資料的 Map
-    // Map<String, TpeStationVO> tpeMap = tpeStationVOs.stream()
-    // .collect(Collectors.toMap(TpeStationVO::getStationName, vo -> vo, (a, b) ->
-    // a));
+        // 以車站中文名稱為 key，建立 TPE 設施資料的 Map
+        // Map<String, TpeStationVO> tpeMap = tpeStationVOs.stream()
+        // .collect(Collectors.toMap(TpeStationVO::getStationName, vo -> vo, (a, b) ->
+        // a));
 
-    // LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
-    // List<Station> stations = Arrays.stream(tdxStationVOs)
-    // .map(tdxVO -> toStationEntity(tdxVO, tpeMap.get(tdxVO.getNameZhTw()), now))
-    // .toList();
+        List<Station> stations = new ArrayList<>(tdxStationVOs.size());
+        for (TdxStationVO tdxStationVO : tdxStationVOs) {
+            stations.add(this.toStationEntity(tdxStationVO, now));
+        }
 
-    // metroDao.upsertAllStation(stations);
-    // logger.debug("車站資料同步完成，共 {} 筆", stations.size());
+        metroDao.upsertAllStation(stations);
+        logger.debug("車站資料同步完成，共 {} 筆", stations.size());
 
-    // return new ApiResult("車站資料同步成功!");
-    // }
+        return new ApiResult("車站資料同步成功!");
+    }
 
     /**
-     * 將 TDX 回傳的 LineVO 轉換為資料庫的 Line 實體，補上 status 和 updatedAt。
+     * 將 TDX 回傳的 TdxLineVO 轉換為資料庫的 Line 實體，補上 status 和 updatedAt。
      *
      * @param vo  TDX 回傳的路線資料
      * @param now 當下 UTC 時間
      * @return Line
      */
-    private Line toLineEntity(LineVO vo, LocalDateTime now) {
+    private Line toLineEntity(TdxLineVO tdxLineVO, LocalDateTime updatedAt) {
         return new Line(
-                vo.getLetter(),
-                vo.getNameZhTw(),
-                vo.getNameEn(),
-                vo.getColor(),
-                1,
-                now);
+                tdxLineVO.getLetter(),
+                tdxLineVO.getNameZhTw(),
+                tdxLineVO.getNameEn(),
+                tdxLineVO.getColor(),
+                1, // 考量: 預設有資料即為啟用狀態
+                updatedAt);
     }
 
     /**
      * 合併 TDX 車站名稱和 TPE 車站設施資料，轉換為資料庫的 Station 實體。
      *
-     * @param tdxVO TDX 回傳的車站名稱資料
-     * @param tpeVO TPE 回傳的車站設施資料（可能為 null，表示該站無對應設施資料）
-     * @param now   當下 UTC 時間
+     * @param tdxStationVO TDX 回傳的車站名稱資料
+     * @param tpeVO        TPE 回傳的車站設施資料（可能為 null，表示該站無對應設施資料）
+     * @param now          當下 UTC 時間
      * @return Station
      */
-    // private Station toStationEntity(StationVO tdxVO, TpeStationVO tpeVO,
+    // private Station toStationEntity(TdxStationVO tdxStationVO, TpeStationVO
+    // tpeVO,
     // LocalDateTime now) {
     // return new Station(
-    // tdxVO.getNameZhTw(),
-    // tdxVO.getNameEn(),
+    // tdxStationVO.getNameZhTw(),
+    // tdxStationVO.getNameEn(),
     // 1,
     // tpeVO != null ? tpeVO.getAtm() : null,
     // tpeVO != null ? tpeVO.getNursingRoom() : null,
@@ -139,4 +144,19 @@ public class MetroSyncService {
     // tpeVO != null ? tpeVO.getRestroom() : null,
     // now);
     // }
+    private Station toStationEntity(TdxStationVO tdxStationVO,
+            LocalDateTime updatedAt) {
+        return new Station(
+                tdxStationVO.getNameZhTw(),
+                tdxStationVO.getNameEn(),
+                1, // 考量: 預設有資料即為啟用狀態
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                updatedAt);
+    }
 }

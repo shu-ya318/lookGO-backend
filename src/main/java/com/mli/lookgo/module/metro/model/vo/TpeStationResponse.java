@@ -18,7 +18,7 @@ public class TpeStationResponse {
         return success;
     }
 
-    public List<TpeStationVO> getStations() {
+    public List<TpeStationVO> getAllStation() {
         if (result == null || result.getResults() == null) {
             return Collections.emptyList();
         }

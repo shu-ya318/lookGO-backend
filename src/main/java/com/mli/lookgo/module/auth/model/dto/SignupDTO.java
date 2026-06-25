@@ -20,12 +20,12 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "處理使用者註冊相關的資料傳輸物件")
 public class SignupDTO {
 
-    @Schema(description = "Email", example = "user@example.com")
+    @Schema(description = "Email", example = "admin@example.com")
     @NotBlank(message = "請輸入 Email!")
     @Email(message = "Email 格式不正確!")
     private String email;
 
-    @Schema(description = "使用者密碼", example = "password12345")
+    @Schema(description = "使用者密碼", example = "admin12345")
     @NotBlank(message = "請輸入密碼!")
     @Size(min = 8, max = 20, message = "密碼長度必須為 8-20 個字元!")
     private String password;

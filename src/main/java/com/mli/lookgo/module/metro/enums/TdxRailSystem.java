@@ -1,4 +1,4 @@
-package com.mli.lookgo.module.metro.enums.tdx;
+package com.mli.lookgo.module.metro.enums;
 
 /**
  * TDX 鐵路系統相關的列舉。

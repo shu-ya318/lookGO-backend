@@ -3,39 +3,32 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.mli.lookgo.module.metro.dao.MetroDao">
 
-    <insert id="upsertAllLine">
-        <foreach collection="lines" item="line" separator=";">
-            MERGE [dbo].[lines] AS target
-            USING (
-                SELECT
-                    #{line.letter} AS letter,
-                    #{line.nameZhTw} AS name_zh_tw,
-                    #{line.nameEn} AS name_en,
-                    #{line.color} AS color,
-                    #{line.status} AS status,
-                    #{line.updatedAt} AS updated_at
-            ) AS source
-            ON target.letter = source.letter
-            WHEN MATCHED THEN
-                UPDATE SET
-                    name_zh_tw = source.name_zh_tw,
-                    name_en    = source.name_en,
-                    color      = source.color,
-                    status     = source.status,
-                    updated_at = source.updated_at
-            WHEN NOT MATCHED THEN
-                INSERT (letter, name_zh_tw, name_en, color, status, updated_at)
-                VALUES (source.letter, source.name_zh_tw, source.name_en,
-                        source.color, source.status, source.updated_at);
-        </foreach>
-    </insert>
+    <!-- 路線 -->
 
+    <!-- 刪除所有路線資料。強制歸零主鍵 id 序號 -->
+    <delete id="deleteAllLine">
+        DELETE FROM [dbo].[lines];
+        DBCC CHECKIDENT ('[dbo].[lines]', RESEED, 0);
+    </delete>
+
+    <!-- 做法: 逐一欄位比對，存在就更新，不存在就新增。 -->
+    <!-- 批次新增或更新路線資料 -->
+   <delete id="deleteAllLine">
+        DELETE FROM [dbo].[lines]
+    </delete>
+
+    
+
+    <!-- 取得所有路線資料。-->  
     <select id="getAllLine" resultType="com.mli.lookgo.module.metro.model.entity.Line">
         SELECT id, letter, name_zh_tw, name_en, color, status, updated_at
         FROM [dbo].[lines]
         ORDER BY id ASC
     </select>
 
+    <!-- 車站 -->
+
+    <!-- 批次新增或更新車站資料 -->
     <insert id="upsertAllStation">
         <foreach collection="stations" item="station" separator=";">
             MERGE [dbo].[stations] AS target
@@ -68,21 +61,33 @@
                     updated_at       = source.updated_at
             WHEN NOT MATCHED THEN
                 INSERT (name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
-                        charging_station, ticket_machine, drinking_water, restroom,
-                        created_at, updated_at)
+                        charging_station, ticket_machine, drinking_water, restroom, updated_at)
                 VALUES (source.name_zh_tw, source.name_en, source.status, source.atm,
                         source.nursing_room, source.diaper_table, source.charging_station,
-                        source.ticket_machine, source.drinking_water, source.restroom,
-                        source.updated_at, source.updated_at);
+                        source.ticket_machine, source.drinking_water, source.restroom, source.updated_at);
         </foreach>
     </insert>
 
+    <!-- 取得所有車站資料。-->
     <select id="getAllStation" resultType="com.mli.lookgo.module.metro.model.entity.Station">
         SELECT id, name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
-               charging_station, ticket_machine, locker, drinking_water, restroom,
-               created_at, updated_at
+               charging_station, ticket_machine, locker, drinking_water, restroom, updated_at
         FROM [dbo].[stations]
         ORDER BY id ASC
     </select>
 
+    <!-- 所有路線的車站 -->
+
+    <!-- 批次新增或更新所有路線的車站資料 (同車站保留重複資料) -->
+     <insert id="upsertAllLineStation">
+        <foreach collection="linesStations" item="linestation" separator=";">
+        </foreach>
+     </insert>
+
+    <!-- 取得所有路線的車站資料。-->
+    <select id="getAllLineStation" resultType="com.mli.lookgo.module.metro.model.entity.LineStation">
+        SELECT id, line_id, station_id, station_sequence, station_code, cumulative_distance, cumulative_time,  updated_at
+        FROM [dbo].[lines_stations]
+        ORDER BY id ASC
+    </select>
 </mapper>

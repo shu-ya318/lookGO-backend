@@ -21,7 +21,7 @@ public class UserVO {
     @Schema(description = "id", example = "1")
     private Integer id;
 
-    @Schema(description = "電子郵件地址", example = "user@example.com")
+    @Schema(description = "電子郵件地址", example = "admin@example.com")
     private String email;
 
     @Schema(description = "使用者名稱", example = "測試用使用者")

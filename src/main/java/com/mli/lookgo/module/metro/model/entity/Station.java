@@ -16,7 +16,7 @@ public class Station {
     @Schema(description = "車站 id", example = "1")
     private Integer id;
 
-    @Schema(description = "車站中文名稱", example = "松山機場")
+    @Schema(description = "車站中文名稱", example = "淡水站")
     private String nameZhTw;
 
     @Schema(description = "車站英文名稱", example = "Songshan Airport")
@@ -48,9 +48,6 @@ public class Station {
 
     @Schema(description = "廁所位置", example = "非付費區，近出口3")
     private String restroom;
-
-    @Schema(description = "建立時間 (UTC, ISO 8601)", example = "2026-06-25T12:00:00Z")
-    private LocalDateTime createdAt;
 
     @Schema(description = "更新時間 (UTC, ISO 8601)", example = "2026-06-25T12:00:00Z")
     private LocalDateTime updatedAt;
@@ -170,14 +167,6 @@ public class Station {
 
     public void setRestroom(String restroom) {
         this.restroom = restroom;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 
     public LocalDateTime getUpdatedAt() {

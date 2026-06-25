@@ -23,10 +23,10 @@ public class User {
     @Schema(description = "角色 id", example = "1")
     private Integer roleId;
 
-    @Schema(description = "電子郵件地址", example = "user@example.com")
+    @Schema(description = "電子郵件地址", example = "admin@example.com")
     private String email;
 
-    @Schema(description = "使用者密碼", example = "password12345")
+    @Schema(description = "使用者密碼", example = "admin12345")
     private String password;
 
     @Schema(description = "使用者名稱", example = "測試使用者")

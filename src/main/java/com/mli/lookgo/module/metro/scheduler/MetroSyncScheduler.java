@@ -41,10 +41,10 @@ public class MetroSyncScheduler {
     /**
      * 每 7 天自動從 TDX + TPE API 同步車站資料。
      */
-    // @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    // public void syncAllStation() {
-    // logger.debug("開始進行同步車站資料的排程作業");
-    // metroSyncService.syncAllStation();
-    // logger.debug("完成同步車站資料的排程作業");
-    // }
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
+    public void syncAllStation() {
+        logger.debug("開始進行同步車站資料的排程作業");
+        metroSyncService.syncAllStation();
+        logger.debug("完成同步車站資料的排程作業");
+    }
 }

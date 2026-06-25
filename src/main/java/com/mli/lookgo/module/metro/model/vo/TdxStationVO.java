@@ -3,37 +3,30 @@ package com.mli.lookgo.module.metro.model.vo;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 對應 TDX Metro Line API 回傳的 JSON 結構。
+ * 對應 TDX Metro Station API 回傳的 JSON 結構。
  *
  * @author D5042101
- * @since 2026.06.24
+ * @since 2026.06.25
  */
-public class LineVO {
+public class TdxStationVO {
 
-    @JsonProperty("LineID")
-    private String letter;
+    @JsonProperty("StationID")
+    private String stationSequence;
 
-    @JsonProperty("LineColor")
-    private String color;
+    @JsonProperty("StationName")
+    private NameTranslation stationName;
 
-    @JsonProperty("LineName")
-    private NameTranslation lineName;
-
-    public String getLetter() {
-        return letter;
-    }
-
-    public String getColor() {
-        return color;
+    public String getStationSequence() {
+        return stationSequence;
     }
 
     // 目的: 讓外部直接取得扁平化欄位
     public String getNameZhTw() {
-        return lineName != null ? lineName.getZhTw() : null;
+        return stationName != null ? stationName.getZhTw() : null;
     }
 
     public String getNameEn() {
-        return lineName != null ? lineName.getEn() : null;
+        return stationName != null ? stationName.getEn() : null;
     }
 
     // 目的: 讓 Jackson 正確解析巢狀 JSON 物件

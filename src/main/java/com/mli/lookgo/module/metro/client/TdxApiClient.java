@@ -1,9 +1,12 @@
 package com.mli.lookgo.module.metro.client;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -17,9 +20,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.mli.lookgo.module.auth.service.RedisService;
-import com.mli.lookgo.module.metro.enums.tdx.TdxRailSystem;
-import com.mli.lookgo.module.metro.model.vo.LineVO;
-import com.mli.lookgo.module.metro.model.vo.StationVO;
+import com.mli.lookgo.module.metro.enums.TdxRailSystem;
+import com.mli.lookgo.module.metro.model.vo.TdxLineVO;
+import com.mli.lookgo.module.metro.model.vo.TdxStationVO;
 
 // 考量: 建立獨立於 Dao 和 Service 層之外的 Client 層，專門負責呼叫第三方服務。
 /**
@@ -50,12 +53,8 @@ public class TdxApiClient {
     }
 
     // ----- 通用的所有 API 請求定義 -----
-    // 考量: 以 overload 的方式，提供 1. 指定固定的請求參數 (少量資料) 2. 支援額外的請求參數 (如: 大量資料需分頁)
-    private <T> T sendGetRequest(String subPath, Class<T> responseType) {
-        return sendGetRequest(subPath, responseType, new LinkedMultiValueMap<>());
-    }
-
-    private <T> T sendGetRequest(String subPath, Class<T> responseType, MultiValueMap<String, String> queryParams) {
+    private <T> T sendGetRequest(String subPath, ParameterizedTypeReference<T> responseType,
+            MultiValueMap<String, String> queryParams) {
         // 考量: 傳入 queryParams 時建立新的 Map ，避免改變原始 Map 的值
         MultiValueMap<String, String> params;
         if (queryParams != null) {
@@ -63,11 +62,6 @@ public class TdxApiClient {
         } else {
             params = new LinkedMultiValueMap<>();
         }
-
-        // 自動加上必填參數 // 考量: 參數有重複時，set 能覆蓋原值 (add 則會累加)
-        params.set("$format", "JSON");
-        // 考量: 指定較大的筆數，確保取得所有資料
-        params.set("$top", "2000");
 
         // 建立 Request URL
         String url = UriComponentsBuilder.fromUriString(BASE_URL)
@@ -91,13 +85,22 @@ public class TdxApiClient {
     }
 
     // ----- 具體的各 API 請求定義 -----
-    public LineVO[] getAllLine() {
-        return sendGetRequest("/Line", LineVO[].class);
+    // $top值為數字字串，因 queryParams() 參數只接受 MultiValueMap<String, String>，無法同時處理 多種型別值
+    public List<TdxLineVO> getAllLine() {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.setAll(Map.of("$format", "JSON", "$top", "2000"));
+
+        return sendGetRequest("/Line", new ParameterizedTypeReference<List<TdxLineVO>>() {
+        }, params);
     }
 
-    // public StationVO[] getAllStation() {
-    // return sendGetRequest("/Station", StationVO[].class);
-    // }
+    public List<TdxStationVO> getAllStation() {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.setAll(Map.of("$format", "JSON", "$top", "2000"));
+
+        return sendGetRequest("/Station", new ParameterizedTypeReference<List<TdxStationVO>>() {
+        }, params);
+    }
 
     // ----- Private Helpers -----
 

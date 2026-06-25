@@ -22,6 +22,12 @@ import com.mli.lookgo.module.metro.model.vo.LineVO;
 import com.mli.lookgo.module.metro.model.vo.StationVO;
 
 // 考量: 建立獨立於 Dao 和 Service 層之外的 Client 層，專門負責呼叫第三方服務。
+/**
+ * 負責呼叫 TDX (運輸資料流通服務) API 的客戶端。不需要驗證即可呼叫。
+ *
+ * @author D5042101
+ * @since 2026.06.25
+ */
 @Component
 public class TdxApiClient {
 
@@ -60,6 +66,8 @@ public class TdxApiClient {
 
         // 自動加上必填參數 // 考量: 參數有重複時，set 能覆蓋原值 (add 則會累加)
         params.set("$format", "JSON");
+        // 考量: 指定較大的筆數，確保取得所有資料
+        params.set("$top", "2000");
 
         // 建立 Request URL
         String url = UriComponentsBuilder.fromUriString(BASE_URL)
@@ -87,9 +95,9 @@ public class TdxApiClient {
         return sendGetRequest("/Line", LineVO[].class);
     }
 
-    public StationVO[] getAllStation() {
-        return sendGetRequest("/Station", StationVO[].class);
-    }
+    // public StationVO[] getAllStation() {
+    // return sendGetRequest("/Station", StationVO[].class);
+    // }
 
     // ----- Private Helpers -----
 

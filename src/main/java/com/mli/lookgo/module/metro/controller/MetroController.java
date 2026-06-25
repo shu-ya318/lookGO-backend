@@ -66,16 +66,22 @@ public class MetroController {
      *
      * @return ResponseEntity<List<Station>>
      */
-    @Operation(summary = "取得所有車站資料", description = "從資料庫取得所有車站資料")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功取得所有車站資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Station.class))),
-            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
-            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-    @PostMapping("/get-all-station")
-    public ResponseEntity<List<Station>> getAllStation() {
-        logger.debug("收到查詢所有車站資料的請求");
-        List<Station> stations = metroService.getAllStation();
+    // @Operation(summary = "取得所有車站資料", description = "從資料庫取得所有車站資料")
+    // @ApiResponses(value = {
+    // @ApiResponse(responseCode = "200", description = "成功取得所有車站資料", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // Station.class))),
+    // @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // String.class, example = "未授權錯誤，token無效或已過期"))),
+    // @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // String.class, example = "伺服器端錯誤!"))) })
+    // @PostMapping("/get-all-station")
+    // public ResponseEntity<List<Station>> getAllStation() {
+    // logger.debug("收到查詢所有車站資料的請求");
+    // List<Station> stations = metroService.getAllStation();
 
-        return ResponseEntity.ok(stations);
-    }
+    // return ResponseEntity.ok(stations);
+    // }
 }

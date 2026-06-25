@@ -53,7 +53,7 @@ public class MetroSyncController {
             @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/lines")
+    @PostMapping("/sync-all-line")
     public ResponseEntity<ApiResult> syncAllLine() {
         logger.debug("收到同步路線資料的請求");
         ApiResult apiResult = metroSyncService.syncAllLine();
@@ -66,18 +66,27 @@ public class MetroSyncController {
      *
      * @return ResponseEntity<ApiResult>
      */
-    @Operation(summary = "同步車站資料", description = "從 TDX API 取得車站名稱，從 TPE API 取得車站設施，合併後同步到資料庫，僅限 ADMIN 角色存取")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "車站資料同步成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiResult.class))),
-            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
-            @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
-            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/stations")
-    public ResponseEntity<ApiResult> syncAllStation() {
-        logger.debug("收到同步車站資料的請求");
-        ApiResult apiResult = metroSyncService.syncAllStation();
+    // @Operation(summary = "同步車站資料", description = "從 TDX API 取得車站名稱，從 TPE API
+    // 取得車站設施，合併後同步到資料庫，僅限 ADMIN 角色存取")
+    // @ApiResponses(value = {
+    // @ApiResponse(responseCode = "200", description = "車站資料同步成功", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // ApiResult.class))),
+    // @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // String.class, example = "未授權錯誤，token無效或已過期"))),
+    // @ApiResponse(responseCode = "403", description = "權限不足", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // String.class, example = "權限不足，無法操作!"))),
+    // @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content =
+    // @Content(mediaType = "application/json", schema = @Schema(implementation =
+    // String.class, example = "伺服器端錯誤!"))) })
+    // @PreAuthorize("hasRole('ADMIN')")
+    // @PostMapping("/sync-all-station")
+    // public ResponseEntity<ApiResult> syncAllStation() {
+    // logger.debug("收到同步車站資料的請求");
+    // ApiResult apiResult = metroSyncService.syncAllStation();
 
-        return ResponseEntity.ok(apiResult);
-    }
+    // return ResponseEntity.ok(apiResult);
+    // }
 }

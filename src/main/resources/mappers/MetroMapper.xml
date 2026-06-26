@@ -5,21 +5,35 @@
 
     <!-- 路線 -->
 
-    <!-- 刪除所有路線資料。強制歸零主鍵 id 序號 -->
-    <delete id="deleteAllLine">
-        DELETE FROM [dbo].[lines];
-        DBCC CHECKIDENT ('[dbo].[lines]', RESEED, 0);
-    </delete>
+    <!-- 組裝成單一長條 SQL ，進行新增或更新路線資料 -->
+    <insert id="upsertAllLine">
+        <foreach collection="lines" item="line" separator=";">
+            MERGE [dbo].[lines] AS target
+            USING (
+                SELECT
+                    #{line.letter, jdbcType=NVARCHAR} AS letter,
+                    #{line.nameZhTw, jdbcType=NVARCHAR} AS name_zh_tw,
+                    #{line.nameEn, jdbcType=NVARCHAR} AS name_en,
+                    #{line.color, jdbcType=NVARCHAR} AS color,
+                    #{line.status, jdbcType=TINYINT} AS status,
+                    #{line.updatedAt, jdbcType=TIMESTAMP} AS updated_at
+            ) AS source
+            ON target.letter = source.letter
+            WHEN MATCHED THEN
+                UPDATE SET
+                    name_zh_tw = ISNULL(source.name_zh_tw, target.name_zh_tw),
+                    name_en    = ISNULL(source.name_en, target.name_en),
+                    color      = ISNULL(source.color, target.color),
+                    status     = ISNULL(source.status, target.status),
+                    updated_at = ISNULL(source.updated_at, target.updated_at)
+            WHEN NOT MATCHED THEN
+                INSERT (letter, name_zh_tw, name_en, color, status, updated_at)
+                VALUES (source.letter, source.name_zh_tw, source.name_en,
+                        source.color, source.status, source.updated_at);
+        </foreach>
+    </insert>
 
-    <!-- 做法: 逐一欄位比對，存在就更新，不存在就新增。 -->
-    <!-- 批次新增或更新路線資料 -->
-   <delete id="deleteAllLine">
-        DELETE FROM [dbo].[lines]
-    </delete>
-
-    
-
-    <!-- 取得所有路線資料。-->  
+    <!-- 取得所有路線資料 -->
     <select id="getAllLine" resultType="com.mli.lookgo.module.metro.model.entity.Line">
         SELECT id, letter, name_zh_tw, name_en, color, status, updated_at
         FROM [dbo].[lines]
@@ -28,47 +42,50 @@
 
     <!-- 車站 -->
 
-    <!-- 批次新增或更新車站資料 -->
+    <!-- 組裝成單一長條 SQL ，新增或更新車站資料 -->
     <insert id="upsertAllStation">
         <foreach collection="stations" item="station" separator=";">
             MERGE [dbo].[stations] AS target
             USING (
                 SELECT
-                    #{station.nameZhTw} AS name_zh_tw,
-                    #{station.nameEn} AS name_en,
-                    #{station.status} AS status,
-                    #{station.atm} AS atm,
-                    #{station.nursingRoom} AS nursing_room,
-                    #{station.diaperTable} AS diaper_table,
-                    #{station.chargingStation} AS charging_station,
-                    #{station.ticketMachine} AS ticket_machine,
-                    #{station.drinkingWater} AS drinking_water,
-                    #{station.restroom} AS restroom,
-                    #{station.updatedAt} AS updated_at
+                    #{station.nameZhTw, jdbcType=NVARCHAR} AS name_zh_tw,
+                    #{station.nameEn, jdbcType=NVARCHAR} AS name_en,
+                    #{station.status, jdbcType=TINYINT} AS status,
+                    #{station.atm, jdbcType=NVARCHAR} AS atm,
+                    #{station.nursingRoom, jdbcType=NVARCHAR} AS nursing_room,
+                    #{station.diaperTable, jdbcType=NVARCHAR} AS diaper_table,
+                    #{station.chargingStation, jdbcType=NVARCHAR} AS charging_station,
+                    #{station.ticketMachine, jdbcType=NVARCHAR} AS ticket_machine,
+                    #{station.locker, jdbcType=NVARCHAR} AS locker,
+                    #{station.drinkingWater, jdbcType=NVARCHAR} AS drinking_water,
+                    #{station.restroom, jdbcType=NVARCHAR} AS restroom,
+                    #{station.updatedAt, jdbcType=TIMESTAMP} AS updated_at
             ) AS source
             ON target.name_zh_tw = source.name_zh_tw
             WHEN MATCHED THEN
                 UPDATE SET
-                    name_en          = source.name_en,
-                    status           = source.status,
-                    atm              = source.atm,
-                    nursing_room     = source.nursing_room,
-                    diaper_table     = source.diaper_table,
-                    charging_station = source.charging_station,
-                    ticket_machine   = source.ticket_machine,
-                    drinking_water   = source.drinking_water,
-                    restroom         = source.restroom,
-                    updated_at       = source.updated_at
+                    name_en          = ISNULL(source.name_en, target.name_en),
+                    status           = ISNULL(source.status, target.status),
+                    atm              = ISNULL(source.atm, target.atm),
+                    nursing_room     = ISNULL(source.nursing_room, target.nursing_room),
+                    diaper_table     = ISNULL(source.diaper_table, target.diaper_table),
+                    charging_station = ISNULL(source.charging_station, target.charging_station),
+                    ticket_machine   = ISNULL(source.ticket_machine, target.ticket_machine),
+                    locker           = ISNULL(source.locker, target.locker),
+                    drinking_water   = ISNULL(source.drinking_water, target.drinking_water),
+                    restroom         = ISNULL(source.restroom, target.restroom),
+                    updated_at       = ISNULL(source.updated_at, target.updated_at)
             WHEN NOT MATCHED THEN
                 INSERT (name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
-                        charging_station, ticket_machine, drinking_water, restroom, updated_at)
+                        charging_station, ticket_machine, locker, drinking_water, restroom, updated_at)
                 VALUES (source.name_zh_tw, source.name_en, source.status, source.atm,
                         source.nursing_room, source.diaper_table, source.charging_station,
-                        source.ticket_machine, source.drinking_water, source.restroom, source.updated_at);
+                        source.ticket_machine, source.locker, source.drinking_water,
+                        source.restroom, source.updated_at);
         </foreach>
     </insert>
 
-    <!-- 取得所有車站資料。-->
+    <!-- 取得所有車站資料 -->
     <select id="getAllStation" resultType="com.mli.lookgo.module.metro.model.entity.Station">
         SELECT id, name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
                charging_station, ticket_machine, locker, drinking_water, restroom, updated_at
@@ -78,16 +95,152 @@
 
     <!-- 所有路線的車站 -->
 
-    <!-- 批次新增或更新所有路線的車站資料 (同車站保留重複資料) -->
-     <insert id="upsertAllLineStation">
-        <foreach collection="linesStations" item="linestation" separator=";">
+    <!-- 組裝成單一長條 SQL ，新增或更新所有路線的車站資料 (同車站保留重複資料) -->
+    <insert id="upsertAllLineStation">
+        <foreach collection="linesStations" item="lineStation" separator=";">
+            MERGE [dbo].[lines_stations] AS target
+            USING (
+                SELECT
+                    #{lineStation.lineId, jdbcType=SMALLINT} AS line_id,
+                    #{lineStation.stationId, jdbcType=INTEGER} AS station_id,
+                    #{lineStation.stationSequence, jdbcType=SMALLINT} AS station_sequence,
+                    #{lineStation.stationCode, jdbcType=NVARCHAR} AS station_code,
+                    #{lineStation.cumulativeDistance, jdbcType=DECIMAL} AS cumulative_distance,
+                    #{lineStation.cumulativeTime, jdbcType=SMALLINT} AS cumulative_time,
+                    #{lineStation.updatedAt, jdbcType=TIMESTAMP} AS updated_at
+            ) AS source
+            ON target.line_id = source.line_id AND target.station_code = source.station_code
+            WHEN MATCHED THEN
+                UPDATE SET
+                    station_id          = ISNULL(source.station_id, target.station_id),
+                    station_sequence    = ISNULL(source.station_sequence, target.station_sequence),
+                    cumulative_distance = ISNULL(source.cumulative_distance, target.cumulative_distance),
+                    cumulative_time     = ISNULL(source.cumulative_time, target.cumulative_time),
+                    updated_at          = ISNULL(source.updated_at, target.updated_at)
+            WHEN NOT MATCHED THEN
+                INSERT (line_id, station_id, station_sequence, station_code,
+                        cumulative_distance, cumulative_time, updated_at)
+                VALUES (source.line_id, source.station_id, source.station_sequence,
+                        source.station_code, source.cumulative_distance,
+                        source.cumulative_time, source.updated_at);
         </foreach>
-     </insert>
+    </insert>
 
-    <!-- 取得所有路線的車站資料。-->
+    <!-- 取得所有路線的車站資料 -->
     <select id="getAllLineStation" resultType="com.mli.lookgo.module.metro.model.entity.LineStation">
-        SELECT id, line_id, station_id, station_sequence, station_code, cumulative_distance, cumulative_time,  updated_at
+        SELECT id, line_id, station_id, station_sequence, station_code, cumulative_distance, cumulative_time, updated_at
         FROM [dbo].[lines_stations]
+        ORDER BY id ASC
+    </select>
+
+    <!-- 組裝成單一長條 SQL ，更新路線車站的累計行駛時間 (以 line_id + station_code 定位) -->
+    <update id="updateAllLineStationCumulativeTime">
+        <foreach collection="lineStations" item="lineStation" separator=";">
+            UPDATE [dbo].[lines_stations]
+            SET cumulative_time = #{lineStation.cumulativeTime, jdbcType=SMALLINT},
+                updated_at      = #{lineStation.updatedAt, jdbcType=TIMESTAMP}
+            WHERE line_id     = #{lineStation.lineId, jdbcType=SMALLINT}
+              AND station_code = #{lineStation.stationCode, jdbcType=NVARCHAR}
+        </foreach>
+    </update>
+
+    <!-- 車站出口 -->
+
+    <!-- 組裝成單一長條 SQL ，新增或更新車站出口資料 -->
+    <insert id="upsertAllStationExit">
+        <foreach collection="stationExits" item="stationExit" separator=";">
+            MERGE [dbo].[station_exits] AS target
+            USING (
+                SELECT
+                    #{stationExit.stationId, jdbcType=INTEGER} AS station_id,
+                    #{stationExit.elevator, jdbcType=NVARCHAR} AS elevator,
+                    #{stationExit.escalator, jdbcType=NVARCHAR} AS escalator,
+                    #{stationExit.updatedAt, jdbcType=TIMESTAMP} AS updated_at
+            ) AS source
+            ON target.station_id = source.station_id
+            WHEN MATCHED THEN
+                UPDATE SET
+                    elevator   = source.elevator,
+                    escalator  = source.escalator,
+                    updated_at = ISNULL(source.updated_at, target.updated_at)
+            WHEN NOT MATCHED THEN
+                INSERT (station_id, elevator, escalator, updated_at)
+                VALUES (source.station_id, source.elevator, source.escalator, source.updated_at);
+        </foreach>
+    </insert>
+
+    <!-- 取得所有車站出口資料 -->
+    <select id="getAllStationExit" resultType="com.mli.lookgo.module.metro.model.entity.StationExit">
+        SELECT id, station_id, elevator, escalator, updated_at
+        FROM [dbo].[station_exits]
+        ORDER BY id ASC
+    </select>
+
+    <!-- 票價 -->
+
+    <!-- 先在 Client 呼叫 API 時就批次請求，再組裝成單一長條 SQL ，新增或更新票價資料 -->
+    <insert id="upsertAllStationFare">
+        <foreach collection="stationFares" item="stationFare" separator=";">
+            MERGE [dbo].[station_fares] AS target
+            USING (
+                SELECT
+                    #{stationFare.fromStationId, jdbcType=INTEGER} AS from_station_id,
+                    #{stationFare.toStationId, jdbcType=INTEGER}   AS to_station_id,
+                    #{stationFare.fareType, jdbcType=TINYINT}      AS fare_type,
+                    #{stationFare.price, jdbcType=NUMERIC}         AS price,
+                    #{stationFare.updatedAt, jdbcType=TIMESTAMP}   AS updated_at
+            ) AS source
+            ON target.from_station_id = source.from_station_id
+               AND target.to_station_id = source.to_station_id
+               AND target.fare_type = source.fare_type
+            WHEN MATCHED THEN
+                UPDATE SET
+                    price      = source.price,
+                    updated_at = source.updated_at
+            WHEN NOT MATCHED THEN
+                INSERT (from_station_id, to_station_id, fare_type, price, updated_at)
+                VALUES (source.from_station_id, source.to_station_id, source.fare_type,
+                        source.price, source.updated_at);
+        </foreach>
+    </insert>
+
+    <!-- 取得所有票價資料 -->
+    <select id="getAllStationFare" resultType="com.mli.lookgo.module.metro.model.entity.StationFare">
+        SELECT id, from_station_id, to_station_id, fare_type, price, updated_at
+        FROM [dbo].[station_fares]
+        ORDER BY id ASC
+    </select>
+
+    <!-- 換乘 -->
+
+    <!-- 組裝成單一長條 SQL，新增或更新路線換乘資料 (以 from_line_station_id + to_line_station_id 定位) -->
+    <insert id="upsertAllLineTransfer">
+        <foreach collection="lineTransfers" item="lineTransfer" separator=";">
+            MERGE [dbo].[lines_transfers] AS target
+            USING (
+                SELECT
+                    #{lineTransfer.fromLineStationId, jdbcType=INTEGER} AS from_line_station_id,
+                    #{lineTransfer.toLineStationId, jdbcType=INTEGER}   AS to_line_station_id,
+                    #{lineTransfer.transferTime, jdbcType=SMALLINT}     AS transfer_time,
+                    #{lineTransfer.updatedAt, jdbcType=TIMESTAMP}       AS updated_at
+            ) AS source
+            ON target.from_line_station_id = source.from_line_station_id
+               AND target.to_line_station_id = source.to_line_station_id
+            WHEN MATCHED THEN
+                UPDATE SET
+                    transfer_time = source.transfer_time,
+                    updated_at    = source.updated_at
+            WHEN NOT MATCHED THEN
+                INSERT (from_line_station_id, to_line_station_id, transfer_time, updated_at)
+                VALUES (source.from_line_station_id, source.to_line_station_id,
+                        source.transfer_time, source.updated_at);
+        </foreach>
+    </insert>
+
+    <!-- 取得所有路線換乘資料 -->
+    <select id="getAllLineTransfer" resultType="com.mli.lookgo.module.metro.model.entity.LineTransfer">
+        SELECT id, from_line_station_id, to_line_station_id, transfer_time, updated_at
+        FROM [dbo].[lines_transfers]
         ORDER BY id ASC
     </select>
 </mapper>

@@ -118,11 +118,8 @@ IF NOT EXISTS (
 CREATE TABLE [dbo].[station_exits] (
     [id]         INT             NOT NULL IDENTITY(1, 1),
     [station_id] INT             NOT NULL,
-    [name_zh_tw] NVARCHAR(100)   NOT NULL,
-    [name_en]    NVARCHAR(200)   NOT NULL,
     [elevator]   NVARCHAR(100)   NULL,
     [escalator]  NVARCHAR(100)   NULL,
-    [status]     TINYINT         NOT NULL,
     [updated_at] DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_station_exits] PRIMARY KEY ([id]),
     CONSTRAINT [FK_station_exits_station_id]
@@ -140,8 +137,8 @@ CREATE TABLE [dbo].[lines_stations] (
     [station_id]          INT             NOT NULL,
     [station_sequence]    SMALLINT        NOT NULL,
     [station_code]        NVARCHAR(20)    NOT NULL,
-    [cumulative_distance] DECIMAL(8, 2)   NOT NULL,
-    [cumulative_time]     SMALLINT        NOT NULL,
+    [cumulative_distance] DECIMAL(8, 2)   NULL,
+    [cumulative_time]     SMALLINT        NULL,
     [updated_at]          DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_lines_stations] PRIMARY KEY ([id]),
     CONSTRAINT [UK_lines_stations_line_sequence] UNIQUE ([line_id], [station_sequence]),

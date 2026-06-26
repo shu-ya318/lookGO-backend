@@ -57,5 +57,8 @@ frontend:
 
 logging:
   level:
-    com.mli.lookgo.module.auth.security: DEBUG
-    com.mli.lookgo.module.user.controller: DEBUG
+    com.mli: DEBUG
+    # 塞入大量資料時，Dao 層印出 INFO 即可
+    com.mli.lookgo.module.metro.dao: INFO
+    com.mli.lookgo.module.user.dao: INFO
+    com.mli.lookgo.module.auth.dao: INFO

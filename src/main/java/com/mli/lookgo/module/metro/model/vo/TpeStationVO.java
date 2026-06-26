@@ -28,11 +28,17 @@ public class TpeStationVO {
     @JsonProperty("自動售票機")
     private String ticketMachine;
 
-    @JsonProperty("飲水機/飲水壺")
+    @JsonProperty("飲水機/飲水臺")
     private String drinkingWater;
 
     @JsonProperty("廁所")
     private String restroom;
+
+    @JsonProperty("電梯")
+    private String elevator;
+
+    @JsonProperty("電扶梯")
+    private String escalator;
 
     public String getStationName() {
         return stationName;
@@ -64,5 +70,13 @@ public class TpeStationVO {
 
     public String getRestroom() {
         return restroom;
+    }
+
+    public String getElevator() {
+        return elevator;
+    }
+
+    public String getEscalator() {
+        return escalator;
     }
 }

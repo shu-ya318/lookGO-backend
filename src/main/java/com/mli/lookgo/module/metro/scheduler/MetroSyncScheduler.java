@@ -47,4 +47,54 @@ public class MetroSyncScheduler {
         metroSyncService.syncAllStation();
         logger.debug("完成同步車站資料的排程作業");
     }
+
+    /**
+     * 每 7 天自動從 TDX API 同步路線車站資料。
+     */
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
+    public void syncAllLineStation() {
+        logger.debug("開始進行同步路線車站資料的排程作業");
+        metroSyncService.syncAllLineStation();
+        logger.debug("完成同步路線車站資料的排程作業");
+    }
+
+    /**
+     * 每 7 天自動從 TPE API 同步車站出口電梯電扶梯資料。
+     */
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
+    public void syncAllStationExit() {
+        logger.debug("開始進行同步車站出口資料的排程作業");
+        metroSyncService.syncAllStationExit();
+        logger.debug("完成同步車站出口資料的排程作業");
+    }
+
+    /**
+     * 每 7 天自動從 TDX S2STravelTime API 同步路線車站累計行駛時間。
+     */
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
+    public void syncAllLineStationCumulativeTime() {
+        logger.debug("開始進行同步路線車站累計行駛時間的排程作業");
+        metroSyncService.syncAllLineStationCumulativeTime();
+        logger.debug("完成同步路線車站累計行駛時間的排程作業");
+    }
+
+    /**
+     * 每 7 天自動從 TDX ODFare API 同步票價資料。
+     */
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
+    public void syncAllStationFare() {
+        logger.debug("開始進行同步票價資料的排程作業");
+        metroSyncService.syncAllStationFare();
+        logger.debug("完成同步票價資料的排程作業");
+    }
+
+    /**
+     * 每 7 天自動從 TDX LineTransfer API 同步路線換乘資料。
+     */
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
+    public void syncAllLineTransfer() {
+        logger.debug("開始進行同步路線換乘資料的排程作業");
+        metroSyncService.syncAllLineTransfer();
+        logger.debug("完成同步路線換乘資料的排程作業");
+    }
 }

@@ -7,7 +7,10 @@ import org.apache.ibatis.annotations.Param;
 
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
+import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
+import com.mli.lookgo.module.metro.model.entity.StationExit;
+import com.mli.lookgo.module.metro.model.entity.StationFare;
 
 /**
  * 和資料庫交互，處理捷運資料查詢相關的操作。
@@ -64,4 +67,59 @@ public interface MetroDao {
      * @return List<LineStation>
      */
     List<LineStation> getAllLineStation();
+
+    /**
+     * 批次更新路線車站的累計行駛時間。以 line_id + station_code 定位更新目標。
+     *
+     * @param lineStations
+     */
+    void updateAllLineStationCumulativeTime(@Param("lineStations") List<LineStation> lineStations);
+
+    // ----- 車站出口 -----
+
+    /**
+     * 批次新增或更新車站出口資料。
+     *
+     * @param stationExits
+     */
+    void upsertAllStationExit(@Param("stationExits") List<StationExit> stationExits);
+
+    /**
+     * 取得所有車站出口資料。
+     *
+     * @return List<StationExit>
+     */
+    List<StationExit> getAllStationExit();
+
+    // ----- 票價 -----
+
+    /**
+     * 批次新增或更新票價資料。
+     *
+     * @param stationFares
+     */
+    void upsertAllStationFare(@Param("stationFares") List<StationFare> stationFares);
+
+    /**
+     * 取得所有票價資料。
+     *
+     * @return List<StationFare>
+     */
+    List<StationFare> getAllStationFare();
+
+    // ----- 路線換乘 -----
+
+    /**
+     * 批次新增或更新路線換乘資料。
+     *
+     * @param lineTransfers
+     */
+    void upsertAllLineTransfer(@Param("lineTransfers") List<LineTransfer> lineTransfers);
+
+    /**
+     * 取得所有路線換乘資料。
+     *
+     * @return List<LineTransfer>
+     */
+    List<LineTransfer> getAllLineTransfer();
 }

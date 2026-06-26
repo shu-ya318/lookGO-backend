@@ -37,4 +37,97 @@ public class LineStation {
 
     @Schema(description = "更新時間 (UTC, ISO 8601)", example = "2026-06-25T12:00:00Z")
     private LocalDateTime updatedAt;
+
+    public LineStation() {
+    }
+
+    public LineStation(Short lineId, Integer stationId, Short stationSequence,
+            String stationCode, BigDecimal cumulativeDistance, Short cumulativeTime,
+            LocalDateTime updatedAt) {
+        this.lineId = lineId;
+        this.stationId = stationId;
+        this.stationSequence = stationSequence;
+        this.stationCode = stationCode;
+        this.cumulativeDistance = cumulativeDistance;
+        this.cumulativeTime = cumulativeTime;
+        this.updatedAt = updatedAt;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public Short getLineId() {
+        return lineId;
+    }
+
+    public void setLineId(Short lineId) {
+        this.lineId = lineId;
+    }
+
+    public Integer getStationId() {
+        return stationId;
+    }
+
+    public void setStationId(Integer stationId) {
+        this.stationId = stationId;
+    }
+
+    public Short getStationSequence() {
+        return stationSequence;
+    }
+
+    public void setStationSequence(Short stationSequence) {
+        this.stationSequence = stationSequence;
+    }
+
+    public String getStationCode() {
+        return stationCode;
+    }
+
+    public void setStationCode(String stationCode) {
+        this.stationCode = stationCode;
+    }
+
+    public BigDecimal getCumulativeDistance() {
+        return cumulativeDistance;
+    }
+
+    public void setCumulativeDistance(BigDecimal cumulativeDistance) {
+        this.cumulativeDistance = cumulativeDistance;
+    }
+
+    public Short getCumulativeTime() {
+        return cumulativeTime;
+    }
+
+    public void setCumulativeTime(Short cumulativeTime) {
+        this.cumulativeTime = cumulativeTime;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    @Override
+    public String toString() {
+        return "LineStation{" +
+                "id=" + id +
+                ", lineId=" + lineId +
+                ", stationId=" + stationId +
+                ", stationSequence=" + stationSequence +
+                ", stationCode='" + stationCode + '\'' +
+                ", cumulativeDistance=" + cumulativeDistance +
+                ", cumulativeTime=" + cumulativeTime +
+                ", updatedAt=" + updatedAt +
+                '}';
+    }
 }

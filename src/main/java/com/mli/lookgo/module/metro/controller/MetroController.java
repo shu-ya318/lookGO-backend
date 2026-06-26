@@ -10,7 +10,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mli.lookgo.module.metro.model.entity.Line;
+import com.mli.lookgo.module.metro.model.entity.LineStation;
+import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
+import com.mli.lookgo.module.metro.model.entity.StationExit;
+import com.mli.lookgo.module.metro.model.entity.StationFare;
+import com.mli.lookgo.module.metro.model.vo.MetroMapVO;
 import com.mli.lookgo.module.metro.service.MetroService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -77,5 +82,95 @@ public class MetroController {
         List<Station> stations = metroService.getAllStation();
 
         return ResponseEntity.ok(stations);
+    }
+
+    /**
+     * 取得所有路線車站資料。
+     *
+     * @return ResponseEntity<List<LineStation>>
+     */
+    @Operation(summary = "取得所有路線車站資料", description = "從資料庫取得所有路線車站資料")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "成功取得所有路線車站資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LineStation.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/get-all-line-station")
+    public ResponseEntity<List<LineStation>> getAllLineStation() {
+        logger.debug("收到查詢所有路線車站資料的請求");
+        List<LineStation> lineStations = metroService.getAllLineStation();
+
+        return ResponseEntity.ok(lineStations);
+    }
+
+    /**
+     * 取得所有車站出口資料。
+     *
+     * @return ResponseEntity<List<StationExit>>
+     */
+    @Operation(summary = "取得所有車站出口資料", description = "從資料庫取得所有車站出口電梯電扶梯資料")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "成功取得所有車站出口資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationExit.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/get-all-station-exit")
+    public ResponseEntity<List<StationExit>> getAllStationExit() {
+        logger.debug("收到查詢所有車站出口資料的請求");
+        List<StationExit> stationExits = metroService.getAllStationExit();
+
+        return ResponseEntity.ok(stationExits);
+    }
+
+    /**
+     * 取得所有票價資料。
+     *
+     * @return ResponseEntity<List<StationFare>>
+     */
+    @Operation(summary = "取得所有票價資料", description = "從資料庫取得所有任意兩站間票價資料")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "成功取得所有票價資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationFare.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/get-all-station-fare")
+    public ResponseEntity<List<StationFare>> getAllStationFare() {
+        logger.debug("收到查詢所有票價資料的請求");
+        List<StationFare> stationFares = metroService.getAllStationFare();
+
+        return ResponseEntity.ok(stationFares);
+    }
+
+    /**
+     * 取得所有路線換乘資料。
+     *
+     * @return ResponseEntity<List<LineTransfer>>
+     */
+    @Operation(summary = "取得所有路線換乘資料", description = "從資料庫取得所有路線換乘站點與換乘時間資料")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "成功取得所有路線換乘資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LineTransfer.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/get-all-line-transfer")
+    public ResponseEntity<List<LineTransfer>> getAllLineTransfer() {
+        logger.debug("收到查詢所有路線換乘資料的請求");
+        List<LineTransfer> lineTransfers = metroService.getAllLineTransfer();
+
+        return ResponseEntity.ok(lineTransfers);
+    }
+
+    /**
+     * 取得捷運路網地圖資料（路線、車站順序、換乘連結），供前端 D3.js 繪製路線圖。
+     *
+     * @return ResponseEntity<MetroMapVO>
+     */
+    @Operation(summary = "取得捷運路網地圖資料", description = "整合路線顏色、各路線有序車站清單與換乘連結，一次回傳供前端 D3.js 繪圖使用")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "成功取得捷運路網地圖資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MetroMapVO.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/get-metro-map")
+    public ResponseEntity<MetroMapVO> getMetroMap() {
+        logger.debug("收到查詢捷運路網地圖資料的請求");
+        MetroMapVO metroMap = metroService.getMetroMap();
+
+        return ResponseEntity.ok(metroMap);
     }
 }

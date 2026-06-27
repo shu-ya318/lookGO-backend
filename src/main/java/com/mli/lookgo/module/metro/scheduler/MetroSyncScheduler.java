@@ -2,6 +2,8 @@ package com.mli.lookgo.module.metro.scheduler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -29,72 +31,45 @@ public class MetroSyncScheduler {
     }
 
     /**
-     * 每 7 天自動從 TDX API 同步路線資料。
+     * 應用程式完全啟動後，檢查資料庫是否為空。
+     * 若為空（首次部署或容器初始化），立即執行一次完整同步；已有資料（重啟）則跳過，等待排程時間執行。
      */
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    public void syncAllLine() {
-        logger.debug("開始進行同步路線資料的排程作業");
-        metroSyncService.syncAllLine();
-        logger.debug("完成同步路線資料的排程作業");
+    @EventListener(ApplicationReadyEvent.class)
+    public void initializeOnFirstDeployment() {
+        if (metroSyncService.isMetroDataEmpty()) {
+            logger.debug("偵測到資料庫無捷運資料，開始執行初始化同步");
+            syncAllDataPipeline();
+            return;
+        }
+        logger.debug("資料庫已有捷運資料，跳過初始化同步，等待排程時間執行");
     }
 
     /**
-     * 每 7 天自動從 TDX + TPE API 同步車站資料。
+     * 每週日 23:00 自動執行捷運資料同步。
+     * 依資料庫外鍵相依性嚴格控制執行順序。
      */
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    public void syncAllStation() {
-        logger.debug("開始進行同步車站資料的排程作業");
-        metroSyncService.syncAllStation();
-        logger.debug("完成同步車站資料的排程作業");
-    }
+    @Scheduled(cron = "0 0 23 * * SUN")
+    public void syncAllDataPipeline() {
+        logger.debug("開始執行捷運資料定期同步排程");
+        long startTime = System.currentTimeMillis();
 
-    /**
-     * 每 7 天自動從 TDX API 同步路線車站資料。
-     */
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    public void syncAllLineStation() {
-        logger.debug("開始進行同步路線車站資料的排程作業");
-        metroSyncService.syncAllLineStation();
-        logger.debug("完成同步路線車站資料的排程作業");
-    }
+        try {
+            // Layer 1: 無外鍵相依的資料
+            metroSyncService.syncAllLine();
+            metroSyncService.syncAllStation();
 
-    /**
-     * 每 7 天自動從 TPE API 同步車站出口電梯電扶梯資料。
-     */
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    public void syncAllStationExit() {
-        logger.debug("開始進行同步車站出口資料的排程作業");
-        metroSyncService.syncAllStationExit();
-        logger.debug("完成同步車站出口資料的排程作業");
-    }
+            // Layer 2: 有外鍵相依的資料
+            metroSyncService.syncAllLineStation();
 
-    /**
-     * 每 7 天自動從 TDX S2STravelTime API 同步路線車站累計行駛時間。
-     */
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    public void syncAllLineStationCumulativeTime() {
-        logger.debug("開始進行同步路線車站累計行駛時間的排程作業");
-        metroSyncService.syncAllLineStationCumulativeTime();
-        logger.debug("完成同步路線車站累計行駛時間的排程作業");
-    }
+            metroSyncService.syncAllLineStationCumulativeTime();
+            metroSyncService.syncAllLineTransfer();
+            metroSyncService.syncAllStationFare();
 
-    /**
-     * 每 7 天自動從 TDX ODFare API 同步票價資料。
-     */
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    public void syncAllStationFare() {
-        logger.debug("開始進行同步票價資料的排程作業");
-        metroSyncService.syncAllStationFare();
-        logger.debug("完成同步票價資料的排程作業");
-    }
+            long duration = System.currentTimeMillis() - startTime;
+            logger.debug("捷運資料定期同步排程順利完成，總耗時: {} ms", duration);
 
-    /**
-     * 每 7 天自動從 TDX LineTransfer API 同步路線換乘資料。
-     */
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
-    public void syncAllLineTransfer() {
-        logger.debug("開始進行同步路線換乘資料的排程作業");
-        metroSyncService.syncAllLineTransfer();
-        logger.debug("完成同步路線換乘資料的排程作業");
+        } catch (Exception exception) {
+            logger.error("捷運資料同步排程發生錯誤，終止後續作業", exception);
+        }
     }
 }

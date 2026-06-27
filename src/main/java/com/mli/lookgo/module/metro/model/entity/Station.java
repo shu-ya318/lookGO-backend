@@ -22,9 +22,6 @@ public class Station {
     @Schema(description = "車站英文名稱", example = "Songshan Airport")
     private String nameEn;
 
-    @Schema(description = "狀態 (0=停用, 1=啟用)", example = "1")
-    private Integer status;
-
     @Schema(description = "銀行 ATM 位置", example = "非付費區，近往出口3電梯")
     private String atm;
 
@@ -49,20 +46,26 @@ public class Station {
     @Schema(description = "廁所位置", example = "非付費區，近出口3")
     private String restroom;
 
+    @Schema(description = "電梯資訊", example = "出口1旁")
+    private String elevator;
+
+    @Schema(description = "電扶梯資訊", example = "出口1旁")
+    private String escalator;
+
     @Schema(description = "更新時間 (UTC, ISO 8601)", example = "2026-06-25T12:00:00Z")
     private LocalDateTime updatedAt;
 
     public Station() {
     }
 
-    public Station(String nameZhTw, String nameEn, Integer status,
+    public Station(String nameZhTw, String nameEn,
             String atm, String nursingRoom, String diaperTable,
             String chargingStation, String ticketMachine,
             String drinkingWater, String restroom,
+            String elevator, String escalator,
             LocalDateTime updatedAt) {
         this.nameZhTw = nameZhTw;
         this.nameEn = nameEn;
-        this.status = status;
         this.atm = atm;
         this.nursingRoom = nursingRoom;
         this.diaperTable = diaperTable;
@@ -70,6 +73,8 @@ public class Station {
         this.ticketMachine = ticketMachine;
         this.drinkingWater = drinkingWater;
         this.restroom = restroom;
+        this.elevator = elevator;
+        this.escalator = escalator;
         this.updatedAt = updatedAt;
     }
 
@@ -95,14 +100,6 @@ public class Station {
 
     public void setNameEn(String nameEn) {
         this.nameEn = nameEn;
-    }
-
-    public Integer getStatus() {
-        return status;
-    }
-
-    public void setStatus(Integer status) {
-        this.status = status;
     }
 
     public String getAtm() {
@@ -169,6 +166,22 @@ public class Station {
         this.restroom = restroom;
     }
 
+    public String getElevator() {
+        return elevator;
+    }
+
+    public void setElevator(String elevator) {
+        this.elevator = elevator;
+    }
+
+    public String getEscalator() {
+        return escalator;
+    }
+
+    public void setEscalator(String escalator) {
+        this.escalator = escalator;
+    }
+
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
@@ -183,7 +196,8 @@ public class Station {
                 "id=" + id +
                 ", nameZhTw='" + nameZhTw + '\'' +
                 ", nameEn='" + nameEn + '\'' +
-                ", status=" + status +
+                ", elevator='" + elevator + '\'' +
+                ", escalator='" + escalator + '\'' +
                 ", updatedAt=" + updatedAt +
                 '}';
     }

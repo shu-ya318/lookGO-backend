@@ -10,12 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.mli.lookgo.module.metro.dao.MetroDao;
+import com.mli.lookgo.module.metro.dao.MetroDAO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
-import com.mli.lookgo.module.metro.model.entity.StationExit;
 import com.mli.lookgo.module.metro.model.entity.StationFare;
 import com.mli.lookgo.module.metro.model.vo.MetroMapVO;
 
@@ -28,16 +27,16 @@ import com.mli.lookgo.module.metro.model.vo.MetroMapVO;
 @Service
 public class MetroService {
 
-    private final MetroDao metroDao;
+    private final MetroDAO metroDAO;
     private static final Logger logger = LoggerFactory.getLogger(MetroService.class);
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
      *
-     * @param metroDao
+     * @param metroDAO
      */
-    public MetroService(MetroDao metroDao) {
-        this.metroDao = metroDao;
+    public MetroService(MetroDAO metroDAO) {
+        this.metroDAO = metroDAO;
     }
 
     /**
@@ -47,7 +46,7 @@ public class MetroService {
      */
     public List<Line> getAllLine() {
         logger.debug("開始查詢所有路線資料");
-        return metroDao.getAllLine();
+        return metroDAO.getAllLine();
     }
 
     /**
@@ -57,7 +56,7 @@ public class MetroService {
      */
     public List<Station> getAllStation() {
         logger.debug("開始查詢所有車站資料");
-        return metroDao.getAllStation();
+        return metroDAO.getAllStation();
     }
 
     /**
@@ -67,17 +66,7 @@ public class MetroService {
      */
     public List<LineStation> getAllLineStation() {
         logger.debug("開始查詢所有路線車站資料");
-        return metroDao.getAllLineStation();
-    }
-
-    /**
-     * 取得所有車站出口資料。
-     *
-     * @return List<StationExit>
-     */
-    public List<StationExit> getAllStationExit() {
-        logger.debug("開始查詢所有車站出口資料");
-        return metroDao.getAllStationExit();
+        return metroDAO.getAllLineStation();
     }
 
     /**
@@ -87,7 +76,7 @@ public class MetroService {
      */
     public List<StationFare> getAllStationFare() {
         logger.debug("開始查詢所有票價資料");
-        return metroDao.getAllStationFare();
+        return metroDAO.getAllStationFare();
     }
 
     /**
@@ -97,7 +86,7 @@ public class MetroService {
      */
     public List<LineTransfer> getAllLineTransfer() {
         logger.debug("開始查詢所有路線換乘資料");
-        return metroDao.getAllLineTransfer();
+        return metroDAO.getAllLineTransfer();
     }
 
     /**
@@ -108,10 +97,10 @@ public class MetroService {
     public MetroMapVO getMetroMap() {
         logger.debug("開始組合捷運路網地圖資料");
 
-        List<Line> lines = metroDao.getAllLine();
-        List<Station> stations = metroDao.getAllStation();
-        List<LineStation> lineStations = metroDao.getAllLineStation();
-        List<LineTransfer> lineTransfers = metroDao.getAllLineTransfer();
+        List<Line> lines = metroDAO.getAllLine();
+        List<Station> stations = metroDAO.getAllStation();
+        List<LineStation> lineStations = metroDAO.getAllLineStation();
+        List<LineTransfer> lineTransfers = metroDAO.getAllLineTransfer();
 
         // station_id → Station
         Map<Integer, Station> stationById = stations.stream()

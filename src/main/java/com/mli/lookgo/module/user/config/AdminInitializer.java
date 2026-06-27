@@ -9,7 +9,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import com.mli.lookgo.module.auth.dao.AuthDao;
+import com.mli.lookgo.core.dao.AuthDAO;
 import com.mli.lookgo.module.user.enums.MembershipTier;
 import com.mli.lookgo.module.user.enums.UserRole;
 import com.mli.lookgo.module.user.enums.UserStatus;
@@ -24,7 +24,7 @@ import com.mli.lookgo.module.user.model.entity.User;
 @Component
 public class AdminInitializer implements ApplicationRunner {
 
-    private final AuthDao authDao;
+    private final AuthDAO authDAO;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.admin.email}")
@@ -36,14 +36,14 @@ public class AdminInitializer implements ApplicationRunner {
     @Value("${app.admin.username}")
     private String adminUsername;
 
-    public AdminInitializer(AuthDao authDao, PasswordEncoder passwordEncoder) {
-        this.authDao = authDao;
+    public AdminInitializer(AuthDAO authDAO, PasswordEncoder passwordEncoder) {
+        this.authDAO = authDAO;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        if (authDao.existsByEmail(adminEmail)) {
+        if (authDAO.existsByEmail(adminEmail)) {
             return;
         }
 
@@ -61,6 +61,6 @@ public class AdminInitializer implements ApplicationRunner {
         admin.setUpdatedAt(now);
         admin.setLastLoginAt(now);
 
-        authDao.createUser(admin);
+        authDAO.createUser(admin);
     }
 }

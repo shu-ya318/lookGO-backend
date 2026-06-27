@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.mli.lookgo.module.metro.dao.MetroDao">
+<mapper namespace="com.mli.lookgo.module.metro.dao.MetroDAO">
 
     <!-- 路線 -->
 
@@ -15,7 +15,6 @@
                     #{line.nameZhTw, jdbcType=NVARCHAR} AS name_zh_tw,
                     #{line.nameEn, jdbcType=NVARCHAR} AS name_en,
                     #{line.color, jdbcType=NVARCHAR} AS color,
-                    #{line.status, jdbcType=TINYINT} AS status,
                     #{line.updatedAt, jdbcType=TIMESTAMP} AS updated_at
             ) AS source
             ON target.letter = source.letter
@@ -24,18 +23,17 @@
                     name_zh_tw = ISNULL(source.name_zh_tw, target.name_zh_tw),
                     name_en    = ISNULL(source.name_en, target.name_en),
                     color      = ISNULL(source.color, target.color),
-                    status     = ISNULL(source.status, target.status),
                     updated_at = ISNULL(source.updated_at, target.updated_at)
             WHEN NOT MATCHED THEN
-                INSERT (letter, name_zh_tw, name_en, color, status, updated_at)
+                INSERT (letter, name_zh_tw, name_en, color, updated_at)
                 VALUES (source.letter, source.name_zh_tw, source.name_en,
-                        source.color, source.status, source.updated_at);
+                        source.color, source.updated_at);
         </foreach>
     </insert>
 
     <!-- 取得所有路線資料 -->
     <select id="getAllLine" resultType="com.mli.lookgo.module.metro.model.entity.Line">
-        SELECT id, letter, name_zh_tw, name_en, color, status, updated_at
+        SELECT id, letter, name_zh_tw, name_en, color, updated_at
         FROM [dbo].[lines]
         ORDER BY id ASC
     </select>
@@ -50,7 +48,6 @@
                 SELECT
                     #{station.nameZhTw, jdbcType=NVARCHAR} AS name_zh_tw,
                     #{station.nameEn, jdbcType=NVARCHAR} AS name_en,
-                    #{station.status, jdbcType=TINYINT} AS status,
                     #{station.atm, jdbcType=NVARCHAR} AS atm,
                     #{station.nursingRoom, jdbcType=NVARCHAR} AS nursing_room,
                     #{station.diaperTable, jdbcType=NVARCHAR} AS diaper_table,
@@ -59,13 +56,14 @@
                     #{station.locker, jdbcType=NVARCHAR} AS locker,
                     #{station.drinkingWater, jdbcType=NVARCHAR} AS drinking_water,
                     #{station.restroom, jdbcType=NVARCHAR} AS restroom,
+                    #{station.elevator, jdbcType=NVARCHAR} AS elevator,
+                    #{station.escalator, jdbcType=NVARCHAR} AS escalator,
                     #{station.updatedAt, jdbcType=TIMESTAMP} AS updated_at
             ) AS source
             ON target.name_zh_tw = source.name_zh_tw
             WHEN MATCHED THEN
                 UPDATE SET
                     name_en          = ISNULL(source.name_en, target.name_en),
-                    status           = ISNULL(source.status, target.status),
                     atm              = ISNULL(source.atm, target.atm),
                     nursing_room     = ISNULL(source.nursing_room, target.nursing_room),
                     diaper_table     = ISNULL(source.diaper_table, target.diaper_table),
@@ -74,21 +72,25 @@
                     locker           = ISNULL(source.locker, target.locker),
                     drinking_water   = ISNULL(source.drinking_water, target.drinking_water),
                     restroom         = ISNULL(source.restroom, target.restroom),
+                    elevator         = ISNULL(source.elevator, target.elevator),
+                    escalator        = ISNULL(source.escalator, target.escalator),
                     updated_at       = ISNULL(source.updated_at, target.updated_at)
             WHEN NOT MATCHED THEN
-                INSERT (name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
-                        charging_station, ticket_machine, locker, drinking_water, restroom, updated_at)
-                VALUES (source.name_zh_tw, source.name_en, source.status, source.atm,
+                INSERT (name_zh_tw, name_en, atm, nursing_room, diaper_table,
+                        charging_station, ticket_machine, locker, drinking_water, restroom,
+                        elevator, escalator, updated_at)
+                VALUES (source.name_zh_tw, source.name_en, source.atm,
                         source.nursing_room, source.diaper_table, source.charging_station,
                         source.ticket_machine, source.locker, source.drinking_water,
-                        source.restroom, source.updated_at);
+                        source.restroom, source.elevator, source.escalator, source.updated_at);
         </foreach>
     </insert>
 
     <!-- 取得所有車站資料 -->
     <select id="getAllStation" resultType="com.mli.lookgo.module.metro.model.entity.Station">
-        SELECT id, name_zh_tw, name_en, status, atm, nursing_room, diaper_table,
-               charging_station, ticket_machine, locker, drinking_water, restroom, updated_at
+        SELECT id, name_zh_tw, name_en, atm, nursing_room, diaper_table,
+               charging_station, ticket_machine, locker, drinking_water, restroom,
+               elevator, escalator, updated_at
         FROM [dbo].[stations]
         ORDER BY id ASC
     </select>
@@ -143,38 +145,6 @@
               AND station_code = #{lineStation.stationCode, jdbcType=NVARCHAR}
         </foreach>
     </update>
-
-    <!-- 車站出口 -->
-
-    <!-- 組裝成單一長條 SQL ，新增或更新車站出口資料 -->
-    <insert id="upsertAllStationExit">
-        <foreach collection="stationExits" item="stationExit" separator=";">
-            MERGE [dbo].[station_exits] AS target
-            USING (
-                SELECT
-                    #{stationExit.stationId, jdbcType=INTEGER} AS station_id,
-                    #{stationExit.elevator, jdbcType=NVARCHAR} AS elevator,
-                    #{stationExit.escalator, jdbcType=NVARCHAR} AS escalator,
-                    #{stationExit.updatedAt, jdbcType=TIMESTAMP} AS updated_at
-            ) AS source
-            ON target.station_id = source.station_id
-            WHEN MATCHED THEN
-                UPDATE SET
-                    elevator   = source.elevator,
-                    escalator  = source.escalator,
-                    updated_at = ISNULL(source.updated_at, target.updated_at)
-            WHEN NOT MATCHED THEN
-                INSERT (station_id, elevator, escalator, updated_at)
-                VALUES (source.station_id, source.elevator, source.escalator, source.updated_at);
-        </foreach>
-    </insert>
-
-    <!-- 取得所有車站出口資料 -->
-    <select id="getAllStationExit" resultType="com.mli.lookgo.module.metro.model.entity.StationExit">
-        SELECT id, station_id, elevator, escalator, updated_at
-        FROM [dbo].[station_exits]
-        ORDER BY id ASC
-    </select>
 
     <!-- 票價 -->
 

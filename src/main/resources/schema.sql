@@ -63,7 +63,6 @@ CREATE TABLE [dbo].[lines] (
     [name_zh_tw] NVARCHAR(50)    NOT NULL,
     [name_en]    NVARCHAR(100)   NOT NULL,
     [color]      NVARCHAR(20)    NOT NULL,
-    [status]     TINYINT         NOT NULL,
     [updated_at] DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_lines] PRIMARY KEY ([id]),
     CONSTRAINT [UK_lines_letter] UNIQUE ([letter])
@@ -78,7 +77,6 @@ CREATE TABLE [dbo].[stations] (
     [id]              INT             NOT NULL IDENTITY(1, 1),
     [name_zh_tw]      NVARCHAR(100)   NOT NULL,
     [name_en]         NVARCHAR(200)   NOT NULL,
-    [status]          TINYINT         NOT NULL,
     [atm]             NVARCHAR(100)   NULL,
     [nursing_room]    NVARCHAR(100)   NULL,
     [diaper_table]    NVARCHAR(100)   NULL,
@@ -87,6 +85,8 @@ CREATE TABLE [dbo].[stations] (
     [locker]          NVARCHAR(100)   NULL,
     [drinking_water]  NVARCHAR(100)   NULL,
     [restroom]        NVARCHAR(100)   NULL,
+    [elevator]        NVARCHAR(100)   NULL,
+    [escalator]       NVARCHAR(100)   NULL,
     [updated_at]      DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_stations] PRIMARY KEY ([id])
 );
@@ -108,22 +108,6 @@ CREATE TABLE [dbo].[station_fares] (
         FOREIGN KEY ([from_station_id]) REFERENCES [dbo].[stations] ([id]),
     CONSTRAINT [FK_station_fares_to_station_id]
         FOREIGN KEY ([to_station_id]) REFERENCES [dbo].[stations] ([id])
-);
-
--- station_exits
-IF NOT EXISTS (
-    SELECT 1 FROM sys.tables
-    WHERE [name] = 'station_exits' AND [schema_id] = SCHEMA_ID('dbo')
-)
-CREATE TABLE [dbo].[station_exits] (
-    [id]         INT             NOT NULL IDENTITY(1, 1),
-    [station_id] INT             NOT NULL,
-    [elevator]   NVARCHAR(100)   NULL,
-    [escalator]  NVARCHAR(100)   NULL,
-    [updated_at] DATETIME2(0)    NOT NULL,
-    CONSTRAINT [PK_station_exits] PRIMARY KEY ([id]),
-    CONSTRAINT [FK_station_exits_station_id]
-        FOREIGN KEY ([station_id]) REFERENCES [dbo].[stations] ([id])
 );
 
 -- lines_stations

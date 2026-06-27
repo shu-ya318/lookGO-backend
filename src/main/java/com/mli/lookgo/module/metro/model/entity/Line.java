@@ -28,22 +28,18 @@ public class Line {
     @Schema(description = "路線顏色", example = "#C48C31")
     private String color;
 
-    @Schema(description = "狀態 (0=停用, 1=啟用)", example = "1")
-    private Integer status;
-
     @Schema(description = "更新時間 (UTC, ISO 8601)", example = "2026-06-24T12:00:00Z")
     private LocalDateTime updatedAt;
 
     public Line() {
     }
 
-    public Line(String letter, String nameZhTw, String nameEn, String color, Integer status,
+    public Line(String letter, String nameZhTw, String nameEn, String color,
             LocalDateTime updatedAt) {
         this.letter = letter;
         this.nameZhTw = nameZhTw;
         this.nameEn = nameEn;
         this.color = color;
-        this.status = status;
         this.updatedAt = updatedAt;
     }
 
@@ -87,14 +83,6 @@ public class Line {
         this.color = color;
     }
 
-    public Integer getStatus() {
-        return status;
-    }
-
-    public void setStatus(Integer status) {
-        this.status = status;
-    }
-
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
@@ -111,7 +99,6 @@ public class Line {
                 ", nameZhTw='" + nameZhTw + '\'' +
                 ", nameEn='" + nameEn + '\'' +
                 ", color='" + color + '\'' +
-                ", status=" + status +
                 ", updatedAt=" + updatedAt +
                 '}';
     }

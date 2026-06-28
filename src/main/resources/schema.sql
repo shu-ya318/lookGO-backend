@@ -126,6 +126,7 @@ CREATE TABLE [dbo].[lines_stations] (
     [updated_at]          DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_lines_stations] PRIMARY KEY ([id]),
     CONSTRAINT [UK_lines_stations_line_sequence] UNIQUE ([line_id], [station_sequence]),
+    CONSTRAINT [UK_lines_stations_station_code] UNIQUE ([station_code]),
     CONSTRAINT [FK_lines_stations_line_id]
         FOREIGN KEY ([line_id]) REFERENCES [dbo].[lines] ([id]),
     CONSTRAINT [FK_lines_stations_station_id]

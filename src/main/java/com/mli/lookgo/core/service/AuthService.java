@@ -138,7 +138,7 @@ public class AuthService {
                 .orElseThrow(() -> new InvalidCredentialsException("帳號或密碼錯誤!"));
 
         if (user.getStatus() != UserStatus.ACTIVE.getCode()) {
-            throw new InvalidCredentialsException("該帳號已被停用!");
+            throw new InvalidCredentialsException("您的帳號已被停用，如有問題請聯繫管理員!");
         }
 
         if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {

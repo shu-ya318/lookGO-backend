@@ -9,11 +9,11 @@ import java.util.List;
  * @author D5042101
  * @since 2026.06.25
  */
-public class MetroStationFacilityApiVO {
+public class StationFacilityApiVO {
 
     private TpeStationResult result;
 
-    public List<MetroStationFacilityVO> getAllStation() {
+    public List<StationFacilityVO> getAllStation() {
         if (result == null || result.getResults() == null) {
             return Collections.emptyList();
         }
@@ -30,18 +30,18 @@ public class MetroStationFacilityApiVO {
         int count = (result != null && result.getResults() != null)
                 ? result.getResults().size()
                 : 0;
-        return "MetroStationFacilityApiVO{stationCount=" + count + "}";
+        return "StationFacilityApiVO{stationCount=" + count + "}";
     }
 
     public static class TpeStationResult {
 
-        private List<MetroStationFacilityVO> results;
+        private List<StationFacilityVO> results;
 
-        public List<MetroStationFacilityVO> getResults() {
+        public List<StationFacilityVO> getResults() {
             return results;
         }
 
-        public void setResults(List<MetroStationFacilityVO> results) {
+        public void setResults(List<StationFacilityVO> results) {
             this.results = results;
         }
     }

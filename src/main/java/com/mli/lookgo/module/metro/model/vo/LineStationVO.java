@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @author D5042101
  * @since 2026.06.25
  */
-public class MetroLineStationVO {
+public class LineStationVO {
 
     @JsonProperty("LineID")
     private String lineId;

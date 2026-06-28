@@ -27,14 +27,14 @@ import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
 import com.mli.lookgo.module.metro.model.entity.StationFare;
-import com.mli.lookgo.module.metro.model.vo.MetroLineStationVO;
-import com.mli.lookgo.module.metro.model.vo.MetroLineTransferVO;
-import com.mli.lookgo.module.metro.model.vo.MetroLineVO;
-import com.mli.lookgo.module.metro.model.vo.MetroStationFacilityApiVO;
-import com.mli.lookgo.module.metro.model.vo.MetroStationFacilityVO;
-import com.mli.lookgo.module.metro.model.vo.MetroStationFareVO;
-import com.mli.lookgo.module.metro.model.vo.MetroStationTravelTimeVO;
-import com.mli.lookgo.module.metro.model.vo.MetroStationVO;
+import com.mli.lookgo.module.metro.model.vo.LineStationVO;
+import com.mli.lookgo.module.metro.model.vo.LineTransferVO;
+import com.mli.lookgo.module.metro.model.vo.LineVO;
+import com.mli.lookgo.module.metro.model.vo.StationFacilityApiVO;
+import com.mli.lookgo.module.metro.model.vo.StationFacilityVO;
+import com.mli.lookgo.module.metro.model.vo.StationFareVO;
+import com.mli.lookgo.module.metro.model.vo.StationTravelTimeVO;
+import com.mli.lookgo.module.metro.model.vo.StationVO;
 
 /**
  * 處理從外部 API 同步捷運資料到資料庫的業務邏輯。
@@ -80,11 +80,11 @@ public class MetroSyncService {
     public MessageVO syncAllLine() {
         logger.debug("開始從 TDX 同步路線資料");
 
-        List<MetroLineVO> tdxStationVOs = fetchAllLine();
+        List<LineVO> tdxStationVOs = fetchAllLine();
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         List<Line> lines = new ArrayList<>(tdxStationVOs.size());
-        for (MetroLineVO tdxLineVO : tdxStationVOs) {
+        for (LineVO tdxLineVO : tdxStationVOs) {
             lines.add(this.toLineEntity(tdxLineVO, now));
         }
 
@@ -103,18 +103,18 @@ public class MetroSyncService {
     public MessageVO syncAllStation() {
         logger.debug("開始從 TDX + DataTaipei 同步車站資料");
 
-        List<MetroStationVO> tdxStationVOs = fetchAllStation();
-        List<MetroStationFacilityVO> dataTaipeiStationVOs = fetchAllStationFacility();
+        List<StationVO> tdxStationVOs = fetchAllStation();
+        List<StationFacilityVO> dataTaipeiStationVOs = fetchAllStationFacility();
 
         // 以車站中文名稱為 key，建立 DataTaipei 設施資料的 Map
-        Map<String, MetroStationFacilityVO> dataTaipeiMap = dataTaipeiStationVOs.stream()
-                .collect(Collectors.toMap(MetroStationFacilityVO::getStationName, vo -> vo, (a, b) -> a));
+        Map<String, StationFacilityVO> dataTaipeiMap = dataTaipeiStationVOs.stream()
+                .collect(Collectors.toMap(StationFacilityVO::getStationName, vo -> vo, (a, b) -> a));
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         List<Station> stations = new ArrayList<>(tdxStationVOs.size());
-        for (MetroStationVO tdxStationVO : tdxStationVOs) {
-            MetroStationFacilityVO dataTaipeiVO = dataTaipeiMap.get(tdxStationVO.getNameZhTw());
+        for (StationVO tdxStationVO : tdxStationVOs) {
+            StationFacilityVO dataTaipeiVO = dataTaipeiMap.get(tdxStationVO.getNameZhTw());
             stations.add(this.toStationEntity(tdxStationVO, dataTaipeiVO, now));
         }
 
@@ -141,11 +141,11 @@ public class MetroSyncService {
         Map<String, Integer> stationNameToIdMap = metroDAO.getAllStation().stream()
                 .collect(Collectors.toMap(Station::getNameZhTw, Station::getId, (a, b) -> a));
 
-        List<MetroLineStationVO> tdxLineStationVOs = fetchAllLineStation();
+        List<LineStationVO> tdxLineStationVOs = fetchAllLineStation();
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         List<LineStation> lineStations = new ArrayList<>();
-        for (MetroLineStationVO tdxLineStationVO : tdxLineStationVOs) {
+        for (LineStationVO tdxLineStationVO : tdxLineStationVOs) {
             // 只取 Direction=0 (去程) 避免重複
             if (tdxLineStationVO.getDirection() != null && tdxLineStationVO.getDirection() != 0) {
                 continue;
@@ -157,7 +157,7 @@ public class MetroSyncService {
                 continue;
             }
 
-            for (MetroLineStationVO.StationDetail detail : tdxLineStationVO.getStations()) {
+            for (LineStationVO.StationDetail detail : tdxLineStationVO.getStations()) {
                 Integer stationId = stationNameToIdMap.get(detail.getStationNameZhTw());
 
                 lineStations.add(new LineStation(
@@ -191,14 +191,14 @@ public class MetroSyncService {
         Map<String, Short> lineLetterToIdMap = metroDAO.getAllLine().stream()
                 .collect(Collectors.toMap(Line::getLetter, Line::getId, (a, b) -> a));
 
-        List<MetroStationTravelTimeVO> s2sTravelTimeVOs = fetchAllS2STravelTime();
+        List<StationTravelTimeVO> s2sTravelTimeVOs = fetchAllS2STravelTime();
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         // 每個 LineID 只取第一筆（避免同一路線不同 RouteID 重複覆寫）
         Set<String> processedLineIds = new HashSet<>();
         List<LineStation> lineStations = new ArrayList<>();
 
-        for (MetroStationTravelTimeVO vo : s2sTravelTimeVOs) {
+        for (StationTravelTimeVO vo : s2sTravelTimeVOs) {
             if (!processedLineIds.add(vo.getLineId())) {
                 continue;
             }
@@ -209,7 +209,7 @@ public class MetroSyncService {
                 continue;
             }
 
-            List<MetroStationTravelTimeVO.TravelTimeDetail> travelTimes = vo.getTravelTimes();
+            List<StationTravelTimeVO.TravelTimeDetail> travelTimes = vo.getTravelTimes();
             if (travelTimes == null || travelTimes.isEmpty()) {
                 continue;
             }
@@ -217,7 +217,7 @@ public class MetroSyncService {
             // 逐段累加：cumulative_time = Σ (StopTime[i] + RunTime[i])
             int cumulativeTime = 0;
             for (int i = 0; i < travelTimes.size(); i++) {
-                MetroStationTravelTimeVO.TravelTimeDetail td = travelTimes.get(i);
+                StationTravelTimeVO.TravelTimeDetail td = travelTimes.get(i);
 
                 LineStation fromStation = new LineStation();
                 fromStation.setLineId(lineId);
@@ -264,11 +264,11 @@ public class MetroSyncService {
                 .filter(ls -> ls.getStationCode() != null && ls.getStationId() != null)
                 .collect(Collectors.toMap(LineStation::getStationCode, LineStation::getStationId, (a, b) -> a));
 
-        List<MetroStationFareVO> odFareVOs = fetchAllODFare();
+        List<StationFareVO> odFareVOs = fetchAllODFare();
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         List<StationFare> stationFares = new ArrayList<>();
-        for (MetroStationFareVO odFare : odFareVOs) {
+        for (StationFareVO odFare : odFareVOs) {
             Integer fromStationId = stationCodeToIdMap.get(odFare.getOriginStationId());
             Integer toStationId = stationCodeToIdMap.get(odFare.getDestinationStationId());
 
@@ -278,7 +278,7 @@ public class MetroSyncService {
                 continue;
             }
 
-            for (MetroStationFareVO.FareDetail fareDetail : odFare.getFares()) {
+            for (StationFareVO.FareDetail fareDetail : odFare.getFares()) {
                 // 跳過含 CitizenCode 的城市優惠票
                 if (fareDetail.getCitizenCode() != null) {
                     continue;
@@ -323,11 +323,11 @@ public class MetroSyncService {
                 .filter(ls -> ls.getStationCode() != null && ls.getId() != null)
                 .collect(Collectors.toMap(LineStation::getStationCode, LineStation::getId, (a, b) -> a));
 
-        List<MetroLineTransferVO> lineTransferVOs = fetchAllLineTransfer();
+        List<LineTransferVO> lineTransferVOs = fetchAllLineTransfer();
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         List<LineTransfer> lineTransfers = new ArrayList<>();
-        for (MetroLineTransferVO vo : lineTransferVOs) {
+        for (LineTransferVO vo : lineTransferVOs) {
             Integer fromLineStationId = stationCodeToLineStationIdMap.get(vo.getFromStationId());
             Integer toLineStationId = stationCodeToLineStationIdMap.get(vo.getToStationId());
 
@@ -362,13 +362,13 @@ public class MetroSyncService {
     }
 
     /**
-     * 將 TDX 回傳的 MetroLineVO 轉換為資料庫的 Line 實體。
+     * 將 TDX 回傳的 LineVO 轉換為資料庫的 Line 實體。
      *
      * @param vo  TDX 回傳的路線資料
      * @param now
      * @return Line
      */
-    private Line toLineEntity(MetroLineVO tdxLineVO, LocalDateTime updatedAt) {
+    private Line toLineEntity(LineVO tdxLineVO, LocalDateTime updatedAt) {
         return new Line(
                 tdxLineVO.getLetter(),
                 tdxLineVO.getNameZhTw(),
@@ -385,7 +385,7 @@ public class MetroSyncService {
      * @param updatedAt    當下 UTC 時間
      * @return Station
      */
-    private Station toStationEntity(MetroStationVO tdxStationVO, MetroStationFacilityVO dataTaipeiVO,
+    private Station toStationEntity(StationVO tdxStationVO, StationFacilityVO dataTaipeiVO,
             LocalDateTime updatedAt) {
         return new Station(
                 tdxStationVO.getNameZhTw(),
@@ -405,53 +405,53 @@ public class MetroSyncService {
     // ----- TDX API 請求定義 -----
     // $top值為數字字串，因 queryParams() 參數只接受 MultiValueMap<String, String>，無法同時處理 多種型別值
 
-    private List<MetroLineVO> fetchAllLine() {
+    private List<LineVO> fetchAllLine() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("$format", "JSON", "$top", "2000"));
 
-        return tdxApiClientConfig.sendGetRequest("/Line", new ParameterizedTypeReference<List<MetroLineVO>>() {
+        return tdxApiClientConfig.sendGetRequest("/Line", new ParameterizedTypeReference<List<LineVO>>() {
         }, params);
     }
 
-    private List<MetroStationVO> fetchAllStation() {
+    private List<StationVO> fetchAllStation() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("$format", "JSON", "$top", "2000"));
 
-        return tdxApiClientConfig.sendGetRequest("/Station", new ParameterizedTypeReference<List<MetroStationVO>>() {
+        return tdxApiClientConfig.sendGetRequest("/Station", new ParameterizedTypeReference<List<StationVO>>() {
         }, params);
     }
 
-    private List<MetroLineStationVO> fetchAllLineStation() {
+    private List<LineStationVO> fetchAllLineStation() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("$format", "JSON", "$top", "2000"));
 
         return tdxApiClientConfig.sendGetRequest("/StationOfLine",
-                new ParameterizedTypeReference<List<MetroLineStationVO>>() {
+                new ParameterizedTypeReference<List<LineStationVO>>() {
                 }, params);
     }
 
-    private List<MetroStationTravelTimeVO> fetchAllS2STravelTime() {
+    private List<StationTravelTimeVO> fetchAllS2STravelTime() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("$format", "JSON", "$top", "2000"));
 
         return tdxApiClientConfig.sendGetRequest("/S2STravelTime",
-                new ParameterizedTypeReference<List<MetroStationTravelTimeVO>>() {
+                new ParameterizedTypeReference<List<StationTravelTimeVO>>() {
                 }, params);
     }
 
-    private List<MetroLineTransferVO> fetchAllLineTransfer() {
+    private List<LineTransferVO> fetchAllLineTransfer() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("$format", "JSON", "$top", "1000"));
 
         return tdxApiClientConfig.sendGetRequest("/LineTransfer",
-                new ParameterizedTypeReference<List<MetroLineTransferVO>>() {
+                new ParameterizedTypeReference<List<LineTransferVO>>() {
                 }, params);
     }
 
-    private List<MetroStationFareVO> fetchAllODFare() {
+    private List<StationFareVO> fetchAllODFare() {
         final int pageSize = 1000;
         int skip = 0;
-        List<MetroStationFareVO> allResults = new ArrayList<>();
+        List<StationFareVO> allResults = new ArrayList<>();
 
         logger.debug("[ODFare] 開始初始等待 {} 秒，清空前序 sync 操作的速率限制視窗", ODFAR_INITIAL_WAIT_MS / 1000);
         try {
@@ -471,8 +471,8 @@ public class MetroSyncService {
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.setAll(Map.of("$format", "JSON", "$top", String.valueOf(pageSize), "$skip", String.valueOf(skip)));
 
-            List<MetroStationFareVO> page = tdxApiClientConfig.sendGetRequest("/ODFare",
-                    new ParameterizedTypeReference<List<MetroStationFareVO>>() {
+            List<StationFareVO> page = tdxApiClientConfig.sendGetRequest("/ODFare",
+                    new ParameterizedTypeReference<List<StationFareVO>>() {
                     }, params);
 
             if (page == null || page.isEmpty()) {
@@ -505,12 +505,12 @@ public class MetroSyncService {
 
     // ----- DataTaipei API 請求定義 -----
 
-    private List<MetroStationFacilityVO> fetchAllStationFacility() {
+    private List<StationFacilityVO> fetchAllStationFacility() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("scope", "resourceAquire", "limit", "1000"));
 
-        MetroStationFacilityApiVO response = dataTaipeiApiClientConfig.sendGetRequest(
-                DATA_TAIPEI_STATION_DATASET_ID, MetroStationFacilityApiVO.class, params);
+        StationFacilityApiVO response = dataTaipeiApiClientConfig.sendGetRequest(
+                DATA_TAIPEI_STATION_DATASET_ID, StationFacilityApiVO.class, params);
 
         if (response == null) {
             return Collections.emptyList();

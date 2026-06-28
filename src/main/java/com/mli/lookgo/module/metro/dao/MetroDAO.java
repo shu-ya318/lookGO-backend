@@ -1,5 +1,6 @@
 package com.mli.lookgo.module.metro.dao;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -10,6 +11,7 @@ import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
 import com.mli.lookgo.module.metro.model.entity.StationFare;
+import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
 
 /**
  * 和資料庫交互，處理捷運資料查詢相關的操作。
@@ -52,6 +54,14 @@ public interface MetroDAO {
      */
     List<Station> getAllStation();
 
+    /**
+     * 依車站代碼取得車站詳細資料。
+     *
+     * @param stationCode
+     * @return StationDetailVO
+     */
+    StationDetailVO getStationByCode(@Param("stationCode") String stationCode);
+
     // ----- 所有路線的車站 (同車站保留重複資料，因為 station_sequence 不同) -----
     /**
      * 批次新增或更新所有路線的車站資料。
@@ -89,6 +99,18 @@ public interface MetroDAO {
      * @return List<StationFare>
      */
     List<StationFare> getAllStationFare();
+
+    /**
+     * 依起始、終點車站代碼和票種查詢票價。
+     *
+     * @param fromStationCode
+     * @param toStationCode
+     * @param fareType
+     * @return BigDecimal
+     */
+    BigDecimal getFareByStationCodesAndType(@Param("fromStationCode") String fromStationCode,
+                                            @Param("toStationCode") String toStationCode,
+                                            @Param("fareType") Integer fareType);
 
     // ----- 路線換乘 -----
 

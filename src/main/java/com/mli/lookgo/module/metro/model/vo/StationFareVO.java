@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @author D5042101
  * @since 2026.06.26
  */
-public class MetroStationFareVO {
+public class StationFareVO {
 
     @JsonProperty("OriginStationID")
     private String originStationId;

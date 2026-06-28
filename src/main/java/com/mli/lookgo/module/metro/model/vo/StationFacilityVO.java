@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @author D5042101
  * @since 2026.06.25
  */
-public class MetroStationFacilityVO {
+public class StationFacilityVO {
 
     @JsonProperty("車站名稱")
     private String stationName;

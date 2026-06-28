@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.mli.lookgo.core.result.MessageVO;
+import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 
 import java.util.HashMap;
@@ -130,6 +131,22 @@ public class GlobalExceptionHandler {
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiResult);
+    }
+
+    /**
+     * 處理嘗試變更管理員帳號狀態的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 403 (Forbidden) 給客戶端。
+     */
+    @ExceptionHandler(AdminStatusModificationException.class)
+    public ResponseEntity<MessageVO> handleAdminStatusModificationException(AdminStatusModificationException exception) {
+        logger.error("嘗試變更管理員帳號狀態: {}", exception.getMessage());
+        logger.error("錯誤細節: ", exception);
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResult);
     }
 
     /**

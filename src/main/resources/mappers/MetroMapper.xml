@@ -95,6 +95,16 @@
         ORDER BY id ASC
     </select>
 
+    <!-- 依車站代碼取得車站詳細資料 -->
+    <select id="getStationByCode" resultType="com.mli.lookgo.module.metro.model.vo.StationDetailVO">
+        SELECT s.id, s.name_zh_tw, s.name_en, s.atm, s.nursing_room, s.diaper_table,
+               s.charging_station, s.ticket_machine, s.locker, s.drinking_water, s.restroom,
+               s.elevator, s.escalator, s.updated_at
+        FROM [dbo].[stations] s
+        INNER JOIN [dbo].[lines_stations] ls ON ls.station_id = s.id
+        WHERE ls.station_code = #{stationCode, jdbcType=NVARCHAR}
+    </select>
+
     <!-- 所有路線的車站 -->
 
     <!-- 組裝成單一長條 SQL ，新增或更新所有路線的車站資料 (同車站保留重複資料) -->
@@ -179,6 +189,17 @@
         SELECT id, from_station_id, to_station_id, fare_type, price, updated_at
         FROM [dbo].[station_fares]
         ORDER BY id ASC
+    </select>
+
+    <!-- 依起始、終點車站代碼和票種查詢票價 -->
+    <select id="getFareByStationCodesAndType" resultType="java.math.BigDecimal">
+        SELECT TOP 1 sf.price
+        FROM [dbo].[station_fares] sf
+        INNER JOIN [dbo].[lines_stations] ls_from ON ls_from.station_id = sf.from_station_id
+        INNER JOIN [dbo].[lines_stations] ls_to   ON ls_to.station_id   = sf.to_station_id
+        WHERE ls_from.station_code = #{fromStationCode, jdbcType=NVARCHAR}
+          AND ls_to.station_code   = #{toStationCode,   jdbcType=NVARCHAR}
+          AND sf.fare_type         = #{fareType,         jdbcType=TINYINT}
     </select>
 
     <!-- 換乘 -->

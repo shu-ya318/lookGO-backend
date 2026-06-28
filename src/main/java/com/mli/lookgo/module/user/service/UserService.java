@@ -15,6 +15,7 @@ import com.mli.lookgo.module.user.dao.UserDAO;
 import com.mli.lookgo.module.user.enums.MembershipTier;
 import com.mli.lookgo.module.user.enums.UserRole;
 import com.mli.lookgo.module.user.enums.UserStatus;
+import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
 import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
@@ -166,7 +167,8 @@ public class UserService {
      *
      * @param updateUserStatusDTO
      * @return MessageVO
-     * @throws UserNotFoundException
+     * @throws UserNotFoundException              找不到對應使用者。
+     * @throws AdminStatusModificationException   目標使用者為管理員，不允許變更其帳號狀態。
      */
     @Transactional
     public MessageVO updateStatus(UpdateUserStatusDTO updateUserStatusDTO) {
@@ -175,6 +177,10 @@ public class UserService {
 
         User user = userDAO.getById(updateUserStatusDTO.getUserId())
                 .orElseThrow(() -> new UserNotFoundException("找不到指定使用者!"));
+
+        if (UserRole.fromId(user.getRoleId()) == UserRole.ADMIN) {
+            throw new AdminStatusModificationException("不得變更管理員帳號狀態!");
+        }
 
         UserStatus targetStatus = updateUserStatusDTO.getStatus();
 

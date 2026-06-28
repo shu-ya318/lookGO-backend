@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @since 2026.06.26
  */
 @Schema(description = "捷運路網地圖的複合回應資料")
-public class MetroMapVO {
+public class MapVO {
 
     @Schema(description = "所有路線及其車站清單")
     private List<LineVO> lines;
@@ -19,7 +19,7 @@ public class MetroMapVO {
     @Schema(description = "所有換乘連結清單")
     private List<TransferVO> transfers;
 
-    public MetroMapVO(List<LineVO> lines, List<TransferVO> transfers) {
+    public MapVO(List<LineVO> lines, List<TransferVO> transfers) {
         this.lines = lines;
         this.transfers = transfers;
     }

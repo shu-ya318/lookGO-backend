@@ -10,16 +10,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mli.lookgo.module.metro.model.dto.OriginDestinationDetailDTO;
 import com.mli.lookgo.module.metro.model.dto.StationDetailDTO;
-import com.mli.lookgo.module.metro.model.dto.TripPlanDTO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
 import com.mli.lookgo.module.metro.model.entity.StationFare;
 import com.mli.lookgo.module.metro.model.vo.MapVO;
+import com.mli.lookgo.module.metro.model.vo.OriginDestinationDetailVO;
 import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
-import com.mli.lookgo.module.metro.model.vo.TripPlanVO;
 import com.mli.lookgo.module.metro.service.MetroService;
 
 import jakarta.validation.Valid;
@@ -183,23 +183,25 @@ public class MetroController {
     }
 
     /**
-     * 依起始、終點車站代碼計算行程路線規劃，可選擇性指定票種與路線策略。
+     * 依起始、終點車站代碼取得兩站間詳細資料，可選擇性指定票種與路線策略。
      *
-     * @param tripPlanDTO
-     * @return ResponseEntity<TripPlanVO>
+     * @param originDestinationDetailDTO
+     * @return ResponseEntity<OriginDestinationDetailVO>
      */
-    @Operation(summary = "計算捷運行程路線規劃", description = "依起終點車站代碼搜尋最佳路線，可選擇性指定票種（全票/優惠票等）與路線策略（最少轉乘次數/最短車程時間）")
+    @Operation(summary = "取得起終點站詳細資料", description = "依起終點車站代碼取得兩站間路線段、轉乘次數、行駛時間與票價，可選擇性指定票種（全票/優惠票等）與路線策略（最少轉乘次數/最短車程時間）")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功取得行程路線規劃結果", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TripPlanVO.class))),
+            @ApiResponse(responseCode = "200", description = "成功取得起終點站詳細資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OriginDestinationDetailVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入起始車站代碼!"))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-    @PostMapping("/get-trip-plan")
-    public ResponseEntity<TripPlanVO> getTripPlan(@Valid @RequestBody TripPlanDTO tripPlanDTO) {
-        logger.debug("收到計算行程路線規劃的請求，fromStationCode: {}，toStationCode: {}",
-                tripPlanDTO.getFromStationCode(), tripPlanDTO.getToStationCode());
-        TripPlanVO tripPlan = metroService.getTripPlan(tripPlanDTO);
+    @PostMapping("/get-origin-destination-detail")
+    public ResponseEntity<OriginDestinationDetailVO> getOriginDestinationDetail(
+            @Valid @RequestBody OriginDestinationDetailDTO originDestinationDetailDTO) {
+        logger.debug("收到查詢起終點站詳細資料的請求，fromStationCode: {}，toStationCode: {}",
+                originDestinationDetailDTO.getFromStationCode(), originDestinationDetailDTO.getToStationCode());
+        OriginDestinationDetailVO originDestinationDetail =
+                metroService.getOriginDestinationDetail(originDestinationDetailDTO);
 
-        return ResponseEntity.ok(tripPlan);
+        return ResponseEntity.ok(originDestinationDetail);
     }
 }

@@ -6,13 +6,13 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * 回傳捷運行程路線規劃結果的物件。
+ * 回傳起終點站詳細資料的物件。
  *
  * @author D5042101
  * @since 2026.06.28
  */
-@Schema(description = "回傳捷運行程路線規劃結果的物件")
-public class TripPlanVO {
+@Schema(description = "回傳起終點站詳細資料的物件")
+public class OriginDestinationDetailVO {
 
     @Schema(description = "起始車站代碼", example = "R28")
     private String fromStationCode;
@@ -38,10 +38,10 @@ public class TripPlanVO {
     @Schema(description = "票價 (元；未指定票種時為 null)", example = "45.00")
     private BigDecimal farePrice;
 
-    public TripPlanVO() {
+    public OriginDestinationDetailVO() {
     }
 
-    public TripPlanVO(String fromStationCode, String toStationCode, Integer fareType,
+    public OriginDestinationDetailVO(String fromStationCode, String toStationCode, Integer fareType,
             Integer routingStrategy, List<RouteSegmentVO> route, int transferCount,
             Integer totalTravelTimeSeconds, BigDecimal farePrice) {
         this.fromStationCode = fromStationCode;
@@ -120,7 +120,7 @@ public class TripPlanVO {
 
     @Override
     public String toString() {
-        return "TripPlanVO{" +
+        return "OriginDestinationDetailVO{" +
                 "fromStationCode='" + fromStationCode + '\'' +
                 ", toStationCode='" + toStationCode + '\'' +
                 ", transferCount=" + transferCount +

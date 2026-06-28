@@ -15,16 +15,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.mli.lookgo.module.metro.dao.MetroDAO;
+import com.mli.lookgo.module.metro.model.dto.OriginDestinationDetailDTO;
 import com.mli.lookgo.module.metro.model.dto.StationDetailDTO;
-import com.mli.lookgo.module.metro.model.dto.TripPlanDTO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
 import com.mli.lookgo.module.metro.model.entity.StationFare;
 import com.mli.lookgo.module.metro.model.vo.MapVO;
+import com.mli.lookgo.module.metro.model.vo.OriginDestinationDetailVO;
 import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
-import com.mli.lookgo.module.metro.model.vo.TripPlanVO;
 
 /**
  * 處理前端查詢捷運資料相關的業務邏輯。
@@ -179,20 +179,22 @@ public class MetroService {
     }
 
     /**
-     * 依起始、終點車站代碼計算行程路線規劃，可選擇性指定票種與路線策略。
+     * 依起始、終點車站代碼取得兩站間詳細資料，可選擇性指定票種與路線策略。
      * <p>
      * 路線策略 1（最少轉乘次數）：以 Dijkstra 搜尋，轉乘邊權重為 1、同線邊權重為 0。<br>
      * 路線策略 2（最短車程時間）：以 Dijkstra 搜尋，各邊權重為實際秒數。
      *
-     * @param tripPlanDTO
-     * @return TripPlanVO
+     * @param originDestinationDetailDTO
+     * @return OriginDestinationDetailVO
      */
-    public TripPlanVO getTripPlan(TripPlanDTO tripPlanDTO) {
-        int strategy = tripPlanDTO.getRoutingStrategy() != null ? tripPlanDTO.getRoutingStrategy() : 1;
-        String fromCode = tripPlanDTO.getFromStationCode();
-        String toCode = tripPlanDTO.getToStationCode();
+    public OriginDestinationDetailVO getOriginDestinationDetail(
+            OriginDestinationDetailDTO originDestinationDetailDTO) {
+        int strategy = originDestinationDetailDTO.getRoutingStrategy() != null
+                ? originDestinationDetailDTO.getRoutingStrategy() : 1;
+        String fromCode = originDestinationDetailDTO.getFromStationCode();
+        String toCode = originDestinationDetailDTO.getToStationCode();
 
-        logger.debug("開始計算行程規劃，fromStationCode: {}，toStationCode: {}，strategy: {}",
+        logger.debug("開始查詢起終點站詳細資料，fromStationCode: {}，toStationCode: {}，strategy: {}",
                 fromCode, toCode, strategy);
 
         List<Line> lines = metroDAO.getAllLine();
@@ -225,16 +227,17 @@ public class MetroService {
             LineStation ls = lsByCode.get(fromCode);
             Station s = stationById.get(ls.getStationId());
             Line line = lineById.get(ls.getLineId());
-            TripPlanVO.StationInfoVO stationInfo = new TripPlanVO.StationInfoVO(
+            OriginDestinationDetailVO.StationInfoVO stationInfo = new OriginDestinationDetailVO.StationInfoVO(
                     fromCode,
                     s != null ? s.getNameZhTw() : null,
                     s != null ? s.getNameEn() : null);
-            TripPlanVO.RouteSegmentVO segment = new TripPlanVO.RouteSegmentVO(
+            OriginDestinationDetailVO.RouteSegmentVO segment = new OriginDestinationDetailVO.RouteSegmentVO(
                     line != null ? line.getLetter() : null,
                     line != null ? line.getNameZhTw() : null,
                     line != null ? line.getColor() : null,
                     Collections.singletonList(stationInfo), 0);
-            return new TripPlanVO(fromCode, toCode, tripPlanDTO.getFareType(), strategy,
+            return new OriginDestinationDetailVO(fromCode, toCode,
+                    originDestinationDetailDTO.getFareType(), strategy,
                     Collections.singletonList(segment), 0, 0, BigDecimal.ZERO);
         }
 
@@ -342,7 +345,7 @@ public class MetroService {
         }
 
         // 建立路線段清單
-        List<TripPlanVO.RouteSegmentVO> route = new ArrayList<>();
+        List<OriginDestinationDetailVO.RouteSegmentVO> route = new ArrayList<>();
         List<String> segmentCodes = new ArrayList<>();
         segmentCodes.add(path.get(0));
 
@@ -382,20 +385,22 @@ public class MetroService {
 
         // 查詢票價（選填）
         BigDecimal farePrice = null;
-        if (tripPlanDTO.getFareType() != null) {
-            farePrice = metroDAO.getFareByStationCodesAndType(fromCode, toCode, tripPlanDTO.getFareType());
+        if (originDestinationDetailDTO.getFareType() != null) {
+            farePrice = metroDAO.getFareByStationCodesAndType(
+                    fromCode, toCode, originDestinationDetailDTO.getFareType());
         }
 
-        logger.debug("行程規劃完成，轉乘次數: {}，總行駛時間: {} 秒", transferCount, totalTime);
+        logger.debug("起終點站詳細資料查詢完成，轉乘次數: {}，總行駛時間: {} 秒", transferCount, totalTime);
 
-        return new TripPlanVO(fromCode, toCode, tripPlanDTO.getFareType(), strategy,
+        return new OriginDestinationDetailVO(fromCode, toCode,
+                originDestinationDetailDTO.getFareType(), strategy,
                 route, transferCount, totalTime, farePrice);
     }
 
     /**
      * 將同一路線的連續車站代碼清單組成一個路線段。
      */
-    private TripPlanVO.RouteSegmentVO buildSegment(
+    private OriginDestinationDetailVO.RouteSegmentVO buildSegment(
             List<String> codes,
             Map<String, LineStation> lsByCode,
             Map<Short, Line> lineById,
@@ -407,11 +412,11 @@ public class MetroService {
         Short lineId = (firstLS != null) ? firstLS.getLineId() : null;
         Line line = (lineId != null) ? lineById.get(lineId) : null;
 
-        List<TripPlanVO.StationInfoVO> stationInfos = codes.stream()
+        List<OriginDestinationDetailVO.StationInfoVO> stationInfos = codes.stream()
                 .map(code -> {
                     LineStation ls = lsByCode.get(code);
                     Station s = (ls != null) ? stationById.get(ls.getStationId()) : null;
-                    return new TripPlanVO.StationInfoVO(
+                    return new OriginDestinationDetailVO.StationInfoVO(
                             code,
                             s != null ? s.getNameZhTw() : null,
                             s != null ? s.getNameEn() : null);
@@ -425,7 +430,7 @@ public class MetroService {
                     lastLS.getCumulativeTime().intValue() - firstLS.getCumulativeTime().intValue());
         }
 
-        return new TripPlanVO.RouteSegmentVO(
+        return new OriginDestinationDetailVO.RouteSegmentVO(
                 line != null ? line.getLetter() : null,
                 line != null ? line.getNameZhTw() : null,
                 line != null ? line.getColor() : null,

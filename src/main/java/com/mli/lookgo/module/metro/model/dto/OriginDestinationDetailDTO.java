@@ -4,13 +4,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * 計算捷運行程路線規劃的資料傳輸物件。
+ * 查詢起終點站詳細資料的資料傳輸物件。
  *
  * @author D5042101
  * @since 2026.06.28
  */
-@Schema(description = "計算捷運行程路線規劃的資料傳輸物件")
-public class TripPlanDTO {
+@Schema(description = "查詢起終點站詳細資料的資料傳輸物件")
+public class OriginDestinationDetailDTO {
 
     @Schema(description = "起始車站代碼", example = "R28")
     @NotBlank(message = "請輸入起始車站代碼!")
@@ -60,7 +60,7 @@ public class TripPlanDTO {
 
     @Override
     public String toString() {
-        return "TripPlanDTO{fromStationCode='" + fromStationCode +
+        return "OriginDestinationDetailDTO{fromStationCode='" + fromStationCode +
                 "', toStationCode='" + toStationCode +
                 "', fareType=" + fareType +
                 ", routingStrategy=" + routingStrategy + '}';

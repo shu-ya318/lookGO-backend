@@ -2,6 +2,7 @@ package com.mli.lookgo.module.metro.model.vo;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @author D5042101
  * @since 2026.06.28
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "回傳車站詳細資料的物件")
 public class StationDetailVO {
 

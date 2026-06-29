@@ -31,8 +31,16 @@ public class StationDetailsDTO {
         this.stationCode = stationCode;
     }
 
+    public List<StationFacilities> getStationFacilities() {
+        return stationFacilities;
+    }
+
+    public void setStationFacilities(List<StationFacilities> stationFacilities) {
+        this.stationFacilities = stationFacilities;
+    }
+
     @Override
     public String toString() {
-        return "StationDetailsDTO{stationCode='" + stationCode + "'}";
+        return "StationDetailsDTO{stationCode='" + stationCode + "', stationFacilities=" + stationFacilities + "}";
     }
 }

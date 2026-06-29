@@ -102,14 +102,29 @@
         ORDER BY id ASC
     </select>
 
-    <!-- 依車站代碼取得車站詳細資料 -->
+    <!-- 依車站代碼取得車站詳細資料，可選擇性依設備過濾查詢欄位 -->
     <select id="getStationByCode" resultType="com.mli.lookgo.module.metro.model.vo.StationDetailVO">
-        SELECT s.id, s.name_zh_tw, s.name_en, s.atm, s.nursing_room, s.diaper_table,
-               s.charging_station, s.ticket_machine, s.locker, s.drinking_water, s.restroom,
-               s.elevator, s.escalator, s.updated_at
+        SELECT s.id, s.name_zh_tw, s.name_en
+        <choose>
+            <when test="dto.stationFacilities == null or dto.stationFacilities.isEmpty()">
+                , s.atm, s.nursing_room, s.diaper_table, s.charging_station, s.ticket_machine,
+                  s.locker, s.drinking_water, s.restroom, s.elevator, s.escalator
+            </when>
+            <otherwise>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ATM)">, s.atm</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@NURSING_ROOM)">, s.nursing_room, s.diaper_table</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@CHARGING_STATION)">, s.charging_station</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@LOCKER)">, s.locker</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@TOILET)">, s.restroom</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ELEVATOR)
+                       or dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ACCESSIBLE_FACILITIES)">, s.elevator</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ELEVATOR)">, s.escalator</if>
+            </otherwise>
+        </choose>
+        , s.updated_at
         FROM [dbo].[stations] s
         INNER JOIN [dbo].[lines_stations] ls ON ls.station_id = s.id
-        WHERE ls.station_code = #{stationCode, jdbcType=NVARCHAR}
+        WHERE ls.station_code = #{dto.stationCode, jdbcType=NVARCHAR}
     </select>
 
     <!-- 所有路線的車站 -->

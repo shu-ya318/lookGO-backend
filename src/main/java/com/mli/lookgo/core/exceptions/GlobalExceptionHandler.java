@@ -159,7 +159,13 @@ public class GlobalExceptionHandler {
     }
     
     // ----- Metro -----
-    
+
+    /**
+     * 處理找不到指定車站的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 404 (Not Found) 給客戶端。
+     */
     @ExceptionHandler(StationNotFoundException.class)
     public ResponseEntity<MessageVO> handleStationNotFoundException(StationNotFoundException exception) {
         logger.error("找不到結果: {}", exception.getMessage());

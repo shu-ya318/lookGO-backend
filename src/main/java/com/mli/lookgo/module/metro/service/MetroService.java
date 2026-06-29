@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -38,6 +39,9 @@ public class MetroService {
 
     private final MetroDAO metroDAO;
     private static final Logger logger = LoggerFactory.getLogger(MetroService.class);
+    private static final Set<Integer> VALID_FARE_TYPES = Set.of(1, 4, 5, 7);
+    private static final Set<Integer> VALID_ROUTING_STRATEGIES = Set.of(1, 2);
+    private static final BigDecimal SAME_STATION_FARE = BigDecimal.valueOf(20);
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -110,7 +114,7 @@ public class MetroService {
         }
 
         logger.debug("開始依車站代碼查詢車站詳細資料，stationCode: {}", stationDetailsDTO.getStationCode());
-        return metroDAO.getStationByCode(stationDetailsDTO.getStationCode());
+        return metroDAO.getStationByCode(stationDetailsDTO);
     }
 
     /**
@@ -192,13 +196,22 @@ public class MetroService {
      * @param stationRouteDTO
      * @return OriginDestinationDetailVO
      */
-    public OriginDestinationDetailVO getOriginDestinationDetail(
-            StationRouteDTO stationRouteDTO) {
-        int strategy = stationRouteDTO.getRoutingStrategy() != null
-                ? stationRouteDTO.getRoutingStrategy()
-                : 1;
+    public OriginDestinationDetailVO getOriginDestinationDetail(StationRouteDTO stationRouteDTO) {
         String fromCode = stationRouteDTO.getFromStationCode();
         String toCode = stationRouteDTO.getToStationCode();
+        Integer fareType = stationRouteDTO.getFareType();
+        Integer routingStrategy = stationRouteDTO.getRoutingStrategy();
+
+        if (fareType != null && !VALID_FARE_TYPES.contains(fareType)) {
+            throw new IllegalArgumentException(
+                    "不支援的票種: " + fareType + "，有效值為 1(全票)、4(學生)、5(兒童)、7(愛心)");
+        }
+        if (routingStrategy != null && !VALID_ROUTING_STRATEGIES.contains(routingStrategy)) {
+            throw new IllegalArgumentException(
+                    "不支援的路線策略: " + routingStrategy + "，有效值為 1(最少轉乘次數)、2(最短車程時間)");
+        }
+
+        int strategy = routingStrategy != null ? routingStrategy : 1;
 
         logger.debug("開始查詢起終點站詳細資料，fromStationCode: {}，toStationCode: {}，strategy: {}",
                 fromCode, toCode, strategy);
@@ -222,44 +235,101 @@ public class MetroService {
                 .collect(Collectors.toMap(LineStation::getId, ls -> ls));
 
         if (!lsByCode.containsKey(fromCode)) {
-            throw new IllegalArgumentException("起始車站代碼不存在: " + fromCode);
+            throw new StationNotFoundException("找不到代碼:" + fromCode + "的車站!");
         }
         if (!lsByCode.containsKey(toCode)) {
-            throw new IllegalArgumentException("終點車站代碼不存在: " + toCode);
+            throw new StationNotFoundException("找不到代碼:" + toCode + "的車站!");
         }
 
-        // 起終點相同，直接回傳單站結果
         if (fromCode.equals(toCode)) {
-            LineStation ls = lsByCode.get(fromCode);
-            Station s = stationById.get(ls.getStationId());
-            Line line = lineById.get(ls.getLineId());
-            OriginDestinationDetailVO.StationInfoVO stationInfo = new OriginDestinationDetailVO.StationInfoVO(
-                    fromCode,
-                    s != null ? s.getNameZhTw() : null,
-                    s != null ? s.getNameEn() : null);
-            OriginDestinationDetailVO.RouteSegmentVO segment = new OriginDestinationDetailVO.RouteSegmentVO(
-                    line != null ? line.getLetter() : null,
-                    line != null ? line.getNameZhTw() : null,
-                    line != null ? line.getColor() : null,
-                    Collections.singletonList(stationInfo), 0);
-            return new OriginDestinationDetailVO(fromCode, toCode,
-                    stationRouteDTO.getFareType(), strategy,
-                    Collections.singletonList(segment), 0, 0, BigDecimal.ZERO);
+            return buildSameStationResult(fromCode, fareType, strategy, lsByCode, lineById, stationById);
         }
 
-        // 換乘時間表: "fromCode:toCode" -> transferTime (分鐘)
+        Map<String, Short> transferTimeMap = buildTransferTimeMap(lineTransfers, lsById);
+        Map<String, List<Edge>> adj = buildAdjacencyList(lineStations, lineTransfers, lsById, strategy);
+        DijkstraResult dijkstraResult = findRoute(adj, fromCode, toCode);
+
+        List<OriginDestinationDetailVO.RouteSegmentVO> route = buildRouteSegments(
+                dijkstraResult.path(), dijkstraResult.prevIsTransfer(), lsByCode, lineById, stationById);
+        int transferCount = (int) dijkstraResult.path().stream()
+                .filter(c -> Boolean.TRUE.equals(dijkstraResult.prevIsTransfer().get(c)))
+                .count();
+        int totalTime = calculateTotalTime(
+                dijkstraResult.path(), dijkstraResult.prevIsTransfer(), lsByCode, transferTimeMap);
+        BigDecimal farePrice = fareType != null
+                ? metroDAO.getFareByStationCodesAndType(fromCode, toCode, fareType)
+                : null;
+
+        logger.debug("起終點站詳細資料查詢完成，轉乘次數: {}，總行駛時間: {} 秒", transferCount, totalTime);
+
+        return new OriginDestinationDetailVO(fromCode, toCode, fareType, strategy,
+                route, transferCount, totalTime, farePrice);
+    }
+
+    /**
+     * 起終點相同時，直接組成只含單一車站的回傳結果。
+     * farePrice 固定為同站票價 {@link #SAME_STATION_FARE}；未傳入 fareType 時不計算票價。
+     */
+    private OriginDestinationDetailVO buildSameStationResult(
+            String stationCode,
+            Integer fareType,
+            int strategy,
+            Map<String, LineStation> lsByCode,
+            Map<Short, Line> lineById,
+            Map<Integer, Station> stationById) {
+
+        LineStation ls = lsByCode.get(stationCode);
+        Station s = stationById.get(ls.getStationId());
+        Line line = lineById.get(ls.getLineId());
+
+        OriginDestinationDetailVO.StationInfoVO stationInfo = new OriginDestinationDetailVO.StationInfoVO(
+                stationCode,
+                s != null ? s.getNameZhTw() : null,
+                s != null ? s.getNameEn() : null);
+        OriginDestinationDetailVO.RouteSegmentVO segment = new OriginDestinationDetailVO.RouteSegmentVO(
+                line != null ? line.getLetter() : null,
+                line != null ? line.getNameZhTw() : null,
+                line != null ? line.getColor() : null,
+                Collections.singletonList(stationInfo), 0);
+
+        BigDecimal farePrice = fareType != null ? SAME_STATION_FARE : null;
+
+        return new OriginDestinationDetailVO(stationCode, stationCode, fareType, strategy,
+                Collections.singletonList(segment), 0, 0, farePrice);
+    }
+
+    /**
+     * 建立換乘時間查找表，key 格式為 "fromCode:toCode"，value 為換乘時間（分鐘）。
+     * 雙向皆建立，確保正反向皆可查詢。
+     */
+    private Map<String, Short> buildTransferTimeMap(
+            List<LineTransfer> lineTransfers,
+            Map<Integer, LineStation> lsById) {
+
         Map<String, Short> transferTimeMap = new HashMap<>();
         for (LineTransfer lt : lineTransfers) {
             LineStation from = lsById.get(lt.getFromLineStationId());
             LineStation to = lsById.get(lt.getToLineStationId());
-            if (from == null || to == null)
-                continue;
+            if (from == null || to == null) continue;
             Short tt = lt.getTransferTime();
             transferTimeMap.put(from.getStationCode() + ":" + to.getStationCode(), tt);
             transferTimeMap.put(to.getStationCode() + ":" + from.getStationCode(), tt);
         }
+        return transferTimeMap;
+    }
 
-        // 建立鄰接表
+    /**
+     * 依路線策略建立鄰接表。
+     * <p>
+     * 策略 1：同線邊權重 0、換乘邊權重 1（最小化轉乘次數）。<br>
+     * 策略 2：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為換乘時間秒數（最小化車程時間）。
+     */
+    private Map<String, List<Edge>> buildAdjacencyList(
+            List<LineStation> lineStations,
+            List<LineTransfer> lineTransfers,
+            Map<Integer, LineStation> lsById,
+            int strategy) {
+
         Map<String, List<Edge>> adj = new HashMap<>();
 
         // 同線相鄰邊
@@ -295,16 +365,10 @@ public class MetroService {
         for (LineTransfer lt : lineTransfers) {
             LineStation from = lsById.get(lt.getFromLineStationId());
             LineStation to = lsById.get(lt.getToLineStationId());
-            if (from == null || to == null)
-                continue;
+            if (from == null || to == null) continue;
 
-            int weight;
-            if (strategy == 1) {
-                weight = 1;
-            } else {
-                int tm = lt.getTransferTime() != null ? lt.getTransferTime().intValue() : 0;
-                weight = tm * 60;
-            }
+            int weight = (strategy == 1) ? 1
+                    : (lt.getTransferTime() != null ? lt.getTransferTime().intValue() * 60 : 0);
 
             adj.computeIfAbsent(from.getStationCode(), k -> new ArrayList<>())
                     .add(new Edge(to.getStationCode(), weight, true));
@@ -312,7 +376,16 @@ public class MetroService {
                     .add(new Edge(from.getStationCode(), weight, true));
         }
 
-        // Dijkstra
+        return adj;
+    }
+
+    /**
+     * 以 Dijkstra 演算法搜尋最短路徑，並回溯出完整的車站代碼路徑。
+     * 找不到可達路徑時拋出 {@link IllegalArgumentException}。
+     */
+    private DijkstraResult findRoute(
+            Map<String, List<Edge>> adj, String fromCode, String toCode) {
+
         Map<String, Integer> dist = new HashMap<>();
         Map<String, String> prevCode = new HashMap<>();
         Map<String, Boolean> prevIsTransfer = new HashMap<>();
@@ -326,10 +399,8 @@ public class MetroService {
             int currCost = (int) curr[0];
             String currCode = (String) curr[1];
 
-            if (currCode.equals(toCode))
-                break;
-            if (currCost > dist.getOrDefault(currCode, Integer.MAX_VALUE))
-                continue;
+            if (currCode.equals(toCode)) break;
+            if (currCost > dist.getOrDefault(currCode, Integer.MAX_VALUE)) continue;
 
             for (Edge edge : adj.getOrDefault(currCode, Collections.emptyList())) {
                 int newCost = currCost + edge.weight;
@@ -346,7 +417,6 @@ public class MetroService {
             throw new IllegalArgumentException("找不到從 " + fromCode + " 到 " + toCode + " 的行程路線");
         }
 
-        // 回溯路徑
         List<String> path = new ArrayList<>();
         String curr = toCode;
         while (curr != null) {
@@ -354,7 +424,19 @@ public class MetroService {
             curr = prevCode.get(curr);
         }
 
-        // 建立路線段清單
+        return new DijkstraResult(path, prevIsTransfer);
+    }
+
+    /**
+     * 依路徑與換乘標記，將連續同線車站切分並組成各路線段清單。
+     */
+    private List<OriginDestinationDetailVO.RouteSegmentVO> buildRouteSegments(
+            List<String> path,
+            Map<String, Boolean> prevIsTransfer,
+            Map<String, LineStation> lsByCode,
+            Map<Short, Line> lineById,
+            Map<Integer, Station> stationById) {
+
         List<OriginDestinationDetailVO.RouteSegmentVO> route = new ArrayList<>();
         List<String> segmentCodes = new ArrayList<>();
         segmentCodes.add(path.get(0));
@@ -369,12 +451,18 @@ public class MetroService {
         }
         route.add(buildSegment(segmentCodes, lsByCode, lineById, stationById));
 
-        // 統計轉乘次數
-        int transferCount = (int) path.stream()
-                .filter(c -> Boolean.TRUE.equals(prevIsTransfer.get(c)))
-                .count();
+        return route;
+    }
 
-        // 計算總行駛時間（秒）
+    /**
+     * 計算全程總行駛時間（秒）。換乘段以換乘時間計，行駛段以相鄰站累計時間差計。
+     */
+    private int calculateTotalTime(
+            List<String> path,
+            Map<String, Boolean> prevIsTransfer,
+            Map<String, LineStation> lsByCode,
+            Map<String, Short> transferTimeMap) {
+
         int totalTime = 0;
         for (int i = 1; i < path.size(); i++) {
             String prev = path.get(i - 1);
@@ -392,19 +480,7 @@ public class MetroService {
                 }
             }
         }
-
-        // 查詢票價（選填）
-        BigDecimal farePrice = null;
-        if (stationRouteDTO.getFareType() != null) {
-            farePrice = metroDAO.getFareByStationCodesAndType(
-                    fromCode, toCode, stationRouteDTO.getFareType());
-        }
-
-        logger.debug("起終點站詳細資料查詢完成，轉乘次數: {}，總行駛時間: {} 秒", transferCount, totalTime);
-
-        return new OriginDestinationDetailVO(fromCode, toCode,
-                stationRouteDTO.getFareType(), strategy,
-                route, transferCount, totalTime, farePrice);
+        return totalTime;
     }
 
     /**
@@ -448,7 +524,10 @@ public class MetroService {
                 segmentTime);
     }
 
-    // Dijkstra 邊（鄰接表用）
+    // ----- 私有輔助型別 -----
+
+    private record DijkstraResult(List<String> path, Map<String, Boolean> prevIsTransfer) {}
+
     private static class Edge {
 
         final String toCode;

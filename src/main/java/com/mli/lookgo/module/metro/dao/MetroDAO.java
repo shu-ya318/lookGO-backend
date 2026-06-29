@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import com.mli.lookgo.module.metro.model.dto.StationDetailsDTO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
@@ -63,12 +64,12 @@ public interface MetroDAO {
     List<Station> getAllStation();
 
     /**
-     * 依車站代碼取得車站詳細資料。
+     * 依車站代碼取得車站詳細資料，可選擇性依設備過濾。
      *
-     * @param stationCode
+     * @param dto
      * @return StationDetailVO
      */
-    StationDetailVO getStationByCode(@Param("stationCode") String stationCode);
+    StationDetailVO getStationByCode(@Param("dto") StationDetailsDTO dto);
 
     // ----- 所有路線的車站 (同車站保留重複資料，因為 station_sequence 不同) -----
     /**

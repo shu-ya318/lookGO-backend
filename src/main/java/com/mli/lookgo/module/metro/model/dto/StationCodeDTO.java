@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
  * @since 2026.06.28
  */
 @Schema(description = "處理依車站代碼查詢車站詳細資料的資料傳輸物件")
-public class StationDetailDTO {
+public class StationCodeDTO {
 
     @Schema(description = "車站代碼", example = "BL01")
     @NotBlank(message = "請輸入車站代碼!")
@@ -26,6 +26,6 @@ public class StationDetailDTO {
 
     @Override
     public String toString() {
-        return "StationDetailDTO{stationCode='" + stationCode + "'}";
+        return "StationCodeDTO{stationCode='" + stationCode + "'}";
     }
 }

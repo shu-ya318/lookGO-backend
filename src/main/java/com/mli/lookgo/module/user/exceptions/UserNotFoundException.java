@@ -7,6 +7,8 @@ package com.mli.lookgo.module.user.exceptions;
  * @since 2026.06.06
  */
 public class UserNotFoundException extends RuntimeException {
+	
+	private static final long serialVersionUID = 1L;
 
     public UserNotFoundException(String message) {
         super(message);

@@ -15,8 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.mli.lookgo.module.metro.dao.MetroDAO;
+import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
 import com.mli.lookgo.module.metro.model.dto.OriginDestinationDetailDTO;
-import com.mli.lookgo.module.metro.model.dto.StationDetailDTO;
+import com.mli.lookgo.module.metro.model.dto.StationCodeDTO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
@@ -100,12 +101,16 @@ public class MetroService {
     /**
      * 依車站代碼取得車站詳細資料。
      *
-     * @param stationDetailDTO
+     * @param stationCodeDTO
      * @return StationDetailVO
      */
-    public StationDetailVO getStationByCode(StationDetailDTO stationDetailDTO) {
-        logger.debug("開始依車站代碼查詢車站詳細資料，stationCode: {}", stationDetailDTO.getStationCode());
-        return metroDAO.getStationByCode(stationDetailDTO.getStationCode());
+    public StationDetailVO getStationByCode(StationCodeDTO stationCodeDTO) {
+        if (!metroDAO.existsByStationCode(stationCodeDTO.getStationCode())) {
+            throw new StationNotFoundException("找不到代碼:" + stationCodeDTO.getStationCode() + "的車站!");
+        }
+
+        logger.debug("開始依車站代碼查詢車站詳細資料，stationCode: {}", stationCodeDTO.getStationCode());
+        return metroDAO.getStationByCode(stationCodeDTO.getStationCode());
     }
 
     /**
@@ -190,7 +195,8 @@ public class MetroService {
     public OriginDestinationDetailVO getOriginDestinationDetail(
             OriginDestinationDetailDTO originDestinationDetailDTO) {
         int strategy = originDestinationDetailDTO.getRoutingStrategy() != null
-                ? originDestinationDetailDTO.getRoutingStrategy() : 1;
+                ? originDestinationDetailDTO.getRoutingStrategy()
+                : 1;
         String fromCode = originDestinationDetailDTO.getFromStationCode();
         String toCode = originDestinationDetailDTO.getToStationCode();
 
@@ -246,7 +252,8 @@ public class MetroService {
         for (LineTransfer lt : lineTransfers) {
             LineStation from = lsById.get(lt.getFromLineStationId());
             LineStation to = lsById.get(lt.getToLineStationId());
-            if (from == null || to == null) continue;
+            if (from == null || to == null)
+                continue;
             Short tt = lt.getTransferTime();
             transferTimeMap.put(from.getStationCode() + ":" + to.getStationCode(), tt);
             transferTimeMap.put(to.getStationCode() + ":" + from.getStationCode(), tt);
@@ -288,7 +295,8 @@ public class MetroService {
         for (LineTransfer lt : lineTransfers) {
             LineStation from = lsById.get(lt.getFromLineStationId());
             LineStation to = lsById.get(lt.getToLineStationId());
-            if (from == null || to == null) continue;
+            if (from == null || to == null)
+                continue;
 
             int weight;
             if (strategy == 1) {
@@ -318,8 +326,10 @@ public class MetroService {
             int currCost = (int) curr[0];
             String currCode = (String) curr[1];
 
-            if (currCode.equals(toCode)) break;
-            if (currCost > dist.getOrDefault(currCode, Integer.MAX_VALUE)) continue;
+            if (currCode.equals(toCode))
+                break;
+            if (currCost > dist.getOrDefault(currCode, Integer.MAX_VALUE))
+                continue;
 
             for (Edge edge : adj.getOrDefault(currCode, Collections.emptyList())) {
                 int newCost = currCost + edge.weight;

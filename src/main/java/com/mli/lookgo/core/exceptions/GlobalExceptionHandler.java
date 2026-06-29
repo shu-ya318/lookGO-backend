@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.mli.lookgo.core.result.MessageVO;
+import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 
@@ -39,7 +40,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleMethodArgumentNotValidException(
             MethodArgumentNotValidException exception) {
         logger.error("發生方法參數無效例外的錯誤: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         Map<String, String> errors = new HashMap<>();
 
@@ -58,7 +58,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<MessageVO> handleIllegalArgumentException(IllegalArgumentException exception) {
         logger.error("發生非法請求參數例外的錯誤: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         MessageVO apiErrorResponse = new MessageVO(exception.getMessage());
 
@@ -74,14 +73,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<MessageVO> handleRuntimeException(RuntimeException exception) {
         logger.error("發生執行時期例外的錯誤: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         MessageVO apiErrorResponse = new MessageVO(exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(apiErrorResponse);
     }
 
-    // ----- 權限相關 -----
+    // ----- Core (Auth) -----
 
     /**
      * 處理存取被拒絕的例外（權限不足）。
@@ -92,14 +90,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<MessageVO> handleAccessDeniedException(AccessDeniedException exception) {
         logger.error("存取被拒絕: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         MessageVO apiResult = new MessageVO("權限不足，無法操作!");
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResult);
     }
 
-    // ----- 使用者相關 -----
+    // ----- User -----
 
     /**
      * 處理使用者重複建立的例外。
@@ -110,7 +107,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserDuplicateException.class)
     public ResponseEntity<MessageVO> handleUserDuplicateException(UserDuplicateException exception) {
         logger.error("不能重複建立: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
@@ -126,7 +122,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<MessageVO> handleUserNotFoundException(UserNotFoundException exception) {
         logger.error("找不到結果: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
@@ -142,7 +137,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AdminStatusModificationException.class)
     public ResponseEntity<MessageVO> handleAdminStatusModificationException(AdminStatusModificationException exception) {
         logger.error("嘗試變更管理員帳號狀態: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
@@ -158,10 +152,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<MessageVO> handleInvalidCredentialsException(InvalidCredentialsException exception) {
         logger.error("身分驗證失敗: {}", exception.getMessage());
-        logger.error("錯誤細節: ", exception);
 
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(apiResult);
+    }
+    
+    // ----- Metro -----
+    
+    @ExceptionHandler(StationNotFoundException.class)
+    public ResponseEntity<MessageVO> handleStationNotFoundException(StationNotFoundException exception) {
+        logger.error("找不到結果: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiResult);
     }
 }

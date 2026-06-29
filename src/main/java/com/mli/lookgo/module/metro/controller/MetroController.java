@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mli.lookgo.module.metro.model.dto.OriginDestinationDetailDTO;
-import com.mli.lookgo.module.metro.model.dto.StationDetailDTO;
+import com.mli.lookgo.module.metro.model.dto.StationCodeDTO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
@@ -147,7 +147,7 @@ public class MetroController {
     /**
      * 依車站代碼取得車站詳細資料。
      *
-     * @param stationDetailDTO
+     * @param stationCodeDTO
      * @return ResponseEntity<StationDetailVO>
      */
     @Operation(summary = "依車站代碼取得車站詳細資料", description = "依傳入的車站代碼從資料庫取得該車站的詳細資料")
@@ -157,9 +157,9 @@ public class MetroController {
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/get-station-by-code")
-    public ResponseEntity<StationDetailVO> getStationByCode(@Valid @RequestBody StationDetailDTO stationDetailDTO) {
-        logger.debug("收到依車站代碼查詢車站詳細資料的請求，stationCode: {}", stationDetailDTO.getStationCode());
-        StationDetailVO stationDetail = metroService.getStationByCode(stationDetailDTO);
+    public ResponseEntity<StationDetailVO> getStationByCode(@Valid @RequestBody StationCodeDTO stationCodeDTO) {
+        logger.debug("收到依車站代碼查詢車站詳細資料的請求，stationCode: {}", stationCodeDTO.getStationCode());
+        StationDetailVO stationDetail = metroService.getStationByCode(stationCodeDTO);
 
         return ResponseEntity.ok(stationDetail);
     }

@@ -48,6 +48,14 @@ public interface MetroDAO {
     void upsertAllStation(@Param("stations") List<Station> stations);
 
     /**
+     * 用 stationCode 查詢指定車站是否存在。
+     *
+     * @param stationCode
+     * @return 存在為 true，否則 false
+     */
+    boolean existsByStationCode(@Param("stationCode") String stationCode);
+
+    /**
      * 取得所有車站資料。
      *
      * @return List<Station>
@@ -109,8 +117,8 @@ public interface MetroDAO {
      * @return BigDecimal
      */
     BigDecimal getFareByStationCodesAndType(@Param("fromStationCode") String fromStationCode,
-                                            @Param("toStationCode") String toStationCode,
-                                            @Param("fareType") Integer fareType);
+            @Param("toStationCode") String toStationCode,
+            @Param("fareType") Integer fareType);
 
     // ----- 路線換乘 -----
 

@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
  * @since 2026.06.28
  */
 @Schema(description = "查詢起終點站詳細資料的資料傳輸物件")
-public class OriginDestinationDetailDTO {
+public class StationRouteDTO {
 
     @Schema(description = "起始車站代碼", example = "R28")
     @NotBlank(message = "請輸入起始車站代碼!")
@@ -60,7 +60,7 @@ public class OriginDestinationDetailDTO {
 
     @Override
     public String toString() {
-        return "OriginDestinationDetailDTO{fromStationCode='" + fromStationCode +
+        return "StationRouteDTO{fromStationCode='" + fromStationCode +
                 "', toStationCode='" + toStationCode +
                 "', fareType=" + fareType +
                 ", routingStrategy=" + routingStrategy + '}';

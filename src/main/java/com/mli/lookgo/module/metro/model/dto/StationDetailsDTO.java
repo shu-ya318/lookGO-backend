@@ -1,5 +1,9 @@
 package com.mli.lookgo.module.metro.model.dto;
 
+import java.util.List;
+
+import com.mli.lookgo.module.metro.enums.StationFacilities;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
@@ -10,11 +14,14 @@ import jakarta.validation.constraints.NotBlank;
  * @since 2026.06.28
  */
 @Schema(description = "處理依車站代碼查詢車站詳細資料的資料傳輸物件")
-public class StationCodeDTO {
+public class StationDetailsDTO {
 
     @Schema(description = "車站代碼", example = "BL01")
     @NotBlank(message = "請輸入車站代碼!")
     private String stationCode;
+
+    @Schema(description = "指定的車站設備過濾清單，例如: ATM, RESTROOM, ELEVATOR")
+    private List<StationFacilities> stationFacilities;
 
     public String getStationCode() {
         return stationCode;
@@ -26,6 +33,6 @@ public class StationCodeDTO {
 
     @Override
     public String toString() {
-        return "StationCodeDTO{stationCode='" + stationCode + "'}";
+        return "StationDetailsDTO{stationCode='" + stationCode + "'}";
     }
 }

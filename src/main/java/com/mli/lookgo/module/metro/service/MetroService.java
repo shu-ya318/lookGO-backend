@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
 
 import com.mli.lookgo.module.metro.dao.MetroDAO;
 import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
-import com.mli.lookgo.module.metro.model.dto.OriginDestinationDetailDTO;
-import com.mli.lookgo.module.metro.model.dto.StationCodeDTO;
+import com.mli.lookgo.module.metro.model.dto.StationRouteDTO;
+import com.mli.lookgo.module.metro.model.dto.StationDetailsDTO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
@@ -101,16 +101,16 @@ public class MetroService {
     /**
      * 依車站代碼取得車站詳細資料。
      *
-     * @param stationCodeDTO
+     * @param stationDetailsDTO
      * @return StationDetailVO
      */
-    public StationDetailVO getStationByCode(StationCodeDTO stationCodeDTO) {
-        if (!metroDAO.existsByStationCode(stationCodeDTO.getStationCode())) {
-            throw new StationNotFoundException("找不到代碼:" + stationCodeDTO.getStationCode() + "的車站!");
+    public StationDetailVO getStationByCode(StationDetailsDTO stationDetailsDTO) {
+        if (!metroDAO.existsByStationCode(stationDetailsDTO.getStationCode())) {
+            throw new StationNotFoundException("找不到代碼:" + stationDetailsDTO.getStationCode() + "的車站!");
         }
 
-        logger.debug("開始依車站代碼查詢車站詳細資料，stationCode: {}", stationCodeDTO.getStationCode());
-        return metroDAO.getStationByCode(stationCodeDTO.getStationCode());
+        logger.debug("開始依車站代碼查詢車站詳細資料，stationCode: {}", stationDetailsDTO.getStationCode());
+        return metroDAO.getStationByCode(stationDetailsDTO.getStationCode());
     }
 
     /**
@@ -189,16 +189,16 @@ public class MetroService {
      * 路線策略 1（最少轉乘次數）：以 Dijkstra 搜尋，轉乘邊權重為 1、同線邊權重為 0。<br>
      * 路線策略 2（最短車程時間）：以 Dijkstra 搜尋，各邊權重為實際秒數。
      *
-     * @param originDestinationDetailDTO
+     * @param stationRouteDTO
      * @return OriginDestinationDetailVO
      */
     public OriginDestinationDetailVO getOriginDestinationDetail(
-            OriginDestinationDetailDTO originDestinationDetailDTO) {
-        int strategy = originDestinationDetailDTO.getRoutingStrategy() != null
-                ? originDestinationDetailDTO.getRoutingStrategy()
+            StationRouteDTO stationRouteDTO) {
+        int strategy = stationRouteDTO.getRoutingStrategy() != null
+                ? stationRouteDTO.getRoutingStrategy()
                 : 1;
-        String fromCode = originDestinationDetailDTO.getFromStationCode();
-        String toCode = originDestinationDetailDTO.getToStationCode();
+        String fromCode = stationRouteDTO.getFromStationCode();
+        String toCode = stationRouteDTO.getToStationCode();
 
         logger.debug("開始查詢起終點站詳細資料，fromStationCode: {}，toStationCode: {}，strategy: {}",
                 fromCode, toCode, strategy);
@@ -243,7 +243,7 @@ public class MetroService {
                     line != null ? line.getColor() : null,
                     Collections.singletonList(stationInfo), 0);
             return new OriginDestinationDetailVO(fromCode, toCode,
-                    originDestinationDetailDTO.getFareType(), strategy,
+                    stationRouteDTO.getFareType(), strategy,
                     Collections.singletonList(segment), 0, 0, BigDecimal.ZERO);
         }
 
@@ -395,15 +395,15 @@ public class MetroService {
 
         // 查詢票價（選填）
         BigDecimal farePrice = null;
-        if (originDestinationDetailDTO.getFareType() != null) {
+        if (stationRouteDTO.getFareType() != null) {
             farePrice = metroDAO.getFareByStationCodesAndType(
-                    fromCode, toCode, originDestinationDetailDTO.getFareType());
+                    fromCode, toCode, stationRouteDTO.getFareType());
         }
 
         logger.debug("起終點站詳細資料查詢完成，轉乘次數: {}，總行駛時間: {} 秒", transferCount, totalTime);
 
         return new OriginDestinationDetailVO(fromCode, toCode,
-                originDestinationDetailDTO.getFareType(), strategy,
+                stationRouteDTO.getFareType(), strategy,
                 route, transferCount, totalTime, farePrice);
     }
 

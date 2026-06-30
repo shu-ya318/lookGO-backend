@@ -3,6 +3,7 @@ package com.mli.lookgo.module.metro.model.vo;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -181,6 +182,7 @@ public class OriginDestinationDetailVO {
 
     // ----- 車站資訊 -----
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @Schema(description = "路線段中的車站資訊")
     public static class StationInfoVO {
 
@@ -192,6 +194,36 @@ public class OriginDestinationDetailVO {
 
         @Schema(description = "車站英文名稱", example = "Taipei Main Station")
         private String nameEn;
+
+        @Schema(description = "銀行 ATM 位置")
+        private String atm;
+
+        @Schema(description = "哺集乳室位置")
+        private String nursingRoom;
+
+        @Schema(description = "嬰兒尿布台位置")
+        private String diaperTable;
+
+        @Schema(description = "充電站位置")
+        private String chargingStation;
+
+        @Schema(description = "自動售票機位置")
+        private String ticketMachine;
+
+        @Schema(description = "置物櫃位置")
+        private String locker;
+
+        @Schema(description = "飲水機位置")
+        private String drinkingWater;
+
+        @Schema(description = "廁所位置")
+        private String restroom;
+
+        @Schema(description = "電梯資訊")
+        private String elevator;
+
+        @Schema(description = "電扶梯資訊")
+        private String escalator;
 
         public StationInfoVO(String stationCode, String nameZhTw, String nameEn) {
             this.stationCode = stationCode;
@@ -210,5 +242,35 @@ public class OriginDestinationDetailVO {
         public String getNameEn() {
             return nameEn;
         }
+
+        public String getAtm() { return atm; }
+        public void setAtm(String atm) { this.atm = atm; }
+
+        public String getNursingRoom() { return nursingRoom; }
+        public void setNursingRoom(String nursingRoom) { this.nursingRoom = nursingRoom; }
+
+        public String getDiaperTable() { return diaperTable; }
+        public void setDiaperTable(String diaperTable) { this.diaperTable = diaperTable; }
+
+        public String getChargingStation() { return chargingStation; }
+        public void setChargingStation(String chargingStation) { this.chargingStation = chargingStation; }
+
+        public String getTicketMachine() { return ticketMachine; }
+        public void setTicketMachine(String ticketMachine) { this.ticketMachine = ticketMachine; }
+
+        public String getLocker() { return locker; }
+        public void setLocker(String locker) { this.locker = locker; }
+
+        public String getDrinkingWater() { return drinkingWater; }
+        public void setDrinkingWater(String drinkingWater) { this.drinkingWater = drinkingWater; }
+
+        public String getRestroom() { return restroom; }
+        public void setRestroom(String restroom) { this.restroom = restroom; }
+
+        public String getElevator() { return elevator; }
+        public void setElevator(String elevator) { this.elevator = elevator; }
+
+        public String getEscalator() { return escalator; }
+        public void setEscalator(String escalator) { this.escalator = escalator; }
     }
 }

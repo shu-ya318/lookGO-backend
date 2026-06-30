@@ -1,5 +1,9 @@
 package com.mli.lookgo.module.metro.model.dto;
 
+import java.util.List;
+
+import com.mli.lookgo.module.metro.enums.StationFacilities;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
@@ -25,6 +29,9 @@ public class StationRouteDTO {
 
     @Schema(description = "路線策略 (1=最少轉乘次數, 2=最短車程時間；未傳入時預設為 1)", example = "1")
     private Integer routingStrategy;
+
+    @Schema(description = "指定的車站設備過濾清單，例如: TOILET, ELEVATOR；傳入後路線中每個車站將回傳指定設備資訊")
+    private List<StationFacilities> stationFacilities;
 
     public String getFromStationCode() {
         return fromStationCode;
@@ -58,11 +65,20 @@ public class StationRouteDTO {
         this.routingStrategy = routingStrategy;
     }
 
+    public List<StationFacilities> getStationFacilities() {
+        return stationFacilities;
+    }
+
+    public void setStationFacilities(List<StationFacilities> stationFacilities) {
+        this.stationFacilities = stationFacilities;
+    }
+
     @Override
     public String toString() {
         return "StationRouteDTO{fromStationCode='" + fromStationCode +
                 "', toStationCode='" + toStationCode +
                 "', fareType=" + fareType +
-                ", routingStrategy=" + routingStrategy + '}';
+                ", routingStrategy=" + routingStrategy +
+                ", stationFacilities=" + stationFacilities + '}';
     }
 }

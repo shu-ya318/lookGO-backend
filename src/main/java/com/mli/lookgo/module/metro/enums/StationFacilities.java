@@ -8,7 +8,9 @@ public enum StationFacilities {
     NURSING_ROOM("Nursing Room", "哺乳室"),
     ATM("ATM", "ATM"),
     LOCKER("Locker", "置物櫃"),
-    CHARGING_STATION("Charging Station", "充電站");
+    CHARGING_STATION("Charging Station", "充電站"),
+    TICKET_MACHINE("Ticket Machine", "自動售票機"),
+    DRINKING_WATER("Drinking Water", "飲水機");
 
     private final String nameEn;
     private final String nameZhTw;

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.mli.lookgo.module.metro.dao.MetroDAO;
+import com.mli.lookgo.module.metro.enums.StationFacilities;
 import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
 import com.mli.lookgo.module.metro.model.dto.StationRouteDTO;
 import com.mli.lookgo.module.metro.model.dto.StationDetailsDTO;
@@ -189,7 +190,6 @@ public class MetroService {
 
     /**
      * 依起始、終點車站代碼取得兩站間詳細資料，可選擇性指定票種與路線策略。
-     * <p>
      * 路線策略 1（最少轉乘次數）：以 Dijkstra 搜尋，轉乘邊權重為 1、同線邊權重為 0。<br>
      * 路線策略 2（最短車程時間）：以 Dijkstra 搜尋，各邊權重為實際秒數。
      *
@@ -201,6 +201,7 @@ public class MetroService {
         String toCode = stationRouteDTO.getToStationCode();
         Integer fareType = stationRouteDTO.getFareType();
         Integer routingStrategy = stationRouteDTO.getRoutingStrategy();
+        List<StationFacilities> stationFacilities = stationRouteDTO.getStationFacilities();
 
         if (fareType != null && !VALID_FARE_TYPES.contains(fareType)) {
             throw new IllegalArgumentException(
@@ -242,7 +243,7 @@ public class MetroService {
         }
 
         if (fromCode.equals(toCode)) {
-            return buildSameStationResult(fromCode, fareType, strategy, lsByCode, lineById, stationById);
+            return buildSameStationResult(fromCode, fareType, strategy, lsByCode, lineById, stationById, stationFacilities);
         }
 
         Map<String, Short> transferTimeMap = buildTransferTimeMap(lineTransfers, lsById);
@@ -250,7 +251,7 @@ public class MetroService {
         DijkstraResult dijkstraResult = findRoute(adj, fromCode, toCode);
 
         List<OriginDestinationDetailVO.RouteSegmentVO> route = buildRouteSegments(
-                dijkstraResult.path(), dijkstraResult.prevIsTransfer(), lsByCode, lineById, stationById);
+                dijkstraResult.path(), dijkstraResult.prevIsTransfer(), lsByCode, lineById, stationById, stationFacilities);
         int transferCount = (int) dijkstraResult.path().stream()
                 .filter(c -> Boolean.TRUE.equals(dijkstraResult.prevIsTransfer().get(c)))
                 .count();
@@ -276,7 +277,8 @@ public class MetroService {
             int strategy,
             Map<String, LineStation> lsByCode,
             Map<Short, Line> lineById,
-            Map<Integer, Station> stationById) {
+            Map<Integer, Station> stationById,
+            List<StationFacilities> stationFacilities) {
 
         LineStation ls = lsByCode.get(stationCode);
         Station s = stationById.get(ls.getStationId());
@@ -286,6 +288,7 @@ public class MetroService {
                 stationCode,
                 s != null ? s.getNameZhTw() : null,
                 s != null ? s.getNameEn() : null);
+        applyFacilities(stationInfo, s, stationFacilities);
         OriginDestinationDetailVO.RouteSegmentVO segment = new OriginDestinationDetailVO.RouteSegmentVO(
                 line != null ? line.getLetter() : null,
                 line != null ? line.getNameZhTw() : null,
@@ -310,7 +313,8 @@ public class MetroService {
         for (LineTransfer lt : lineTransfers) {
             LineStation from = lsById.get(lt.getFromLineStationId());
             LineStation to = lsById.get(lt.getToLineStationId());
-            if (from == null || to == null) continue;
+            if (from == null || to == null)
+                continue;
             Short tt = lt.getTransferTime();
             transferTimeMap.put(from.getStationCode() + ":" + to.getStationCode(), tt);
             transferTimeMap.put(to.getStationCode() + ":" + from.getStationCode(), tt);
@@ -365,7 +369,8 @@ public class MetroService {
         for (LineTransfer lt : lineTransfers) {
             LineStation from = lsById.get(lt.getFromLineStationId());
             LineStation to = lsById.get(lt.getToLineStationId());
-            if (from == null || to == null) continue;
+            if (from == null || to == null)
+                continue;
 
             int weight = (strategy == 1) ? 1
                     : (lt.getTransferTime() != null ? lt.getTransferTime().intValue() * 60 : 0);
@@ -399,8 +404,10 @@ public class MetroService {
             int currCost = (int) curr[0];
             String currCode = (String) curr[1];
 
-            if (currCode.equals(toCode)) break;
-            if (currCost > dist.getOrDefault(currCode, Integer.MAX_VALUE)) continue;
+            if (currCode.equals(toCode))
+                break;
+            if (currCost > dist.getOrDefault(currCode, Integer.MAX_VALUE))
+                continue;
 
             for (Edge edge : adj.getOrDefault(currCode, Collections.emptyList())) {
                 int newCost = currCost + edge.weight;
@@ -435,7 +442,8 @@ public class MetroService {
             Map<String, Boolean> prevIsTransfer,
             Map<String, LineStation> lsByCode,
             Map<Short, Line> lineById,
-            Map<Integer, Station> stationById) {
+            Map<Integer, Station> stationById,
+            List<StationFacilities> stationFacilities) {
 
         List<OriginDestinationDetailVO.RouteSegmentVO> route = new ArrayList<>();
         List<String> segmentCodes = new ArrayList<>();
@@ -444,12 +452,12 @@ public class MetroService {
         for (int i = 1; i < path.size(); i++) {
             String code = path.get(i);
             if (Boolean.TRUE.equals(prevIsTransfer.get(code))) {
-                route.add(buildSegment(segmentCodes, lsByCode, lineById, stationById));
+                route.add(buildSegment(segmentCodes, lsByCode, lineById, stationById, stationFacilities));
                 segmentCodes = new ArrayList<>();
             }
             segmentCodes.add(code);
         }
-        route.add(buildSegment(segmentCodes, lsByCode, lineById, stationById));
+        route.add(buildSegment(segmentCodes, lsByCode, lineById, stationById, stationFacilities));
 
         return route;
     }
@@ -490,7 +498,8 @@ public class MetroService {
             List<String> codes,
             Map<String, LineStation> lsByCode,
             Map<Short, Line> lineById,
-            Map<Integer, Station> stationById) {
+            Map<Integer, Station> stationById,
+            List<StationFacilities> stationFacilities) {
 
         LineStation firstLS = lsByCode.get(codes.get(0));
         LineStation lastLS = lsByCode.get(codes.get(codes.size() - 1));
@@ -502,10 +511,12 @@ public class MetroService {
                 .map(code -> {
                     LineStation ls = lsByCode.get(code);
                     Station s = (ls != null) ? stationById.get(ls.getStationId()) : null;
-                    return new OriginDestinationDetailVO.StationInfoVO(
+                    OriginDestinationDetailVO.StationInfoVO vo = new OriginDestinationDetailVO.StationInfoVO(
                             code,
                             s != null ? s.getNameZhTw() : null,
                             s != null ? s.getNameEn() : null);
+                    applyFacilities(vo, s, stationFacilities);
+                    return vo;
                 })
                 .collect(Collectors.toList());
 
@@ -524,9 +535,39 @@ public class MetroService {
                 segmentTime);
     }
 
+    /**
+     * 依設備過濾清單，將對應欄位由 Station 填入 StationInfoVO。清單為空時不填入任何欄位。
+     */
+    private void applyFacilities(
+            OriginDestinationDetailVO.StationInfoVO vo,
+            Station station,
+            List<StationFacilities> facilities) {
+        if (station == null || facilities == null || facilities.isEmpty()) return;
+        for (StationFacilities f : facilities) {
+            switch (f) {
+                case ATM -> vo.setAtm(station.getAtm());
+                case NURSING_ROOM -> {
+                    vo.setNursingRoom(station.getNursingRoom());
+                    vo.setDiaperTable(station.getDiaperTable());
+                }
+                case CHARGING_STATION -> vo.setChargingStation(station.getChargingStation());
+                case TICKET_MACHINE -> vo.setTicketMachine(station.getTicketMachine());
+                case LOCKER -> vo.setLocker(station.getLocker());
+                case DRINKING_WATER -> vo.setDrinkingWater(station.getDrinkingWater());
+                case TOILET -> vo.setRestroom(station.getRestroom());
+                case ELEVATOR -> {
+                    vo.setElevator(station.getElevator());
+                    vo.setEscalator(station.getEscalator());
+                }
+                case ACCESSIBLE_FACILITIES -> vo.setElevator(station.getElevator());
+            }
+        }
+    }
+
     // ----- 私有輔助型別 -----
 
-    private record DijkstraResult(List<String> path, Map<String, Boolean> prevIsTransfer) {}
+    private record DijkstraResult(List<String> path, Map<String, Boolean> prevIsTransfer) {
+    }
 
     private static class Edge {
 

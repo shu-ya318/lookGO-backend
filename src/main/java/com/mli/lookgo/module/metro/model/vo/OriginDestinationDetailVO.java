@@ -18,7 +18,7 @@ public class OriginDestinationDetailVO {
     @Schema(description = "起始車站代碼", example = "R28")
     private String fromStationCode;
 
-    @Schema(description = "終點車站代碼", example = "BL12")
+    @Schema(description = "終點車站代碼", example = "BL01")
     private String toStationCode;
 
     @Schema(description = "票種 (1=全票, 4=學生, 5=兒童, 7=愛心；未指定時為 null)", example = "1")
@@ -243,34 +243,84 @@ public class OriginDestinationDetailVO {
             return nameEn;
         }
 
-        public String getAtm() { return atm; }
-        public void setAtm(String atm) { this.atm = atm; }
+        public String getAtm() {
+            return atm;
+        }
 
-        public String getNursingRoom() { return nursingRoom; }
-        public void setNursingRoom(String nursingRoom) { this.nursingRoom = nursingRoom; }
+        public void setAtm(String atm) {
+            this.atm = atm;
+        }
 
-        public String getDiaperTable() { return diaperTable; }
-        public void setDiaperTable(String diaperTable) { this.diaperTable = diaperTable; }
+        public String getNursingRoom() {
+            return nursingRoom;
+        }
 
-        public String getChargingStation() { return chargingStation; }
-        public void setChargingStation(String chargingStation) { this.chargingStation = chargingStation; }
+        public void setNursingRoom(String nursingRoom) {
+            this.nursingRoom = nursingRoom;
+        }
 
-        public String getTicketMachine() { return ticketMachine; }
-        public void setTicketMachine(String ticketMachine) { this.ticketMachine = ticketMachine; }
+        public String getDiaperTable() {
+            return diaperTable;
+        }
 
-        public String getLocker() { return locker; }
-        public void setLocker(String locker) { this.locker = locker; }
+        public void setDiaperTable(String diaperTable) {
+            this.diaperTable = diaperTable;
+        }
 
-        public String getDrinkingWater() { return drinkingWater; }
-        public void setDrinkingWater(String drinkingWater) { this.drinkingWater = drinkingWater; }
+        public String getChargingStation() {
+            return chargingStation;
+        }
 
-        public String getRestroom() { return restroom; }
-        public void setRestroom(String restroom) { this.restroom = restroom; }
+        public void setChargingStation(String chargingStation) {
+            this.chargingStation = chargingStation;
+        }
 
-        public String getElevator() { return elevator; }
-        public void setElevator(String elevator) { this.elevator = elevator; }
+        public String getTicketMachine() {
+            return ticketMachine;
+        }
 
-        public String getEscalator() { return escalator; }
-        public void setEscalator(String escalator) { this.escalator = escalator; }
+        public void setTicketMachine(String ticketMachine) {
+            this.ticketMachine = ticketMachine;
+        }
+
+        public String getLocker() {
+            return locker;
+        }
+
+        public void setLocker(String locker) {
+            this.locker = locker;
+        }
+
+        public String getDrinkingWater() {
+            return drinkingWater;
+        }
+
+        public void setDrinkingWater(String drinkingWater) {
+            this.drinkingWater = drinkingWater;
+        }
+
+        public String getRestroom() {
+            return restroom;
+        }
+
+        public void setRestroom(String restroom) {
+            this.restroom = restroom;
+        }
+
+        public String getElevator() {
+            return elevator;
+        }
+
+        public void setElevator(String elevator) {
+            this.elevator = elevator;
+        }
+
+        public String getEscalator() {
+            return escalator;
+        }
+
+        public void setEscalator(String escalator) {
+            this.escalator = escalator;
+        }
     }
 }

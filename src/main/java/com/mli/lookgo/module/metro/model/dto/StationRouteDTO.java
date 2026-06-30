@@ -20,7 +20,7 @@ public class StationRouteDTO {
     @NotBlank(message = "請輸入起始車站代碼!")
     private String fromStationCode;
 
-    @Schema(description = "終點車站代碼", example = "BL12")
+    @Schema(description = "終點車站代碼", example = "BL01")
     @NotBlank(message = "請輸入終點車站代碼!")
     private String toStationCode;
 

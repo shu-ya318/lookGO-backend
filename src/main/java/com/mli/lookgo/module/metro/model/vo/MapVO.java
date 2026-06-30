@@ -137,7 +137,7 @@ public class MapVO {
     @Schema(description = "兩路線間的換乘連結")
     public static class TransferVO {
 
-        @Schema(description = "換乘起始站代碼", example = "BL12")
+        @Schema(description = "換乘起始站代碼", example = "BL01")
         private String fromStationCode;
 
         @Schema(description = "換乘目標站代碼", example = "R10")

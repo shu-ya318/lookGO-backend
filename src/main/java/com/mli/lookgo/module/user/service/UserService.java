@@ -18,6 +18,7 @@ import com.mli.lookgo.module.user.enums.UserStatus;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
+import com.mli.lookgo.module.user.model.dto.UpdateCellphoneDTO;
 import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUsernameDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUserStatusDTO;
@@ -163,6 +164,26 @@ public class UserService {
     }
 
     /**
+     * 更新當前已驗證使用者的電話號碼。
+     *
+     * @param updateCellphoneDTO
+     * @return MessageVO
+     * @throws UserNotFoundException 找不到對應使用者。
+     */
+    @Transactional
+    public MessageVO updateCellphone(UpdateCellphoneDTO updateCellphoneDTO) {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始呼叫 API 來更新使用者電話號碼，email: {}", email);
+
+        userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        userDAO.updateCellphoneByEmail(email, updateCellphoneDTO.getCellphone(), LocalDateTime.now(ZoneOffset.UTC));
+
+        return new MessageVO("電話號碼更新成功!");
+    }
+
+    /**
      * 更新指定使用者的帳號狀態。若狀態被修改為 DISABLED，會強制將其 Redis 中的 refresh token 移除。
      *
      * @param updateUserStatusDTO
@@ -221,6 +242,7 @@ public class UserService {
                 MembershipTier.fromId(user.getMembershipTierId()),
                 UserRole.fromId(user.getRoleId()),
                 user.getBirthDate(),
+                user.getCellphone(),
                 UserStatus.fromCode(user.getStatus()),
                 toUTC(user.getCreatedAt()),
                 toUTC(user.getUpdatedAt()),

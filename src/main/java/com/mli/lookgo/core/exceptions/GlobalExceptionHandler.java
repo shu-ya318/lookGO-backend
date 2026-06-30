@@ -3,6 +3,7 @@ package com.mli.lookgo.core.exceptions;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -80,6 +81,22 @@ public class GlobalExceptionHandler {
     }
 
     // ----- Core (Auth) -----
+
+    /**
+     * 處理請求缺少必要 Query Parameter 的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 400 (Bad Request) 給客戶端。
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<MessageVO> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException exception) {
+        logger.error("缺少必要的請求參數: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO("缺少必要的請求參數: " + exception.getParameterName());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResult);
+    }
 
     /**
      * 處理存取被拒絕的例外（權限不足）。

@@ -91,6 +91,18 @@ public interface UserDAO {
                         @Param("updatedAt") LocalDateTime updatedAt);
 
         /**
+         * 用 email 更新指定使用者的電話號碼。
+         *
+         * @param email
+         * @param cellphone
+         * @param updatedAt
+         * @return 影響筆數
+         */
+        int updateCellphoneByEmail(@Param("email") String email,
+                        @Param("cellphone") String cellphone,
+                        @Param("updatedAt") LocalDateTime updatedAt);
+
+        /**
          * 用 id 查詢指定使用者的資料。
          *
          * @param id

@@ -36,6 +36,9 @@ public class UserVO {
     @Schema(description = "出生日期(yyyy-MM-dd)", example = "2000-01-01")
     private LocalDate birthDate;
 
+    @Schema(description = "臺灣電話號碼（0開頭，9～10碼）", example = "0912345678")
+    private String cellphone;
+
     @Schema(description = "狀態 (DISABLED, ACTIVE)", example = "ACTIVE")
     private UserStatus status;
 
@@ -52,7 +55,7 @@ public class UserVO {
     }
 
     public UserVO(Integer id, String email, String username, MembershipTier membershipTier, UserRole role,
-            LocalDate birthDate, UserStatus status, ZonedDateTime createdAt, ZonedDateTime updatedAt,
+            LocalDate birthDate, String cellphone, UserStatus status, ZonedDateTime createdAt, ZonedDateTime updatedAt,
             ZonedDateTime lastLoginAt) {
         this.id = id;
         this.email = email;
@@ -60,6 +63,7 @@ public class UserVO {
         this.membershipTier = membershipTier;
         this.role = role;
         this.birthDate = birthDate;
+        this.cellphone = cellphone;
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -112,6 +116,14 @@ public class UserVO {
 
     public void setBirthDate(LocalDate birthDate) {
         this.birthDate = birthDate;
+    }
+
+    public String getCellphone() {
+        return cellphone;
+    }
+
+    public void setCellphone(String cellphone) {
+        this.cellphone = cellphone;
     }
 
     public UserStatus getStatus() {

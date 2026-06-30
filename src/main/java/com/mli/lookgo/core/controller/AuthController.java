@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mli.lookgo.core.exceptions.InvalidCredentialsException;
@@ -15,12 +16,14 @@ import com.mli.lookgo.core.model.dto.LoginDTO;
 import com.mli.lookgo.core.model.dto.ResetPasswordDTO;
 import com.mli.lookgo.core.model.dto.SignupDTO;
 import com.mli.lookgo.core.model.vo.AuthVO;
+import com.mli.lookgo.core.model.vo.ForgetPasswordVO;
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.security.CookieUtil;
 import com.mli.lookgo.core.security.JwtUtil;
 import com.mli.lookgo.core.service.AuthService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -51,6 +54,8 @@ public class AuthController {
      * 讓 Spring 容器能在應用程式啟動時，自動注入身分驗證相關的業務層 {@link AuthService}。
      *
      * @param authService
+     * @param cookieUtil
+     * @param jwtUtil
      */
     public AuthController(AuthService authService, CookieUtil cookieUtil, JwtUtil jwtUtil) {
         this.authService = authService;
@@ -104,40 +109,45 @@ public class AuthController {
     }
 
     /**
-     * 輸入電子郵件進行請求重設密碼，驗證成功後回傳請求成功訊息。
+     * 傳入 email 與 cellphone 進行驗證，通過後回傳重設密碼 token（有效期 15 分鐘）。
      *
      * @param forgetPasswordDTO
-     * @return ResponseEntity<MessageVO>
+     * @return ResponseEntity<ForgetPasswordVO>
      */
-    @Operation(summary = "請求重設密碼", description = "發送密碼重設連結到電子郵件。(注意:不返回電子郵件有效性的驗證結果)(目前只提供寄送測試信件)")
+    @Operation(summary = "請求重設密碼", description = "驗證 email 與 cellphone 是否與帳號資料一致，通過後回傳重設密碼 token（有效期 15 分鐘）")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "請求成功(電子郵件有效才會收到信件)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthVO.class))),
-            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入有效的電子郵件!"))),
+            @ApiResponse(responseCode = "200", description = "驗證成功，回傳重設密碼 token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ForgetPasswordVO.class))),
+            @ApiResponse(responseCode = "400", description = "請求參數格式錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入 Email!"))),
+            @ApiResponse(responseCode = "401", description = "email 或 cellphone 驗證失敗", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "電子郵件或電話號碼驗證失敗!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/forget-password")
-    public ResponseEntity<MessageVO> forgetPassword(@RequestBody ForgetPasswordDTO forgetPasswordDTO) {
-        logger.debug("收到忘記密碼的請求");
-        MessageVO apiresult = authService.forgetPassword(forgetPasswordDTO);
+    public ResponseEntity<ForgetPasswordVO> forgetPassword(@Valid @RequestBody ForgetPasswordDTO forgetPasswordDTO) {
+        logger.debug("收到忘記密碼的請求，email: {}", forgetPasswordDTO.getEmail());
+        ForgetPasswordVO forgetPasswordVO = authService.forgetPassword(forgetPasswordDTO);
 
-        return ResponseEntity.ok(apiresult);
+        return ResponseEntity.ok(forgetPasswordVO);
     }
 
     /**
-     * 輸入重設密碼token與新密碼，驗證通過後更新密碼並回傳成功訊息。
+     * 傳入重設密碼 token（query parameter）與新密碼，驗證通過後更新密碼。
      *
+     * @param token            重設密碼 token（由 forget-password 取得）
      * @param resetPasswordDTO
      * @return ResponseEntity<MessageVO>
      */
-    @Operation(summary = "重設密碼", description = "驗證重設密碼token，成功後更新使用者密碼")
+    @Operation(summary = "重設密碼", description = "傳入有效的重設密碼 token（query parameter）與新密碼，驗證通過後更新使用者密碼")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "密碼重設成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
-            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入合法的token與密碼!"))),
-            @ApiResponse(responseCode = "401", description = "token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "重設密碼token無效或已過期!"))),
+            @ApiResponse(responseCode = "400", description = "請求參數格式錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "新密碼長度必須為 8-20 個字元!"))),
+            @ApiResponse(responseCode = "401", description = "token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "重設密碼token無效或已過期!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/reset-password")
-    public ResponseEntity<MessageVO> resetPassword(@Valid @RequestBody ResetPasswordDTO resetPasswordDTO) {
+    public ResponseEntity<MessageVO> resetPassword(
+            @Parameter(description = "重設密碼 token（由 forget-password 取得）", required = true)
+            @RequestParam String token,
+            @Valid @RequestBody ResetPasswordDTO resetPasswordDTO) {
         logger.debug("收到重設密碼的請求");
-        MessageVO apiResult = authService.resetPassword(resetPasswordDTO);
+        MessageVO apiResult = authService.resetPassword(token, resetPasswordDTO);
 
         return ResponseEntity.ok(apiResult);
     }

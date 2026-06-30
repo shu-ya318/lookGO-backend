@@ -35,6 +35,9 @@ public class User {
     @Schema(description = "出生日期(yyyy-MM-dd)", example = "2000-01-01")
     private LocalDate birthDate;
 
+    @Schema(description = "臺灣電話號碼（0開頭，9～10碼）", example = "0912345678")
+    private String cellphone;
+
     @Schema(description = "狀態 (0=停用(軟刪除), 1=正常使用)", example = "1")
     private Integer status;
 
@@ -51,7 +54,7 @@ public class User {
     }
 
     public User(Integer id, Integer membershipTierId, Integer roleId, String email, String password, String username,
-            LocalDate birthDate, Integer status, LocalDateTime createdAt, LocalDateTime updatedAt,
+            LocalDate birthDate, String cellphone, Integer status, LocalDateTime createdAt, LocalDateTime updatedAt,
             LocalDateTime lastLoginAt) {
         this.id = id;
         this.membershipTierId = membershipTierId;
@@ -60,6 +63,7 @@ public class User {
         this.password = password;
         this.username = username;
         this.birthDate = birthDate;
+        this.cellphone = cellphone;
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -122,6 +126,14 @@ public class User {
         this.birthDate = birthDate;
     }
 
+    public String getCellphone() {
+        return cellphone;
+    }
+
+    public void setCellphone(String cellphone) {
+        this.cellphone = cellphone;
+    }
+
     public Integer getStatus() {
         return status;
     }
@@ -163,6 +175,7 @@ public class User {
                 ", email='" + email + '\'' +
                 ", username='" + username + '\'' +
                 ", birthDate=" + birthDate +
+                ", cellphone=" + cellphone +
                 ", status=" + status +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +

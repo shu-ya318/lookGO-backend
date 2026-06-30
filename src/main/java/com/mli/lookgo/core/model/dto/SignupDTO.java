@@ -9,11 +9,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
  * 處理使用者註冊相關的資料傳輸物件。
- * 
+ *
  * @author D5042101
  * @since 2026.06.06
  */
@@ -38,6 +39,10 @@ public class SignupDTO {
     @JsonFormat(pattern = "yyyy-MM-dd")
     @PastOrPresent(message = "出生日期不得大於今日!")
     private LocalDate birthDate;
+
+    @Schema(description = "臺灣電話號碼（選填，0開頭，9～10碼）", example = "0912345678")
+    @Pattern(regexp = "^0\\d{8,9}$", message = "電話號碼格式不正確，須為0開頭之9～10碼數字!")
+    private String cellphone;
 
     public String getEmail() {
         return email;
@@ -69,6 +74,14 @@ public class SignupDTO {
 
     public void setBirthDate(LocalDate birthDate) {
         this.birthDate = birthDate;
+    }
+
+    public String getCellphone() {
+        return cellphone;
+    }
+
+    public void setCellphone(String cellphone) {
+        this.cellphone = cellphone;
     }
 
     @Override

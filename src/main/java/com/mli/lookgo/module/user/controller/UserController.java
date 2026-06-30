@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
+import com.mli.lookgo.module.user.model.dto.UpdateCellphoneDTO;
 import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUsernameDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUserStatusDTO;
@@ -158,6 +159,27 @@ public class UserController {
     public ResponseEntity<MessageVO> updateBirthDate(@Valid @RequestBody UpdateBirthDateDTO updateBirthDateDTO) {
         logger.debug("收到更新出生日期的請求");
         MessageVO apiResult = userService.updateBirthDate(updateBirthDateDTO);
+
+        return ResponseEntity.ok(apiResult);
+    }
+
+    /**
+     * 更新當前已驗證使用者的電話號碼。
+     *
+     * @param updateCellphoneDTO
+     * @return ResponseEntity<MessageVO>
+     */
+    @Operation(summary = "更新電話號碼", description = "更新當前已驗證使用者的電話號碼")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "電話號碼更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "電話號碼格式不正確，須為0開頭之9～10碼數字!"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/update-cellphone")
+    public ResponseEntity<MessageVO> updateCellphone(@Valid @RequestBody UpdateCellphoneDTO updateCellphoneDTO) {
+        logger.debug("收到更新電話號碼的請求");
+        MessageVO apiResult = userService.updateCellphone(updateCellphoneDTO);
 
         return ResponseEntity.ok(apiResult);
     }

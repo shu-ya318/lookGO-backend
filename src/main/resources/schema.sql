@@ -40,7 +40,7 @@ CREATE TABLE [dbo].[users] (
     [password]           NVARCHAR(255)   NOT NULL,
     [username]           NVARCHAR(100)   NOT NULL,
     [birth_date]         DATE            NULL,
-    [cellphone]          NVARCHAR(20)    NULL,
+    [cellphone]          NVARCHAR(20)    NOT NULL,
     [status]             TINYINT         NOT NULL,
     [created_at]         DATETIME2(0)    NOT NULL,
     [updated_at]         DATETIME2(0)    NOT NULL,

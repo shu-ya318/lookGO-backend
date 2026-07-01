@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mli.lookgo.core.exceptions.InvalidCredentialsException;
@@ -23,7 +22,6 @@ import com.mli.lookgo.core.security.JwtUtil;
 import com.mli.lookgo.core.service.AuthService;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -143,11 +141,9 @@ public class AuthController {
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/reset-password")
     public ResponseEntity<MessageVO> resetPassword(
-            @Parameter(description = "重設密碼 token（由 forget-password 取得）", required = true)
-            @RequestParam String token,
             @Valid @RequestBody ResetPasswordDTO resetPasswordDTO) {
         logger.debug("收到重設密碼的請求");
-        MessageVO apiResult = authService.resetPassword(token, resetPasswordDTO);
+        MessageVO apiResult = authService.resetPassword(resetPasswordDTO);
 
         return ResponseEntity.ok(apiResult);
     }

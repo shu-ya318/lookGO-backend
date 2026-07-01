@@ -40,8 +40,9 @@ public class SignupDTO {
     @PastOrPresent(message = "出生日期不得大於今日!")
     private LocalDate birthDate;
 
-    @Schema(description = "臺灣電話號碼（選填，0開頭，9～10碼）", example = "0912345678")
-    @Pattern(regexp = "^0\\d{8,9}$", message = "電話號碼格式不正確，須為0開頭之9～10碼數字!")
+    @Schema(description = "臺灣手機號碼（0 開頭之 10 碼數字）", example = "0912345678")
+    @NotBlank(message = "請輸入臺灣手機號碼!")
+    @Pattern(regexp = "^0\\d{9}$", message = "手機號碼格式不正確，須為 0 開頭之 10 碼數字!")
     private String cellphone;
 
     public String getEmail() {
@@ -86,6 +87,7 @@ public class SignupDTO {
 
     @Override
     public String toString() {
-        return "SignupDTO{ " + "email=" + email + ", username=" + username + " , birthDate=" + birthDate + " }";
+        return "SignupDTO{ " + "email=" + email + ", password=***" + ", username=" + username + " , birthDate="
+                + birthDate + ", cellphone=" + cellphone + " }";
     }
 }

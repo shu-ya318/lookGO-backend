@@ -18,12 +18,12 @@ public class LoginDTO {
     @Schema(description = "使用者 Email", example = "admin@example.com")
     @NotBlank(message = "請輸入 Email!")
     @Email(message = "Email 格式不正確!")
-    String email;
+    private String email;
 
     @Schema(description = "使用者密碼", example = "admin12345")
     @NotBlank(message = "請輸入密碼!")
     @Size(min = 8, max = 20, message = "密碼長度必須為 8-20 個字元!")
-    String password;
+    private String password;
 
     public String getEmail() {
         return email;
@@ -43,6 +43,6 @@ public class LoginDTO {
 
     @Override
     public String toString() {
-        return "LoginDTO{" + "email='" + email + "', password='" + password + '\'' + '}';
+        return "LoginDTO{ " + "email=" + email + ", password=***" + " }";
     }
 }

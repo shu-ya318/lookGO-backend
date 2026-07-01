@@ -36,6 +36,9 @@ public class AdminInitializer implements ApplicationRunner {
     @Value("${app.admin.username}")
     private String adminUsername;
 
+    @Value("${app.admin.cellphone}")
+    private String adminCellphone;
+
     public AdminInitializer(AuthDAO authDAO, PasswordEncoder passwordEncoder) {
         this.authDAO = authDAO;
         this.passwordEncoder = passwordEncoder;
@@ -56,6 +59,7 @@ public class AdminInitializer implements ApplicationRunner {
         admin.setEmail(adminEmail);
         admin.setPassword(passwordEncoder.encode(adminPassword));
         admin.setUsername(adminUsername);
+        admin.setCellphone(adminCellphone);
         admin.setStatus(UserStatus.ACTIVE.getCode());
         admin.setCreatedAt(now);
         admin.setUpdatedAt(now);

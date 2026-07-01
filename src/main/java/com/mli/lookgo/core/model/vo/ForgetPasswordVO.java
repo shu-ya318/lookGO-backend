@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "回傳忘記密碼驗證成功後的重設密碼 token")
 public class ForgetPasswordVO {
 
-    @Schema(description = "重設密碼 token（有效期 15 分鐘），請以此 token 呼叫重設密碼 API", example = "aB3xQzK9...")
+    @Schema(description = "重設密碼 token（效期 15 分鐘），以此 token 呼叫重設密碼 API", example = "h150Z1e2FUHP_0DUxm46h4rojyntzS90awLNFUqE0q0")
     private String resetPasswordToken;
 
     public ForgetPasswordVO() {

@@ -189,23 +189,23 @@ public class AuthService {
     /**
      * 驗證重設密碼 token，通過後以新密碼更新資料庫並使 token 失效。
      *
-     * @param token          重設密碼 token（來自 forgetPassword 回應）
+     * @param token            重設密碼 token（來自 forgetPassword 回應）
      * @param resetPasswordDTO
      * @return MessageVO
      * @throws InvalidCredentialsException token 無效或已過期。
      */
     @Transactional
-    public MessageVO resetPassword(String token, ResetPasswordDTO resetPasswordDTO) {
+    public MessageVO resetPassword(ResetPasswordDTO resetPasswordDTO) {
         logger.debug("開始呼叫 API 來重設使用者密碼");
 
-        String email = redisService.getEmailByResetPasswordToken(token);
+        String email = redisService.getEmailByResetPasswordToken(resetPasswordDTO.getResetPasswordToken());
         if (email == null) {
-            throw new InvalidCredentialsException("重設密碼token無效或已過期!");
+            throw new InvalidCredentialsException("重設密碼 token 無效或已過期!");
         }
 
         String newPassword = passwordEncoder.encode(resetPasswordDTO.getNewPassword());
         authDAO.updatePasswordByEmail(email, newPassword, LocalDateTime.now(ZoneOffset.UTC));
-        redisService.deleteResetPasswordToken(token);
+        redisService.deleteResetPasswordToken(resetPasswordDTO.getResetPasswordToken());
 
         logger.debug("密碼重設成功，email: {}", email);
 

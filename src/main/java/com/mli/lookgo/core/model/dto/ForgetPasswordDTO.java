@@ -42,6 +42,6 @@ public class ForgetPasswordDTO {
 
     @Override
     public String toString() {
-        return "ForgetPasswordDTO{email='" + email + "'}";
+        return "ForgetPasswordDTO{email='" + email + "', cellphone='" + cellphone + "'}";
     }
 }

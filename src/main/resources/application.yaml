@@ -43,6 +43,7 @@ app:
     email: admin@example.com
     username: admin
     password: ${ADMIN_PASSWORD}
+    cellphone: "0123456789"
   # sendgrid:
   #   api:
   #     key: ${SENDGRID_API_KEY}

@@ -116,7 +116,7 @@ public class AuthController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "驗證成功，回傳重設密碼 token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ForgetPasswordVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數格式錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入 Email!"))),
-            @ApiResponse(responseCode = "401", description = "email 或 cellphone 驗證失敗", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "電子郵件或電話號碼驗證失敗!"))),
+            @ApiResponse(responseCode = "401", description = "email 或 cellphone 驗證失敗", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "電子郵件或手機號碼驗證失敗!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/forget-password")
     public ResponseEntity<ForgetPasswordVO> forgetPassword(@Valid @RequestBody ForgetPasswordDTO forgetPasswordDTO) {

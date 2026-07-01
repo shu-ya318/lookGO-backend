@@ -113,6 +113,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResult);
     }
 
+    /**
+     * 處理忘記密碼驗證失敗的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 400 (Bad Request) 給客戶端。
+     */
+    @ExceptionHandler(ForgetPasswordVerificationException.class)
+    public ResponseEntity<MessageVO> handleForgetPasswordVerificationException(
+            ForgetPasswordVerificationException exception) {
+        logger.error("忘記密碼驗證失敗: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResult);
+    }
+
     // ----- User -----
 
     /**
@@ -152,7 +168,8 @@ public class GlobalExceptionHandler {
      * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 403 (Forbidden) 給客戶端。
      */
     @ExceptionHandler(AdminStatusModificationException.class)
-    public ResponseEntity<MessageVO> handleAdminStatusModificationException(AdminStatusModificationException exception) {
+    public ResponseEntity<MessageVO> handleAdminStatusModificationException(
+            AdminStatusModificationException exception) {
         logger.error("嘗試變更管理員帳號狀態: {}", exception.getMessage());
 
         MessageVO apiResult = new MessageVO(exception.getMessage());
@@ -174,7 +191,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(apiResult);
     }
-    
+
     // ----- Metro -----
 
     /**

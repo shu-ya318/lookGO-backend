@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mli.lookgo.core.dao.AuthDAO;
+import com.mli.lookgo.core.exceptions.ForgetPasswordVerificationException;
 import com.mli.lookgo.core.exceptions.InvalidCredentialsException;
 import com.mli.lookgo.core.exceptions.UserDuplicateException;
 import com.mli.lookgo.core.model.dto.ForgetPasswordDTO;
@@ -173,10 +174,10 @@ public class AuthService {
         logger.debug("開始呼叫 API 來驗證忘記密碼請求，email: {}", forgetPasswordDTO.getEmail());
 
         User user = userDAO.getByEmail(forgetPasswordDTO.getEmail())
-                .orElseThrow(() -> new InvalidCredentialsException("電子郵件或電話號碼驗證失敗!"));
+                .orElseThrow(() -> new InvalidCredentialsException("電子郵件或手機號碼驗證失敗!"));
 
         if (!forgetPasswordDTO.getCellphone().equals(user.getCellphone())) {
-            throw new InvalidCredentialsException("電子郵件或電話號碼驗證失敗!");
+            throw new ForgetPasswordVerificationException("電子郵件或手機號碼驗證失敗!");
         }
 
         String resetPasswordToken = generateResetPasswordToken();

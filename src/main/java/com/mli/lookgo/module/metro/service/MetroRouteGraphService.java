@@ -22,7 +22,7 @@ import com.mli.lookgo.module.metro.model.graph.Edge;
 import com.mli.lookgo.module.metro.model.vo.OriginDestinationDetailVO;
 
 /**
- * 處理。
+ * 處理捷運路線的業務邏輯。
  *
  * @author D5042101
  * @since 2026.07.02

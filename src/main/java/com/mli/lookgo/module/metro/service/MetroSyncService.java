@@ -501,7 +501,7 @@ public class MetroSyncService {
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.setAll(Map.of("$format", "JSON", "$top", String.valueOf(pageSize), "$skip", String.valueOf(skip)));
 
-            List<StationFareVO> page = tdxApiClientConfig.sendGetRequest("/StationFare",
+            List<StationFareVO> page = tdxApiClientConfig.sendGetRequest("/ODFare",
                     new ParameterizedTypeReference<List<StationFareVO>>() {
                     }, params);
 

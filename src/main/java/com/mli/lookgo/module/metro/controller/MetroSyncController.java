@@ -122,11 +122,11 @@ public class MetroSyncController {
     }
 
     /**
-     * 從 TDX ODFare API 同步票價資料到資料庫，僅限 ADMIN 角色存取。
+     * 從 TDX 票價 (StationFare) API 同步票價資料到資料庫，僅限 ADMIN 角色存取。
      *
      * @return ResponseEntity<MessageVO>
      */
-    @Operation(summary = "同步票價資料", description = "從 TDX ODFare API 同步任意兩站間票價到資料庫，需先同步路線車站資料。僅限 ADMIN 角色存取")
+    @Operation(summary = "同步票價資料", description = "從 TDX 票價 (StationFare) API 同步任意兩站間票價到資料庫，需先同步路線車站資料。僅限 ADMIN 角色存取")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "票價資料同步成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),

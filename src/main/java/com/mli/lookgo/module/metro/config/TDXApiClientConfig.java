@@ -43,7 +43,7 @@ public class TDXApiClientConfig {
     private String clientSecret;
 
     private static final Logger logger = LoggerFactory.getLogger(TDXApiClientConfig.class);
-    // 避免 HTTP status code 429 ，為外部 retry 機制的短間隔重試留緩衝後再確認視窗清空
+    // 等待 90 秒，避免 HTTP status code 429 超出請求速率上限
     private static final int RATE_LIMIT_WAIT_MS = 90_000;
 
     private final RestTemplate railRestTemplate;
@@ -55,10 +55,10 @@ public class TDXApiClientConfig {
     }
 
     // ----- 通用的所有 API 請求定義 -----
-    // $top值為數字字串，因 queryParams() 參數只接受 MultiValueMap<String, String>，無法同時處理 多種型別值
+    // $top 值為數字字串，因 queryParams() 參數只接受 MultiValueMap<String, String>，無法同時處理多種型別值
     public <T> T sendGetRequest(String subPath, ParameterizedTypeReference<T> responseType,
             MultiValueMap<String, String> queryParams) {
-        // 考量: 傳入 queryParams 時建立新的 Map ，避免改變原始 Map 的值
+        // 傳入 queryParams 時建立新的 Map ，避免改變原始 Map 的值
         MultiValueMap<String, String> params;
         if (queryParams != null) {
             params = new LinkedMultiValueMap<>(queryParams);
@@ -121,7 +121,7 @@ public class TDXApiClientConfig {
 
         // 2.沒快取時，實際發送請求
 
-        // Form 表單參數 (考量: RestTemplate 傳入 MultiValueMap 時，自動將 Content-Type 設為 Form 表單)
+        // Form 表單參數 (RestTemplate 傳入 MultiValueMap 時，自動將 Content-Type 設為 Form 表單)
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
 
         formData.add("grant_type", "client_credentials");

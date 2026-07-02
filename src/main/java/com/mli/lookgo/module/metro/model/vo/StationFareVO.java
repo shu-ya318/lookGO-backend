@@ -6,7 +6,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 對應 TDX Metro ODFare API 回傳的 JSON 結構。
+ * 對應 TDX Metro 票價 (StationFare) API 回傳的 JSON 結構。
  * 提供任意兩站間的票種與票價，用於同步票價資料。
  * CitizenCode 城市優惠票 (FareClass=3) 因資料表無對應欄位，同步時跳過。
  *

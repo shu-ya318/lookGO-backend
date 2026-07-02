@@ -174,7 +174,7 @@ public class AuthService {
         logger.debug("開始呼叫 API 來驗證忘記密碼請求，email: {}", forgetPasswordDTO.getEmail());
 
         User user = userDAO.getByEmail(forgetPasswordDTO.getEmail())
-                .orElseThrow(() -> new InvalidCredentialsException("電子郵件或手機號碼驗證失敗!"));
+                .orElseThrow(() -> new ForgetPasswordVerificationException("電子郵件或手機號碼驗證失敗!"));
 
         if (!forgetPasswordDTO.getCellphone().equals(user.getCellphone())) {
             throw new ForgetPasswordVerificationException("電子郵件或手機號碼驗證失敗!");

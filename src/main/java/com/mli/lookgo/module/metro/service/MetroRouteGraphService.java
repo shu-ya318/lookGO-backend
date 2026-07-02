@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -31,6 +32,17 @@ import com.mli.lookgo.module.metro.model.vo.OriginDestinationDetailVO;
 public class MetroRouteGraphService {
 
     public static final BigDecimal SAME_STATION_FARE = BigDecimal.valueOf(20);
+
+    private final MetroForkBranchRouteGraphService metroForkBranchRouteGraphService;
+
+    /**
+     * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
+     *
+     * @param metroForkBranchRouteGraphService
+     */
+    public MetroRouteGraphService(MetroForkBranchRouteGraphService metroForkBranchRouteGraphService) {
+        this.metroForkBranchRouteGraphService = metroForkBranchRouteGraphService;
+    }
 
     /**
      * 起終點相同時，直接組成只含單一車站的回傳結果。
@@ -91,11 +103,21 @@ public class MetroRouteGraphService {
      * 依路線策略建立鄰接表。
      * 策略 1：同線邊權重 0、換乘邊權重 1（最小化轉乘次數）。
      * 策略 2：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為換乘時間秒數（最短車程時間）。
+     * 具 Y 字分岔拓樸的路線（見 {@link MetroForkBranchRouteGraphService}）無法單純依 stationSequence
+     * 排序推導同線邊，分岔口相鄰站對會略過線性推導，改由 {@link MetroForkBranchRouteGraphService#addBranchEdges} 建立正確邊。
+     *
+     * @param lineStations      所有路線車站關聯資料
+     * @param lineTransfers     所有路線換乘資料
+     * @param lineStationById   路線車站關聯 id 對應路線車站資料的 Map
+     * @param lineStationByCode 車站代碼對應路線車站資料的 Map
+     * @param strategy          路線策略（1：最少轉乘次數，2：最短車程時間）
+     * @return 車站代碼對應其所有可達邊的鄰接表
      */
     public Map<String, List<Edge>> buildAdjacencyList(
             List<LineStation> lineStations,
             List<LineTransfer> lineTransfers,
             Map<Integer, LineStation> lineStationById,
+            Map<String, LineStation> lineStationByCode,
             int strategy) {
 
         Map<String, List<Edge>> adjacencyList = new HashMap<>();
@@ -117,6 +139,11 @@ public class MetroRouteGraphService {
                 LineStation currentStation = sorted.get(i);
                 LineStation nextStation = sorted.get(i + 1);
 
+                if (metroForkBranchRouteGraphService.isSecondaryBranchStation(currentStation.getStationCode())
+                        || metroForkBranchRouteGraphService.isSecondaryBranchStation(nextStation.getStationCode())) {
+                    continue;
+                }
+
                 int weight = 0;
                 if (strategy == 2) {
                     int currentTime = currentStation.getCumulativeTime() != null
@@ -134,6 +161,9 @@ public class MetroRouteGraphService {
                         .add(new Edge(currentStation.getStationCode(), weight, false));
             }
         }
+
+        // 分岔路線同線邊（覆蓋依 stationSequence 線性推導無法表達的 Y 字拓樸）
+        metroForkBranchRouteGraphService.addBranchEdges(adjacencyList, lineStationByCode, strategy);
 
         // 換乘邊
         for (LineTransfer lineTransfer : lineTransfers) {
@@ -155,26 +185,52 @@ public class MetroRouteGraphService {
     }
 
     /**
+     * 依實體車站 id，收集該站在各路線下對應的所有車站代碼（換乘站會有多筆，例如民權西路的 "R13"、"O11"）。
+     * 供 {@link #findRoute} 將換乘站的多個線別代碼視為等價起訖點使用。
+     *
+     * @param lineStationByCode 車站代碼對應路線車站資料的 Map
+     * @param stationId         實體車站 id
+     * @return 該實體車站在各路線下的所有車站代碼
+     */
+    public Set<String> collectStationCodesByStationId(Map<String, LineStation> lineStationByCode, Integer stationId) {
+        return lineStationByCode.values().stream()
+                .filter(lineStation -> stationId.equals(lineStation.getStationId()))
+                .map(LineStation::getStationCode)
+                .collect(Collectors.toSet());
+    }
+
+    /**
      * 以 Dijkstra 演算法搜尋最短路徑，並找出完整的車站代碼路徑。
+     * fromCodes/toCodes 為同一實體車站在不同路線下的所有代碼（換乘站有多筆），只要抵達其中任一代碼即視為到達，
+     * 避免使用者選到換乘站的特定線別代碼（如 "O11"）時，被迫多算一段轉乘到該代碼才算抵達終點。
      * 找不到可達路徑時拋出 {@link IllegalArgumentException}。
+     *
+     * @param adjacencyList 鄰接表
+     * @param fromCodes     起始站的所有等價車站代碼
+     * @param toCodes       終點站的所有等價車站代碼
+     * @return 最短路徑搜尋結果
      */
     public DijkstraResult findRoute(
-            Map<String, List<Edge>> adjacencyList, String fromCode, String toCode) {
+            Map<String, List<Edge>> adjacencyList, Set<String> fromCodes, Set<String> toCodes) {
 
         Map<String, Integer> distanceByCode = new HashMap<>();
         Map<String, String> prevCode = new HashMap<>();
         Map<String, Boolean> prevIsTransfer = new HashMap<>();
 
         PriorityQueue<Object[]> priorityQueue = new PriorityQueue<>(Comparator.comparingInt(entry -> (int) entry[0]));
-        distanceByCode.put(fromCode, 0);
-        priorityQueue.add(new Object[] { 0, fromCode });
+        for (String fromCode : fromCodes) { // 換乘站的每個線別代碼都以距離 0 同時入隊，等同多起點 Dijkstra
+            distanceByCode.put(fromCode, 0);
+            priorityQueue.add(new Object[] { 0, fromCode });
+        }
 
+        String reachedCode = null; // 記錄實際抵達的目標代碼，可能與使用者請求的代碼不同（同站的另一線別代碼）
         while (!priorityQueue.isEmpty()) {
             Object[] currentEntry = priorityQueue.poll();
             int currentCost = (int) currentEntry[0];
             String currentCode = (String) currentEntry[1];
 
-            if (currentCode.equals(toCode)) {
+            if (toCodes.contains(currentCode)) { // 抵達終點站任一線別代碼即結束搜尋
+                reachedCode = currentCode;
                 break;
             }
 
@@ -194,12 +250,12 @@ public class MetroRouteGraphService {
             }
         }
 
-        if (!distanceByCode.containsKey(toCode)) {
-            throw new IllegalArgumentException("找不到從 " + fromCode + " 到 " + toCode + " 的行程路線");
+        if (reachedCode == null) {
+            throw new IllegalArgumentException("找不到從 " + fromCodes + " 到 " + toCodes + " 的行程路線");
         }
 
         List<String> path = new ArrayList<>();
-        String currentCode = toCode;
+        String currentCode = reachedCode;
         while (currentCode != null) {
             path.add(0, currentCode);
             currentCode = prevCode.get(currentCode);

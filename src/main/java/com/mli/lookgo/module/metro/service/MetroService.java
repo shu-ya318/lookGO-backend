@@ -256,8 +256,12 @@ public class MetroService {
             throw new StationNotFoundException("找不到代碼:" + toCode + "的車站!");
         }
 
-        // 4. 若起迄站代碼相同（例如起迄站皆為淡水站 "R28"），則直接組裝並回傳單一車站的結果，不再執行路徑搜尋
-        if (fromCode.equals(toCode)) {
+        LineStation fromLineStation = lineStationByCode.get(fromCode);
+        LineStation toLineStation = lineStationByCode.get(toCode);
+
+        // 4. 換乘站在不同路線下各有一筆 LineStation 資料（例如民權西路同時是 "R13"、"O11"），
+        // 須以實體車站 id 比對是否同站，而非直接比對代碼字串，否則會誤判為不同站而多跑一次路徑搜尋
+        if (fromLineStation.getStationId().equals(toLineStation.getStationId())) {
             return metroRouteGraphService.buildSameStationResult(fromCode, fareType, strategy, lineStationByCode,
                     lineById, stationById,
                     stationFacilities);
@@ -268,9 +272,16 @@ public class MetroService {
         Map<String, Short> transferTimeMap = metroRouteGraphService.buildTransferTimeMap(lineTransfers,
                 lineStationById);
         Map<String, List<Edge>> adjacencyList = metroRouteGraphService.buildAdjacencyList(lineStations, lineTransfers,
-                lineStationById,
+                lineStationById, lineStationByCode,
                 strategy);
-        DijkstraResult dijkstraResult = metroRouteGraphService.findRoute(adjacencyList, fromCode, toCode);
+
+        // 5a. 起迄站若為換乘站，同一實體站在各路線下的代碼皆視為等價起訖點，
+        // 避免使用者選到換乘站的特定線別代碼（如 "O11"）時，被迫多算一段轉乘到該代碼才算抵達
+        Set<String> fromCodes = metroRouteGraphService.collectStationCodesByStationId(
+                lineStationByCode, fromLineStation.getStationId());
+        Set<String> toCodes = metroRouteGraphService.collectStationCodesByStationId(
+                lineStationByCode, toLineStation.getStationId());
+        DijkstraResult dijkstraResult = metroRouteGraphService.findRoute(adjacencyList, fromCodes, toCodes);
 
         // 6. 將 Dijkstra 搜尋結果重組為前端所需的路線分段、計算轉乘次數、累加總乘車時間，並至資料庫撈取兩站間對應票價（例如：計算淡水至台北車站的票價為
         // 50 元）

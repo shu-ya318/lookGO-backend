@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +106,13 @@ public class MetroSyncService {
         logger.debug("開始從 TDX + DataTaipei 同步請求車站資料");
 
         List<StationVO> tdxStationVOs = fetchAllStation();
+        // 診斷用: 印出 TDX 回傳中名稱含「北車站」的原始資料與字串長度，確認 fetch 端是否拿到台北車站、名稱是否含不可見字元
+        tdxStationVOs.stream()
+                .filter(vo -> vo.getNameZhTw() != null && vo.getNameZhTw().contains("北車站"))
+                .forEach(vo -> logger.debug("[診斷] TDX 回傳車站: StationID={}, name=\"{}\", nameLength={}",
+                        vo.getStationSequence(), vo.getNameZhTw(), vo.getNameZhTw().length()));
+        logger.debug("[診斷] TDX /Station 共回傳 {} 筆", tdxStationVOs.size());
+
         List<StationFacilityVO> dataTaipeiStationVOs = fetchAllStationFacility();
 
         // 以車站中文名稱為 key，建立 DataTaipei 設施資料的 Map，方便查詢
@@ -115,15 +123,25 @@ public class MetroSyncService {
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
-        List<Station> stations = new ArrayList<>(tdxStationVOs.size());
+        // TDX /Station 是依「路線」而非「實體車站」回傳，換乘站會有多筆重複站名（如台北車站同時是 R10、BL12）；
+        // 同一批次內對同一個 name_zh_tw 送出多筆 MERGE 會互相覆蓋、導致該站最終未被寫入，故先在 Java 端以站名去重，只保留第一筆
+        Map<String, Station> stationByName = new HashMap<>();
         for (StationVO tdxStationVO : tdxStationVOs) {
             // 透過 Key (車站名稱) 比對並取得 DataTaipei 的設施資料
             StationFacilityVO dataTaipeiVO = dataTaipeiMap.get(tdxStationVO.getNameZhTw());
-            // 將 TDX 基礎資料 與 DataTaipei 設施資料 整合為一個 Station Entity
-            stations.add(this.toStationEntity(tdxStationVO, dataTaipeiVO, now));
+            stationByName.putIfAbsent(tdxStationVO.getNameZhTw(), this.toStationEntity(tdxStationVO, dataTaipeiVO, now));
         }
+        List<Station> stations = new ArrayList<>(stationByName.values());
 
-        metroDAO.upsertAllStation(stations);
+        // 加上每筆綁定 13 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 150 分批 Upsert 寫入
+        final int batchSize = 150;
+        int totalUpserted = 0;
+        for (int i = 0; i < stations.size(); i += batchSize) {
+            List<Station> batch = stations.subList(i, Math.min(i + batchSize, stations.size()));
+            metroDAO.upsertAllStation(batch);
+            totalUpserted += batch.size();
+            logger.debug("車站資料批次寫入進度：{} / {} 筆", totalUpserted, stations.size());
+        }
         logger.debug("車站資料同步完成，共 {} 筆", stations.size());
 
         return new MessageVO("車站資料同步成功!");
@@ -182,7 +200,15 @@ public class MetroSyncService {
             }
         }
 
-        metroDAO.upsertAllLineStation(lineStations);
+        // 每筆綁定 7 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 250 分批 Upsert 寫入
+        final int batchSize = 250;
+        int totalUpserted = 0;
+        for (int i = 0; i < lineStations.size(); i += batchSize) {
+            List<LineStation> batch = lineStations.subList(i, Math.min(i + batchSize, lineStations.size()));
+            metroDAO.upsertAllLineStation(batch);
+            totalUpserted += batch.size();
+            logger.debug("路線車站資料批次寫入進度：{} / {} 筆", totalUpserted, lineStations.size());
+        }
         logger.debug("路線車站資料同步完成，共 {} 筆", lineStations.size());
 
         return new MessageVO("路線車站資料同步成功!");
@@ -372,9 +398,14 @@ public class MetroSyncService {
                     now));
         }
 
-        // 6. 若取得轉乘資料，呼叫 DAO 將資料批次寫入或更新至資料庫
-        if (!lineTransfers.isEmpty()) {
-            metroDAO.upsertAllLineTransfer(lineTransfers);
+        // 6. 每筆綁定 4 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 500 分批 Upsert 寫入
+        final int batchSize = 500;
+        int totalUpserted = 0;
+        for (int i = 0; i < lineTransfers.size(); i += batchSize) {
+            List<LineTransfer> batch = lineTransfers.subList(i, Math.min(i + batchSize, lineTransfers.size()));
+            metroDAO.upsertAllLineTransfer(batch);
+            totalUpserted += batch.size();
+            logger.debug("路線換乘資料批次寫入進度：{} / {} 筆", totalUpserted, lineTransfers.size());
         }
         logger.debug("路線換乘資料同步完成，共 {} 筆", lineTransfers.size());
 

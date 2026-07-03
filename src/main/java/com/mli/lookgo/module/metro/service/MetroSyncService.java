@@ -9,7 +9,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -217,7 +219,9 @@ public class MetroSyncService {
     /**
      * 從 TDX StationTravelTime API 取得相鄰車站行駛時間，計算累計行駛時間後更新資料庫。
      * 需先同步路線車站資料，以確保 station_code 存在。
-     * 每個 Lineid 只取第一筆 Routeid 避免反向重複計算。
+     * 同一 LineId 可能對應多筆路線資料（同路線的去回程重複資料，或像中和新蘆線這種 Y
+     * 字分岔路線、蘆洲／迴龍兩條支線共用同一個 LineId 的資料），故以路線實際途經的車站代碼集合
+     * （而非僅 LineId）判斷是否為重複路線，避免分岔支線被誤判為重複而整條略過。
      *
      * @return MessageVO
      */
@@ -233,13 +237,25 @@ public class MetroSyncService {
         List<StationTravelTimeVO> s2sTravelTimeVOs = fetchAllStationTravelTime();
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
-        // 3. 用於追蹤已處理的路線代號，避免因多 Routeid 導致同一路線重複覆寫
-        Set<String> processedLineIds = new HashSet<>();
+        // 3. 用於追蹤已處理的路線（以途經車站集合為鍵），避免同路線去回程重複覆寫
+        Set<String> processedRouteKeys = new HashSet<>();
         List<LineStation> lineStations = new ArrayList<>();
 
         for (StationTravelTimeVO vo : s2sTravelTimeVOs) {
-            // 4. 若該路線已計算過累計時間則直接略過（例如已處理過紅線去程，則略過回程）
-            if (!processedLineIds.add(vo.getLineId())) {
+            List<StationTravelTimeVO.TravelTimeDetail> travelTimes = vo.getTravelTimes();
+            if (travelTimes == null || travelTimes.isEmpty()) {
+                continue;
+            }
+
+            // 4. 以「LineId + 途經車站代碼集合（排序後去向無關）」建立路線識別鍵，
+            // 去回程資料途經站點相同會得到同一把鍵而被略過；分岔支線因途經站點不同（如蘆洲支線含
+            // O50~O54、迴龍支線含 O13~O21）會得到不同的鍵，兩條支線才都會被處理到
+            Set<String> stationCodesInRoute = travelTimes.stream()
+                    .flatMap(detail -> Stream.of(detail.getFromStationId(), detail.getToStationId()))
+                    .collect(Collectors.toCollection(TreeSet::new));
+            String routeKey = vo.getLineId() + ":" + String.join(",", stationCodesInRoute);
+
+            if (!processedRouteKeys.add(routeKey)) {
                 continue;
             }
 
@@ -247,11 +263,6 @@ public class MetroSyncService {
             Short lineId = lineLetterToIdMap.get(vo.getLineId());
             if (lineId == null) {
                 logger.warn("找不到路線代號 {} 對應的資料庫 id，跳過", vo.getLineId());
-                continue;
-            }
-
-            List<StationTravelTimeVO.TravelTimeDetail> travelTimes = vo.getTravelTimes();
-            if (travelTimes == null || travelTimes.isEmpty()) {
                 continue;
             }
 

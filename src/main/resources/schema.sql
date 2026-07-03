@@ -8,7 +8,7 @@ CREATE TABLE [dbo].[membership_tiers] (
     [name]                  NVARCHAR(50)    NOT NULL,
     [max_station_bookmarks] SMALLINT        NOT NULL,
     [max_trip_plans]        SMALLINT        NOT NULL,
-    [max_chats]             SMALLINT        NOT NULL,
+    [max_daily_chats]     SMALLINT        NOT NULL,
     [updated_at]            DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_membership_tiers] PRIMARY KEY ([id]),
     CONSTRAINT [UK_membership_tiers_name] UNIQUE ([name])

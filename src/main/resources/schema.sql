@@ -8,7 +8,7 @@ CREATE TABLE [dbo].[membership_tiers] (
     [name]                  NVARCHAR(50)    NOT NULL,
     [max_station_bookmarks] SMALLINT        NOT NULL,
     [max_trip_plans]        SMALLINT        NOT NULL,
-    [max_daily_chats]     SMALLINT        NOT NULL,
+    [max_daily_chats]     SMALLINT        NOT NULL,  -- 用"每日"計算訊息總量上限
     [updated_at]            DATETIME2(0)    NOT NULL,
     CONSTRAINT [PK_membership_tiers] PRIMARY KEY ([id]),
     CONSTRAINT [UK_membership_tiers_name] UNIQUE ([name])
@@ -215,13 +215,36 @@ CREATE TABLE [dbo].[station_chat_messages] (
     [id]          INT             NOT NULL IDENTITY(1, 1),
     [station_id]  INT             NOT NULL,
     [user_id]     INT             NOT NULL,
-    [chat_type]   TINYINT         NOT NULL,
-    [content]     NVARCHAR(2000)  NOT NULL,
+    [trip_plan_id] INT             NULL,   -- 旅程分享時才關聯
+    [chat_type]   TINYINT         NOT NULL, -- 分成1.手動輸入文字 2.旅程分享
+    [content]     NVARCHAR(1000)  NULL, -- 只儲存手動輸入文字  -- 旅程分享直接關聯該表，允 NULL
     [created_at]  DATETIME2(0)    NOT NULL,
     [deleted_at]  DATETIME2(0)    NULL,
     CONSTRAINT [PK_station_chat_messages] PRIMARY KEY ([id]),
     CONSTRAINT [FK_station_chat_messages_station_id]
         FOREIGN KEY ([station_id]) REFERENCES [dbo].[stations] ([id]),
     CONSTRAINT [FK_station_chat_messages_user_id]
-        FOREIGN KEY ([user_id]) REFERENCES [dbo].[users] ([id])
+        FOREIGN KEY ([user_id]) REFERENCES [dbo].[users] ([id]),
+    CONSTRAINT [FK_station_chat_messages_trip_plan_id]
+        FOREIGN KEY ([trip_plan_id]) REFERENCES [dbo].[user_trip_plans] ([id])
+);
+
+-- station_chat_announcements
+IF NOT EXISTS (
+    SELECT 1 FROM sys.tables
+    WHERE [name] = 'station_chat_announcements' AND [schema_id] = SCHEMA_ID('dbo')
+)
+CREATE TABLE [dbo].[station_chat_announcements] (
+    [id]          INT             NOT NULL IDENTITY(1, 1),
+    [station_id]  INT             NOT NULL,
+    [content]     NVARCHAR(1000)  NOT NULL,
+    [created_by]  INT             NOT NULL,  -- 建立的 ADMIN user_id -- 不命名成 admin_id
+    [created_at]  DATETIME2(0)    NOT NULL,
+    [updated_at]  DATETIME2(0)    NOT NULL,
+    [deleted_at]  DATETIME2(0)    NULL,
+    CONSTRAINT [PK_station_chat_announcements] PRIMARY KEY ([id]),
+    CONSTRAINT [FK_station_chat_announcements_station_id]
+        FOREIGN KEY ([station_id]) REFERENCES [dbo].[stations] ([id]),
+    CONSTRAINT [FK_station_chat_announcements_created_by]
+        FOREIGN KEY ([created_by]) REFERENCES [dbo].[users] ([id])
 );

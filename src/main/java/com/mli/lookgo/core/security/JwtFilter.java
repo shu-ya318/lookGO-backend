@@ -25,7 +25,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * 攔截每次 HTTP 請求，驗證請求標頭中的 JWT 存取token，並在通過驗證後設定 Spring Security 的身分驗證資訊。
+ * 處理 HTTP 請求的 JWT 驗證攔截器。
+ * 攔截每次 HTTP 請求，驗證請求標頭中的 JWT 存取 token，並在通過驗證後設定 Spring Security 的身分驗證資訊。
+ * （Token 有效性 → 黑名單檢查 → 解析 email → 載入 UserDetails）
  *
  * @author D5042101
  * @since 2026.06.06
@@ -37,6 +39,7 @@ public class JwtFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
     private final RedisService redisService;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
     private static final Logger logger = LoggerFactory.getLogger(JwtFilter.class);
 
     /**

@@ -146,7 +146,7 @@ public class MetroSyncController {
      *
      * @return ResponseEntity<MessageVO>
      */
-    @Operation(summary = "同步路線換乘資料", description = "從 TDX LineTransfer API 同步各路線間換乘站點與換乘時間到資料庫，需先同步路線車站資料。僅限 ADMIN 角色存取")
+    @Operation(summary = "同步路線換乘資料", description = "從 TDX LineTransfer API 同步各路線間換乘車站與換乘時間到資料庫，需先同步路線車站資料。僅限 ADMIN 角色存取")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "路線換乘資料同步成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),

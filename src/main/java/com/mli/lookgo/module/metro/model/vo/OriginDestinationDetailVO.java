@@ -132,7 +132,7 @@ public class OriginDestinationDetailVO {
 
     // ----- 路線段 -----
 
-    @Schema(description = "單一路線段資訊（搭乘同一路線的連續站點）")
+    @Schema(description = "單一路線段資訊（搭乘同一路線的連續車站）")
     public static class RouteSegmentVO {
 
         @Schema(description = "路線代號", example = "R")

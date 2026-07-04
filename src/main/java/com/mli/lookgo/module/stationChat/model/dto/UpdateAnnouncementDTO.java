@@ -6,12 +6,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * 處理編輯站點聊天公告相關的資料傳輸物件。
+ * 處理編輯車站聊天公告相關的資料傳輸物件。
  *
  * @author D5042101
  * @since 2026.07.04
  */
-@Schema(description = "處理編輯站點聊天公告相關的資料傳輸物件")
+@Schema(description = "處理編輯車站聊天公告相關的資料傳輸物件")
 public class UpdateAnnouncementDTO {
 
     @Schema(description = "公告 id", example = "1")

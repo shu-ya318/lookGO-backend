@@ -5,12 +5,12 @@ import java.time.LocalDateTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * 回傳站點聊天公告資料的物件。
+ * 回傳車站聊天公告資料的物件。
  *
  * @author D5042101
  * @since 2026.07.04
  */
-@Schema(description = "回傳站點聊天公告資料的物件")
+@Schema(description = "回傳車站聊天公告資料的物件")
 public class StationChatAnnouncementVO {
 
     @Schema(description = "公告 id", example = "1")

@@ -131,11 +131,13 @@ public class MetroSyncService {
         for (StationVO tdxStationVO : tdxStationVOs) {
             // 透過 Key (車站名稱) 比對並取得 DataTaipei 的設施資料
             StationFacilityVO dataTaipeiVO = dataTaipeiMap.get(tdxStationVO.getNameZhTw());
-            stationByName.putIfAbsent(tdxStationVO.getNameZhTw(), this.toStationEntity(tdxStationVO, dataTaipeiVO, now));
+            stationByName.putIfAbsent(tdxStationVO.getNameZhTw(),
+                    this.toStationEntity(tdxStationVO, dataTaipeiVO, now));
         }
         List<Station> stations = new ArrayList<>(stationByName.values());
 
-        // 加上每筆綁定 13 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 150 分批 Upsert 寫入
+        // 加上每筆綁定 13 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 150 分批 Upsert
+        // 寫入
         final int batchSize = 150;
         int totalUpserted = 0;
         for (int i = 0; i < stations.size(); i += batchSize) {
@@ -248,7 +250,7 @@ public class MetroSyncService {
             }
 
             // 4. 以「LineId + 途經車站代碼集合（排序後去向無關）」建立路線識別鍵，
-            // 去回程資料途經站點相同會得到同一把鍵而被略過；分岔支線因途經站點不同（如蘆洲支線含
+            // 去回程資料途經車站相同會得到同一把鍵而被略過；分岔支線因途經車站不同（如蘆洲支線含
             // O50~O54、迴龍支線含 O13~O21）會得到不同的鍵，兩條支線才都會被處理到
             Set<String> stationCodesInRoute = travelTimes.stream()
                     .flatMap(detail -> Stream.of(detail.getFromStationId(), detail.getToStationId()))
@@ -271,7 +273,7 @@ public class MetroSyncService {
             for (int i = 0; i < travelTimes.size(); i++) {
                 StationTravelTimeVO.TravelTimeDetail td = travelTimes.get(i);
 
-                // 7. 建立目前站點（起點端）的累計時間記錄（例如：建立淡水站 R28 的記錄，時間為 0 秒）
+                // 7. 建立目前車站（起點端）的累計時間記錄（例如：建立淡水站 R28 的記錄，時間為 0 秒）
                 LineStation fromStation = new LineStation();
                 fromStation.setLineId(lineId);
                 fromStation.setStationCode(td.getFromStationId());
@@ -332,7 +334,7 @@ public class MetroSyncService {
 
             // 4. 若起迄站中任意一站找不到資料庫 id，則警告並略過該筆票價資料
             if (fromStationId == null || toStationId == null) {
-                logger.warn("找不到站點 {} 或 {} 對應的資料表 id，跳過",
+                logger.warn("找不到車站 {} 或 {} 對應的資料表 id，跳過",
                         stationFareVO.getOriginStationId(), stationFareVO.getDestinationStationId());
                 continue;
             }
@@ -396,7 +398,7 @@ public class MetroSyncService {
 
             // 4. 若起迄站中任意一站找不到路線車站關聯 id，則警告並略過該筆轉乘資料
             if (fromLineStationId == null || toLineStationId == null) {
-                logger.warn("找不到站點 {} 或 {} 對應的 lines_stations.id，跳過",
+                logger.warn("找不到車站 {} 或 {} 對應的 lines_stations.id，跳過",
                         vo.getFromStationId(), vo.getToStationId());
                 continue;
             }
@@ -409,7 +411,8 @@ public class MetroSyncService {
                     now));
         }
 
-        // 6. 每筆綁定 4 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 500 分批 Upsert 寫入
+        // 6. 每筆綁定 4 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 500 分批 Upsert
+        // 寫入
         final int batchSize = 500;
         int totalUpserted = 0;
         for (int i = 0; i < lineTransfers.size(); i += batchSize) {

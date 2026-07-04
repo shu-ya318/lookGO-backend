@@ -213,7 +213,7 @@ public class GlobalExceptionHandler {
     // ----- Station Chat -----
 
     /**
-     * 處理找不到指定站點聊天公告或留言的例外。
+     * 處理找不到指定車站聊天公告或留言的例外。
      *
      * @param exception
      * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 404 (Not Found) 給客戶端。

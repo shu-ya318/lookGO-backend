@@ -14,6 +14,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -53,7 +54,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
      */
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        StompHeaderAccessor stompHeaderAccessor = StompHeaderAccessor.wrap(message);
+        // 必須用 getAccessor 取回「原始」accessor 實例，setUser() 才能觸發 StompSubProtocolHandler
+        // 內部的 userChangeCallback，把 Principal 綁定到整個 STOMP session（供後續 SEND 等指令使用）。
+        // 若改用 StompHeaderAccessor.wrap(message) 只會取得一次性的包裝物件，setUser() 的結果不會被保留。
+        StompHeaderAccessor stompHeaderAccessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+
+        if (stompHeaderAccessor == null) {
+            return message;
+        }
 
         if (StompCommand.CONNECT.equals(stompHeaderAccessor.getCommand())) {
             logger.debug("[StompAuthChannelInterceptor] 收到 CONNECT 請求，開始驗證");

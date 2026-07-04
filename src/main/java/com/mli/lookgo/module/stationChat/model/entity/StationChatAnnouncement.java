@@ -5,12 +5,12 @@ import java.time.LocalDateTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * 處理站點聊天公告相關的資料。
+ * 處理車站聊天公告相關的資料。
  *
  * @author D5042101
  * @since 2026.07.04
  */
-@Schema(description = "處理站點聊天公告相關的資料")
+@Schema(description = "處理車站聊天公告相關的資料")
 public class StationChatAnnouncement {
 
     @Schema(description = "公告 id", example = "1")

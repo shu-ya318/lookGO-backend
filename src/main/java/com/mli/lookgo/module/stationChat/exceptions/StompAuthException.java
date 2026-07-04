@@ -3,7 +3,7 @@ package com.mli.lookgo.module.stationChat.exceptions;
 import org.springframework.messaging.MessagingException;
 
 /**
- * 找不到指定站點聊天留言時拋出的例外。
+ * 找不到指定車站聊天留言時拋出的例外。
  *
  * @author
  * @since 2026.07.03

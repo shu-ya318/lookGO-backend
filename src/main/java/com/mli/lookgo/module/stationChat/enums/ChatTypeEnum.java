@@ -1,7 +1,7 @@
 package com.mli.lookgo.module.stationChat.enums;
 
 /**
- * 站點聊天留言類型相關的列舉。
+ * 車站聊天留言類型相關的列舉。
  *
  * @author D5042101
  * @since 2026.07.03

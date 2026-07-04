@@ -112,7 +112,7 @@ public class MetroController {
          *
          * @return ResponseEntity<List<LineTransfer>>
          */
-        @Operation(summary = "取得所有路線換乘資料", description = "從資料庫取得所有路線換乘站點與換乘時間資料")
+        @Operation(summary = "取得所有路線換乘資料", description = "從資料庫取得所有路線換乘車站與換乘時間資料")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "成功取得所有路線換乘資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LineTransfer.class))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),

@@ -3,8 +3,8 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.mli.lookgo.module.stationChat.dao.StationChatDAO">
 
-    <!-- 依車站 id 分頁取得站點聊天留言，並依 chatType 組裝文字訊息或旅程分享內容 -->
-    <select id="getMessagesByStationIdPaginated" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO">
+    <!-- 車站聊天留言 VO 共用的 SELECT 欄位與 JOIN，依 chatType 組裝文字訊息或旅程分享內容 -->
+    <sql id="messageVOSelectAndJoins">
         SELECT
             scm.id,
             u.username,
@@ -25,13 +25,18 @@
         LEFT JOIN [dbo].[user_trip_plans] utp ON utp.id = scm.trip_plan_id AND utp.deleted_at IS NULL
         LEFT JOIN [dbo].[stations] fs ON fs.id = utp.from_station_id
         LEFT JOIN [dbo].[stations] ts ON ts.id = utp.to_station_id
+    </sql>
+
+    <!-- 依車站 id 分頁取得車站聊天留言 -->
+    <select id="getMessagesByStationIdPaginated" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO">
+        <include refid="messageVOSelectAndJoins" />
         WHERE scm.station_id = #{stationId, jdbcType=INTEGER}
           AND scm.deleted_at IS NULL
         ORDER BY scm.created_at DESC
         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
     </select>
 
-    <!-- 計算指定車站的站點聊天留言總筆數 -->
+    <!-- 計算指定車站的車站聊天留言總筆數 -->
     <select id="countMessagesByStationId" resultType="long">
         SELECT COUNT(1)
         FROM [dbo].[station_chat_messages]
@@ -39,7 +44,13 @@
           AND deleted_at IS NULL
     </select>
 
-    <!-- 依車站 id 取得該站點的公告列表，依建立時間新到舊排序 -->
+    <!-- 用 id 查詢單筆車站聊天留言，供發送留言後即時廣播使用 -->
+    <select id="getMessageVOById" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO">
+        <include refid="messageVOSelectAndJoins" />
+        WHERE scm.id = #{id, jdbcType=INTEGER}
+    </select>
+
+    <!-- 依車站 id 取得該車站的公告列表，依建立時間新到舊排序 -->
     <select id="getAnnouncementsByStationId" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO">
         SELECT
             sca.id,
@@ -62,7 +73,7 @@
         WHERE id = #{id, jdbcType=INTEGER}
     </select>
 
-    <!-- 新增一筆站點聊天公告 -->
+    <!-- 新增一筆車站聊天公告 -->
     <insert id="insertAnnouncement" parameterType="com.mli.lookgo.module.stationChat.model.entity.StationChatAnnouncement"
             useGeneratedKeys="true" keyProperty="announcement.id" keyColumn="id">
         INSERT INTO [dbo].[station_chat_announcements]
@@ -85,5 +96,54 @@
         SET deleted_at = #{deletedAt}
         WHERE id = #{id, jdbcType=INTEGER}
     </update>
+
+    <!-- 用 id 查詢指定留言的原始資料 -->
+    <select id="getMessageById" resultType="com.mli.lookgo.module.stationChat.model.entity.StationChatMessage">
+        SELECT id, station_id, user_id, trip_plan_id, chat_type, content, created_at, deleted_at
+        FROM [dbo].[station_chat_messages]
+        WHERE id = #{id, jdbcType=INTEGER}
+    </select>
+
+    <!-- 新增一筆車站聊天留言 -->
+    <insert id="insertMessage" parameterType="com.mli.lookgo.module.stationChat.model.entity.StationChatMessage"
+            useGeneratedKeys="true" keyProperty="message.id" keyColumn="id">
+        INSERT INTO [dbo].[station_chat_messages]
+            (station_id, user_id, trip_plan_id, chat_type, content, created_at)
+        VALUES
+            (#{message.stationId}, #{message.userId}, #{message.tripPlanId}, #{message.chatType},
+             #{message.content}, #{message.createdAt})
+    </insert>
+
+    <!-- 用 id 軟刪除指定留言 -->
+    <update id="softDeleteMessageById">
+        UPDATE [dbo].[station_chat_messages]
+        SET deleted_at = #{deletedAt}
+        WHERE id = #{id, jdbcType=INTEGER}
+    </update>
+
+    <!-- 依使用者 id 取得其會員等級對應的每日聊天則數上限 -->
+    <select id="getMaxDailyChatsByUserId" resultType="int">
+        SELECT mt.max_daily_chats
+        FROM [dbo].[users] u
+        INNER JOIN [dbo].[membership_tiers] mt ON mt.id = u.membership_tier_id
+        WHERE u.id = #{userId, jdbcType=INTEGER}
+    </select>
+
+    <!-- 計算指定使用者今日（自 todayStart 起）已發送的留言則數 -->
+    <select id="countTodayMessagesByUserId" resultType="long">
+        SELECT COUNT(1)
+        FROM [dbo].[station_chat_messages]
+        WHERE user_id = #{userId, jdbcType=INTEGER}
+          AND created_at >= #{todayStart}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 用 id 查詢指定旅程規劃是否存在且未被軟刪除，並回傳其擁有者 user id -->
+    <select id="getActiveTripPlanOwnerId" resultType="int">
+        SELECT user_id
+        FROM [dbo].[user_trip_plans]
+        WHERE id = #{tripPlanId, jdbcType=INTEGER}
+          AND deleted_at IS NULL
+    </select>
 
 </mapper>

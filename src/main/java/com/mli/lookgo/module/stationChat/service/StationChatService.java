@@ -251,20 +251,22 @@ public class StationChatService {
     /**
      * 刪除指定的車站聊天留言，本人或 ADMIN 皆可刪除。
      *
+     * @param stationId
      * @param messageId
      * @param email
      * @throws UserNotFoundException            找不到當前使用者。
-     * @throws StationChatNotFoundException     找不到指定留言，或該留言已被軟刪除。
+     * @throws StationChatNotFoundException     找不到指定留言、該留言已被軟刪除，或該留言不屬於指定車站。
      * @throws ChatMessageAccessDeniedException 非本人且非 ADMIN，無權刪除此留言。
      */
-    public void deleteMessage(Integer messageId, String email) {
-        logger.debug("開始呼叫 API 來刪除車站聊天留言，messageId: {}, email: {}", messageId, email);
+    public void deleteMessage(Integer stationId, Integer messageId, String email) {
+        logger.debug("開始呼叫 API 來刪除車站聊天留言，stationId: {}, messageId: {}, email: {}", stationId, messageId, email);
 
         User user = userDAO.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
         StationChatMessage message = stationChatDAO.getMessageById(messageId)
                 .filter(existing -> existing.getDeletedAt() == null)
+                .filter(existing -> existing.getStationId().equals(stationId))
                 .orElseThrow(() -> new StationChatNotFoundException("找不到 id:" + messageId + " 的留言!"));
 
         boolean isOwner = message.getUserId().equals(user.getId());

@@ -85,7 +85,7 @@ public class StationChatStompController {
                 logger.debug("收到 STOMP 刪除站點聊天留言的請求，stationId: {}, messageId: {}, email: {}", stationId, messageId,
                                 principal.getName());
 
-                stationChatService.deleteMessage(messageId, principal.getName());
+                stationChatService.deleteMessage(stationId, messageId, principal.getName());
 
                 simpMessagingTemplate.convertAndSend(TOPIC_PREFIX + stationId,
                                 new StationChatEventVO(ChatEventTypeEnum.DELETE.getCode(), null, messageId));

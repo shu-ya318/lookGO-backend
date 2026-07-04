@@ -4,13 +4,13 @@ import com.mli.lookgo.core.security.JwtUtil;
 import com.mli.lookgo.core.security.UserDetailsServiceImpl;
 import com.mli.lookgo.core.security.JwtFilter;
 import com.mli.lookgo.core.service.RedisService;
+import com.mli.lookgo.module.stationChat.exceptions.StompAuthException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -62,7 +62,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
             if (authToken == null) {
                 logger.debug("[StompAuthChannelInterceptor] 缺少 Authorization header，拒絕連線");
-                throw new MessagingException("缺少認證 Token，拒絕建立 WebSocket 連線!");
+                throw new StompAuthException("缺少認證 Token，拒絕建立 WebSocket 連線!");
             }
 
             try {
@@ -71,7 +71,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 logger.debug("[StompAuthChannelInterceptor] token驗證結果: {}", isValid);
 
                 if (!isValid) {
-                    throw new MessagingException("token驗證失敗，拒絕建立 WebSocket 連線");
+                    throw new StompAuthException("token驗證失敗，拒絕建立 WebSocket 連線");
                 }
 
                 // 檢查是否在黑名單
@@ -81,7 +81,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
                 if (isBlacklisted) {
                     logger.warn("[StompAuthChannelInterceptor] token已列入黑名單，拒絕連線 (jti={})", jti);
-                    throw new MessagingException("token已失效，拒絕建立 WebSocket 連線");
+                    throw new StompAuthException("token已失效，拒絕建立 WebSocket 連線");
                 }
 
                 // 實際使用者資訊
@@ -93,11 +93,11 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 stompHeaderAccessor.setUser(authentication);
 
                 logger.debug("STOMP CONNECT 驗證成功，使用者: {}", email);
-            } catch (MessagingException error) {
+            } catch (StompAuthException error) {
                 throw error;
             } catch (Exception error) {
                 logger.error("STOMP CONNECT Token 驗證失敗: {}", error.getMessage());
-                throw new MessagingException("Token 驗證失敗，拒絕建立 WebSocket 連線", error);
+                throw new StompAuthException("Token 驗證失敗，拒絕建立 WebSocket 連線", error);
             }
         }
 

@@ -1,16 +1,168 @@
 package com.mli.lookgo.module.stationChat.controller;
 
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mli.lookgo.core.result.MessageVO;
+import com.mli.lookgo.core.result.PaginatedVO;
+import com.mli.lookgo.module.stationChat.model.dto.CreateAnnouncementDTO;
+import com.mli.lookgo.module.stationChat.model.dto.DeleteAnnouncementDTO;
+import com.mli.lookgo.module.stationChat.model.dto.GetAnnouncementByStationIdDTO;
+import com.mli.lookgo.module.stationChat.model.dto.UpdateAnnouncementDTO;
+import com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO;
+import com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO;
+import com.mli.lookgo.module.stationChat.service.StationChatService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
+
 /**
- * 處理站點聊天留言相關 HTTP 請求的控制器。
+ * 處理站點聊天留言與公告相關 HTTP 請求的控制器。
  *
- * @author 
+ * @author D5042101
  * @since 2026.07.03
  */
 @RestController
-@RequestMapping("/api/station-chat")
+@RequestMapping("/api/v1/station-chat")
 public class StationChatController {
 
+        private static final Logger logger = LoggerFactory.getLogger(StationChatController.class);
+
+        private final StationChatService stationChatService;
+
+        /**
+         * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
+         *
+         * @param stationChatService
+         */
+        public StationChatController(StationChatService stationChatService) {
+                this.stationChatService = stationChatService;
+        }
+
+        /**
+         * 依車站 id 分頁取得該站點的歷史聊天留言。
+         *
+         * @param stationId
+         * @param page
+         * @param size
+         * @return ResponseEntity<PaginatedVO<StationChatMessageVO>>
+         */
+        @Operation(summary = "依車站 id 分頁取得站點聊天留言", description = "取得指定車站的歷史聊天留言，支援分頁，依建立時間新到舊排序")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功取得站點聊天留言", content = @Content(mediaType = "application/json", schema = @Schema(implementation = PaginatedVO.class))),
+                        @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
+        @PostMapping("/get-message-by-station-id")
+        public ResponseEntity<PaginatedVO<StationChatMessageVO>> getMessagesByStationId(
+                        @Parameter(description = "車站 id") @RequestParam Integer stationId,
+                        @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
+                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "16") int size) {
+                logger.debug("收到依車站 id 分頁查詢站點聊天留言的請求，stationId: {}, page: {}, size: {}", stationId, page, size);
+                PaginatedVO<StationChatMessageVO> paginatedMessages = stationChatService.getMessages(stationId, page,
+                                size);
+
+                return ResponseEntity.ok(paginatedMessages);
+        }
+
+        /**
+         * 依車站 id 取得該站點的公告列表。
+         *
+         * @param getAnnouncementByStationIdDTO
+         * @return ResponseEntity<List<StationChatAnnouncementVO>>
+         */
+        @Operation(summary = "依車站 id 取得站點聊天公告", description = "取得指定車站的所有公告，依建立時間新到舊排序")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功取得站點聊天公告", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationChatAnnouncementVO.class))),
+                        @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
+        @PostMapping("/get-announcement-by-station-id")
+        public ResponseEntity<List<StationChatAnnouncementVO>> getAnnouncementsByStationId(
+                        @Valid @RequestBody GetAnnouncementByStationIdDTO getAnnouncementByStationIdDTO) {
+                logger.debug("收到依車站 id 查詢站點聊天公告的請求，getAnnouncementByStationIdDTO: {}", getAnnouncementByStationIdDTO);
+                List<StationChatAnnouncementVO> announcements = stationChatService
+                                .getAnnouncements(getAnnouncementByStationIdDTO.getStationId());
+
+                return ResponseEntity.ok(announcements);
+        }
+
+        /**
+         * 新增一筆站點聊天公告。
+         *
+         * @param createAnnouncementDTO
+         * @return ResponseEntity<MessageVO>
+         */
+        @Operation(summary = "新增站點聊天公告", description = "於指定車站新增一筆公告")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "公告新增成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+                        @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+                        @ApiResponse(responseCode = "404", description = "找不到當前使用者或指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping("/create-announcement")
+        public ResponseEntity<MessageVO> createAnnouncement(
+                        @Valid @RequestBody CreateAnnouncementDTO createAnnouncementDTO) {
+                logger.debug("收到新增站點聊天公告的請求，createAnnouncementDTO: {}", createAnnouncementDTO);
+                MessageVO apiResult = stationChatService.createAnnouncement(createAnnouncementDTO);
+
+                return ResponseEntity.ok(apiResult);
+        }
+
+        /**
+         * 編輯指定公告的內容。
+         *
+         * @param updateAnnouncementDTO
+         * @return ResponseEntity<MessageVO>
+         */
+        @Operation(summary = "編輯站點聊天公告", description = "更新指定公告 id 的內容")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "公告編輯成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+                        @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+                        @ApiResponse(responseCode = "404", description = "找不到指定公告", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的公告!"))) })
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping("/update-announcement")
+        public ResponseEntity<MessageVO> updateAnnouncement(
+                        @Valid @RequestBody UpdateAnnouncementDTO updateAnnouncementDTO) {
+                logger.debug("收到編輯站點聊天公告的請求，updateAnnouncementDTO: {}", updateAnnouncementDTO);
+                MessageVO apiResult = stationChatService.updateAnnouncement(updateAnnouncementDTO);
+
+                return ResponseEntity.ok(apiResult);
+        }
+
+        /**
+         * 軟刪除指定公告。
+         *
+         * @param deleteAnnouncementDTO
+         * @return ResponseEntity<MessageVO>
+         */
+        @Operation(summary = "刪除站點聊天公告", description = "軟刪除指定公告 id 的公告")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "公告刪除成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+                        @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+                        @ApiResponse(responseCode = "404", description = "找不到指定公告", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的公告!"))) })
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping("/delete-announcement")
+        public ResponseEntity<MessageVO> deleteAnnouncement(
+                        @Valid @RequestBody DeleteAnnouncementDTO deleteAnnouncementDTO) {
+                logger.debug("收到刪除站點聊天公告的請求，deleteAnnouncementDTO: {}", deleteAnnouncementDTO);
+                MessageVO apiResult = stationChatService.deleteAnnouncement(deleteAnnouncementDTO.getAnnouncementId());
+
+                return ResponseEntity.ok(apiResult);
+        }
 }

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
+import com.mli.lookgo.module.stationChat.exceptions.StationChatNotFoundException;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 
@@ -202,6 +203,23 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(StationNotFoundException.class)
     public ResponseEntity<MessageVO> handleStationNotFoundException(StationNotFoundException exception) {
+        logger.error("找不到結果: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiResult);
+    }
+
+    // ----- Station Chat -----
+
+    /**
+     * 處理找不到指定站點聊天公告或留言的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 404 (Not Found) 給客戶端。
+     */
+    @ExceptionHandler(StationChatNotFoundException.class)
+    public ResponseEntity<MessageVO> handleStationChatNotFoundException(StationChatNotFoundException exception) {
         logger.error("找不到結果: {}", exception.getMessage());
 
         MessageVO apiResult = new MessageVO(exception.getMessage());

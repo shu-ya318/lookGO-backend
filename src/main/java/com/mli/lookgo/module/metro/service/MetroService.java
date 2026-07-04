@@ -74,6 +74,17 @@ public class MetroService {
     }
 
     /**
+     * 用車站 id 查詢指定車站是否存在，供其他模組確認車站有效性使用。
+     *
+     * @param stationId
+     * @return 存在為 true，否則 false
+     */
+    public boolean existsStationById(Integer stationId) {
+        logger.debug("開始查詢車站 id: {} 是否存在", stationId);
+        return metroDAO.existsById(stationId);
+    }
+
+    /**
      * 取得所有路線車站資料。
      *
      * @return List<LineStation>

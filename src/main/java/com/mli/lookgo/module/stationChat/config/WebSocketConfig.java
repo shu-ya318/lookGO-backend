@@ -1,5 +1,7 @@
 package com.mli.lookgo.module.stationChat.config;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -19,13 +21,12 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+    private final List<String> allowedOrigins;
 
-    // 比照既有 CORS 白名單設定，與 SecurityConfig 共用同一個 property
-    @Value("${app.cors.allowed-origins}")
-    private String[] allowedOriginPatterns;
-
-    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor) {
+    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor,
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+        this.allowedOrigins = allowedOrigins;
     }
 
     /**
@@ -36,7 +37,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(allowedOriginPatterns);
+                .setAllowedOriginPatterns(allowedOrigins.toArray(String[]::new));
     }
 
     /**

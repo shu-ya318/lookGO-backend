@@ -1,10 +1,10 @@
 package com.mli.lookgo.module.stationChat.exceptions;
 
 /**
- * 找不到指定站點聊天留言時拋出的例外。
+ * 找不到指定站點聊天公告或留言時拋出的例外。
  *
- * @author 
- * @since 2026.07.03
+ * @author D5042101
+ * @since 2026.07.04
  */
 public class StationChatNotFoundException extends RuntimeException {
 

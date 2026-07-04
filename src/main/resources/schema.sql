@@ -248,3 +248,12 @@ CREATE TABLE [dbo].[station_chat_announcements] (
     CONSTRAINT [FK_station_chat_announcements_created_by]
         FOREIGN KEY ([created_by]) REFERENCES [dbo].[users] ([id])
 );
+
+-- Create composite index for paginated announcement queries by station (handling soft deletes)
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_station_chat_announcements_station_created' AND object_id = OBJECT_ID('dbo.station_chat_announcements')
+)
+CREATE NONCLUSTERED INDEX [IX_station_chat_announcements_station_created]
+    ON [dbo].[station_chat_announcements] ([station_id], [created_at] DESC)
+    WHERE [deleted_at] IS NULL;

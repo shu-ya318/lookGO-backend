@@ -93,6 +93,13 @@
         WHERE station_code = #{stationCode, jdbcType=NVARCHAR}
     </select>
 
+    <!-- 用車站 id 查詢指定車站是否存在 -->
+    <select id="existsById" resultType="boolean">
+        SELECT COUNT(1)
+        FROM [dbo].[stations]
+        WHERE id = #{stationId, jdbcType=INTEGER}
+    </select>
+
     <!-- 取得所有車站資料 -->
     <select id="getAllStation" resultType="com.mli.lookgo.module.metro.model.entity.Station">
         SELECT id, name_zh_tw, name_en, atm, nursing_room, diaper_table,

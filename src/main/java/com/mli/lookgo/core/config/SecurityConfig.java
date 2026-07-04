@@ -1,11 +1,11 @@
 package com.mli.lookgo.core.config;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,13 +38,7 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final LogoutResultHandler logoutResultHandler;
-    private static final List<String> ALLOWED_ORIGINS = List.of(
-            // 本地 Vite 啟動的前端應用程式
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            // 容器化的前端應用程式
-            "http://localhost:8081",
-            "http://127.0.0.1:8081");
+    private final List<String> allowedOrigins;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
@@ -52,10 +46,13 @@ public class SecurityConfig {
      *
      * @param jwtFilter
      * @param logoutResultHandler
+     * @param allowedOrigins CORS 允許的來源清單
      */
-    public SecurityConfig(JwtFilter jwtFilter, LogoutResultHandler logoutResultHandler) {
+    public SecurityConfig(JwtFilter jwtFilter, LogoutResultHandler logoutResultHandler,
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
         this.jwtFilter = jwtFilter;
         this.logoutResultHandler = logoutResultHandler;
+        this.allowedOrigins = allowedOrigins;
     }
 
     /**
@@ -95,10 +92,8 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        List<String> allAllowedOrigins = new ArrayList<>(ALLOWED_ORIGINS);
-
-        config.setAllowedOriginPatterns(allAllowedOrigins);
-        config.setAllowedMethods(List.of("POST", "OPTIONS"));
+        config.setAllowedOriginPatterns(allowedOrigins);
+        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

@@ -3,4 +3,87 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.mli.lookgo.module.stationChat.dao.StationChatDAO">
 
+    <!-- 依車站 id 分頁取得站點聊天留言，並依 chatType 組裝文字訊息或旅程分享內容 -->
+    <select id="getMessagesByStationIdPaginated" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO">
+        SELECT
+            scm.id,
+            u.username,
+            scm.chat_type,
+            CASE
+                WHEN scm.chat_type = 2 AND fs.id IS NULL THEN N'該旅程分享已被移除'
+                ELSE scm.content
+            END AS content,
+            scm.trip_plan_id,
+            fs.name_zh_tw AS from_station_name,
+            ts.name_zh_tw AS to_station_name,
+            utp.fare_type,
+            utp.fare_price,
+            utp.transfer_count,
+            scm.created_at
+        FROM [dbo].[station_chat_messages] scm
+        INNER JOIN [dbo].[users] u ON u.id = scm.user_id
+        LEFT JOIN [dbo].[user_trip_plans] utp ON utp.id = scm.trip_plan_id AND utp.deleted_at IS NULL
+        LEFT JOIN [dbo].[stations] fs ON fs.id = utp.from_station_id
+        LEFT JOIN [dbo].[stations] ts ON ts.id = utp.to_station_id
+        WHERE scm.station_id = #{stationId, jdbcType=INTEGER}
+          AND scm.deleted_at IS NULL
+        ORDER BY scm.created_at DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- 計算指定車站的站點聊天留言總筆數 -->
+    <select id="countMessagesByStationId" resultType="long">
+        SELECT COUNT(1)
+        FROM [dbo].[station_chat_messages]
+        WHERE station_id = #{stationId, jdbcType=INTEGER}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 依車站 id 取得該站點的公告列表，依建立時間新到舊排序 -->
+    <select id="getAnnouncementsByStationId" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO">
+        SELECT
+            sca.id,
+            sca.station_id,
+            sca.content,
+            u.username AS created_by_username,
+            sca.created_at,
+            sca.updated_at
+        FROM [dbo].[station_chat_announcements] sca
+        INNER JOIN [dbo].[users] u ON u.id = sca.created_by
+        WHERE sca.station_id = #{stationId, jdbcType=INTEGER}
+          AND sca.deleted_at IS NULL
+        ORDER BY sca.created_at DESC
+    </select>
+
+    <!-- 用 id 查詢指定公告的資料 -->
+    <select id="getAnnouncementById" resultType="com.mli.lookgo.module.stationChat.model.entity.StationChatAnnouncement">
+        SELECT id, station_id, content, created_by, created_at, updated_at, deleted_at
+        FROM [dbo].[station_chat_announcements]
+        WHERE id = #{id, jdbcType=INTEGER}
+    </select>
+
+    <!-- 新增一筆站點聊天公告 -->
+    <insert id="insertAnnouncement" parameterType="com.mli.lookgo.module.stationChat.model.entity.StationChatAnnouncement"
+            useGeneratedKeys="true" keyProperty="announcement.id" keyColumn="id">
+        INSERT INTO [dbo].[station_chat_announcements]
+            (station_id, content, created_by, created_at, updated_at)
+        VALUES
+            (#{announcement.stationId}, #{announcement.content}, #{announcement.createdBy},
+             #{announcement.createdAt}, #{announcement.updatedAt})
+    </insert>
+
+    <!-- 用 id 更新指定公告的內容 -->
+    <update id="updateAnnouncementContentById">
+        UPDATE [dbo].[station_chat_announcements]
+        SET content = #{content}, updated_at = #{updatedAt}
+        WHERE id = #{id, jdbcType=INTEGER}
+    </update>
+
+    <!-- 用 id 軟刪除指定公告 -->
+    <update id="softDeleteAnnouncementById">
+        UPDATE [dbo].[station_chat_announcements]
+        SET deleted_at = #{deletedAt}
+        WHERE id = #{id, jdbcType=INTEGER}
+    </update>
+
 </mapper>

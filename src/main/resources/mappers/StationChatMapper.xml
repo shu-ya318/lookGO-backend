@@ -49,14 +49,22 @@
           AND deleted_at IS NULL
     </select>
 
+    <!-- 依車站 id 取得該車站完整（不分頁）的聊天留言，依建立時間舊到新排序，供匯出 excel 使用 -->
+    <select id="getAllMessagesByStationId" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO">
+        <include refid="messageVOSelectAndJoins" />
+        WHERE scm.station_id = #{stationId, jdbcType=INTEGER}
+          AND scm.deleted_at IS NULL
+        ORDER BY scm.created_at ASC, scm.id ASC
+    </select>
+
     <!-- 用 id 查詢單筆車站聊天留言，供發送留言後即時廣播使用 -->
     <select id="getMessageVOById" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO">
         <include refid="messageVOSelectAndJoins" />
         WHERE scm.id = #{id, jdbcType=INTEGER}
     </select>
 
-    <!-- 依車站 id 取得該車站的公告列表，依建立時間新到舊排序 -->
-    <select id="getAnnouncementsByStationId" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO">
+    <!-- 依車站 id 分頁取得該車站的公告列表，依建立時間新到舊排序 -->
+    <select id="getAnnouncementsByStationIdPaginated" resultType="com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO">
         SELECT
             sca.id,
             sca.station_id,
@@ -68,7 +76,16 @@
         INNER JOIN [dbo].[users] u ON u.id = sca.created_by
         WHERE sca.station_id = #{stationId, jdbcType=INTEGER}
           AND sca.deleted_at IS NULL
-        ORDER BY sca.created_at DESC
+        ORDER BY sca.created_at DESC, sca.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- 計算指定車站的公告總筆數 -->
+    <select id="countAnnouncementsByStationId" resultType="long">
+        SELECT COUNT(1)
+        FROM [dbo].[station_chat_announcements]
+        WHERE station_id = #{stationId, jdbcType=INTEGER}
+          AND deleted_at IS NULL
     </select>
 
     <!-- 用 id 查詢指定公告的資料 -->

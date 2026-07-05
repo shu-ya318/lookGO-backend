@@ -1,9 +1,17 @@
 package com.mli.lookgo.module.stationChat.service;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +25,7 @@ import com.mli.lookgo.module.stationChat.dao.StationChatDAO;
 import com.mli.lookgo.module.stationChat.enums.ChatTypeEnum;
 import com.mli.lookgo.module.stationChat.exceptions.ChatDailyLimitExceededException;
 import com.mli.lookgo.module.stationChat.exceptions.ChatMessageAccessDeniedException;
+import com.mli.lookgo.module.stationChat.exceptions.StationChatExportExcelFailedException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatNotFoundException;
 import com.mli.lookgo.module.stationChat.exceptions.TripPlanAccessDeniedException;
 import com.mli.lookgo.module.stationChat.exceptions.TripPlanNotFoundException;
@@ -42,6 +51,8 @@ import com.mli.lookgo.module.user.model.entity.User;
 public class StationChatService {
 
     private static final Logger logger = LoggerFactory.getLogger(StationChatService.class);
+    private static final DateTimeFormatter EXCEL_DATE_TIME_FORMATTER = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final StationChatDAO stationChatDAO;
     private final MetroService metroService;
@@ -84,20 +95,45 @@ public class StationChatService {
     }
 
     /**
-     * 依車站 id 取得該車站的公告列表，依建立時間新到舊排序。
+     * 依車站 id 分頁取得該車站的公告列表，依建立時間新到舊排序。
      *
      * @param stationId
-     * @return List<StationChatAnnouncementVO>
+     * @param page
+     * @param size
+     * @return PaginatedVO<StationChatAnnouncementVO>
      * @throws StationNotFoundException 找不到指定車站。
      */
-    public List<StationChatAnnouncementVO> getAnnouncements(Integer stationId) {
+    public PaginatedVO<StationChatAnnouncementVO> getAnnouncements(Integer stationId, int page, int size) {
         if (!metroService.existsStationById(stationId)) {
             throw new StationNotFoundException("找不到 id:" + stationId + " 的車站!");
         }
 
-        logger.debug("開始依車站 id 查詢車站聊天公告，stationId: {}", stationId);
+        logger.debug("開始依車站 id 分頁查詢車站聊天公告，stationId: {}, page: {}, size: {}", stationId, page, size);
 
-        return stationChatDAO.getAnnouncementsByStationId(stationId);
+        List<StationChatAnnouncementVO> announcements = stationChatDAO.getAnnouncementsByStationIdPaginated(stationId,
+                page * size, size);
+        long totalElements = stationChatDAO.countAnnouncementsByStationId(stationId);
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        return new PaginatedVO<>(announcements, page, size, totalElements, totalPages);
+    }
+
+    /**
+     * 依車站 id 匯出該車站完整的聊天紀錄 excel 檔。
+     *
+     * @param stationId
+     * @return byte[]
+     * @throws StationNotFoundException              找不到指定車站。
+     * @throws StationChatExportExcelFailedException 匯出 excel 檔發生錯誤。
+     */
+    public byte[] exportMessagesByStationId(Integer stationId) {
+        String stationName = metroService.getStationNameById(stationId)
+                .orElseThrow(() -> new StationNotFoundException("找不到 id:" + stationId + " 的車站!"));
+
+        logger.debug("開始呼叫 API 來匯出車站當日聊天紀錄，stationId: {}, stationName: {}", stationId, stationName);
+        List<StationChatMessageVO> messages = stationChatDAO.getAllMessagesByStationId(stationId);
+
+        return exportMessagesToExcel(stationName, messages);
     }
 
     /**
@@ -299,5 +335,66 @@ public class StationChatService {
      */
     private String getAuthenticatedEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    /**
+     * 依 chatType 組裝留言的顯示內容，文字訊息直接顯示內容，旅程分享則組裝起訖站、轉乘次數與票價摘要。
+     *
+     * @param message
+     * @return 顯示內容
+     */
+    private String buildDisplayContent(StationChatMessageVO message) {
+        if (message.getChatType() == ChatTypeEnum.TEXT || message.getContent() != null) {
+            return message.getContent();
+        }
+
+        String farePriceText = message.getFarePrice() != null ? message.getFarePrice().toPlainString() + " 元" : "未提供";
+
+        return String.format("旅程分享：%s → %s（轉乘 %d 次，票價 %s）",
+                message.getFromStationName(), message.getToStationName(), message.getTransferCount(), farePriceText);
+    }
+
+    /**
+     * 將指定車站的完整聊天紀錄匯出為 excel 檔。
+     *
+     * @param stationName
+     * @param messages
+     * @return byte[]
+     * @throws StationChatExportExcelFailedException
+     */
+    private byte[] exportMessagesToExcel(String stationName, List<StationChatMessageVO> messages) {
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                Workbook workbook = new XSSFWorkbook();) {
+
+            Sheet sheet = workbook.createSheet("車站當日聊天紀錄");
+
+            Row headerRow = sheet.createRow(0);
+            String[] headers = { "留言id", "留言者", "留言類型", "內容", "建立時間(UTC)" };
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+            }
+
+            int rowIndex = 1;
+            for (StationChatMessageVO message : messages) {
+                Row row = sheet.createRow(rowIndex++);
+
+                row.createCell(0).setCellValue(message.getId());
+                row.createCell(1).setCellValue(message.getUsername());
+                row.createCell(2).setCellValue(message.getChatType().getChineseName());
+                row.createCell(3).setCellValue(buildDisplayContent(message));
+                row.createCell(4).setCellValue(message.getCreatedAt().format(EXCEL_DATE_TIME_FORMATTER));
+            }
+
+            Row totalRow = sheet.createRow(rowIndex);
+            totalRow.createCell(0).setCellValue("【總計】");
+            totalRow.createCell(1).setCellValue(stationName + " 共 " + messages.size() + " 則留言");
+
+            workbook.write(byteArrayOutputStream);
+
+            return byteArrayOutputStream.toByteArray();
+        } catch (IOException error) {
+            throw new StationChatExportExcelFailedException("匯出車站當日聊天紀錄 excel 報表發生錯誤!");
+        }
     }
 }

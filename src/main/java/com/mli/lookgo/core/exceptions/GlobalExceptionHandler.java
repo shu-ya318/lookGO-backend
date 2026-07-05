@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
+import com.mli.lookgo.module.stationChat.exceptions.StationChatExportExcelFailedException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatNotFoundException;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
@@ -225,5 +226,21 @@ public class GlobalExceptionHandler {
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiResult);
+    }
+
+    /**
+     * 處理匯出車站當日聊天紀錄 excel 檔失敗的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 500 (Internal Server Error) 給客戶端。
+     */
+    @ExceptionHandler(StationChatExportExcelFailedException.class)
+    public ResponseEntity<MessageVO> handleStationChatExportExcelFailedException(
+            StationChatExportExcelFailedException exception) {
+        logger.error("匯出車站當日聊天紀錄 excel 檔失敗: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(apiResult);
     }
 }

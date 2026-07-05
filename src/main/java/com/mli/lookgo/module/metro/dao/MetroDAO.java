@@ -2,6 +2,7 @@ package com.mli.lookgo.module.metro.dao;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -13,6 +14,7 @@ import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
 import com.mli.lookgo.module.metro.model.entity.StationFare;
 import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
+import com.mli.lookgo.module.metro.model.vo.StationOptionVO;
 
 /**
  * 和資料庫交互，處理捷運資料查詢相關的操作。
@@ -72,6 +74,14 @@ public interface MetroDAO {
     List<Station> getAllStation();
 
     /**
+     * 用車站 id 查詢指定車站的中文名稱。
+     *
+     * @param stationId
+     * @return Optional<String>
+     */
+    Optional<String> getStationNameById(@Param("stationId") Integer stationId);
+
+    /**
      * 依車站代碼取得車站詳細資料，可選擇性依設備過濾。
      *
      * @param dto
@@ -93,6 +103,13 @@ public interface MetroDAO {
      * @return List<LineStation>
      */
     List<LineStation> getAllLineStation();
+
+    /**
+     * 取得所有路線車站的代碼與中文名稱，供前端下拉選單使用（不含車站設施等詳細資料）。
+     *
+     * @return List<StationOptionVO>
+     */
+    List<StationOptionVO> getAllStationOptions();
 
     /**
      * 批次更新路線車站的累計行駛時間。以 line_id + station_code 定位更新目標。

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,7 @@ import com.mli.lookgo.module.metro.model.graph.Edge;
 import com.mli.lookgo.module.metro.model.vo.MapVO;
 import com.mli.lookgo.module.metro.model.vo.OriginDestinationDetailVO;
 import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
+import com.mli.lookgo.module.metro.model.vo.StationOptionVO;
 
 /**
  * 處理前端查詢捷運資料相關的業務邏輯。
@@ -85,6 +87,17 @@ public class MetroService {
         }
 
         /**
+         * 用車站 id 查詢指定車站的中文名稱，供其他模組組裝匯出檔案等用途使用。
+         *
+         * @param stationId
+         * @return Optional<String>
+         */
+        public Optional<String> getStationNameById(Integer stationId) {
+                logger.debug("開始依車站 id 查詢車站中文名稱，stationId: {}", stationId);
+                return metroDAO.getStationNameById(stationId);
+        }
+
+        /**
          * 取得所有路線車站資料。
          *
          * @return List<LineStation>
@@ -92,6 +105,16 @@ public class MetroService {
         public List<LineStation> getAllLineStation() {
                 logger.debug("開始查詢所有路線車站資料");
                 return metroDAO.getAllLineStation();
+        }
+
+        /**
+         * 取得所有路線車站的代碼與中文名稱，供前端下拉選單使用。
+         *
+         * @return List<StationOptionVO>
+         */
+        public List<StationOptionVO> getAllStationOptions() {
+                logger.debug("開始查詢所有車站選項資料");
+                return metroDAO.getAllStationOptions();
         }
 
         /**

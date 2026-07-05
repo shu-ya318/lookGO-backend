@@ -1,10 +1,12 @@
 package com.mli.lookgo.module.stationChat.controller;
 
-import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,11 +14,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriUtils;
 
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
 import com.mli.lookgo.module.stationChat.model.dto.CreateAnnouncementDTO;
 import com.mli.lookgo.module.stationChat.model.dto.DeleteAnnouncementDTO;
+import com.mli.lookgo.module.stationChat.model.dto.StationIdDTO;
 import com.mli.lookgo.module.stationChat.model.dto.UpdateAnnouncementDTO;
 import com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO;
 import com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO;
@@ -81,23 +85,56 @@ public class StationChatController {
         }
 
         /**
-         * 依車站 id 取得該車站的公告列表。
+         * 依車站 id 分頁取得該車站的公告列表。
          *
          * @param stationId
-         * @return ResponseEntity<List<StationChatAnnouncementVO>>
+         * @param page
+         * @param size
+         * @return ResponseEntity<PaginatedVO<StationChatAnnouncementVO>>
          */
-        @Operation(summary = "依車站 id 取得車站聊天公告", description = "取得指定車站的所有公告，依建立時間新到舊排序")
+        @Operation(summary = "依車站 id 分頁取得車站聊天公告", description = "取得指定車站的公告，支援分頁，依建立時間新到舊排序")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "成功取得車站聊天公告", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationChatAnnouncementVO.class))),
+                        @ApiResponse(responseCode = "200", description = "成功取得車站聊天公告", content = @Content(mediaType = "application/json", schema = @Schema(implementation = PaginatedVO.class))),
                         @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
                         @ApiResponse(responseCode = "404", description = "找不到指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
         @PostMapping("/get-announcement-by-station-id")
-        public ResponseEntity<List<StationChatAnnouncementVO>> getAnnouncementsByStationId(
-                        @Parameter(description = "車站 id") @RequestParam Integer stationId) {
-                logger.debug("收到依車站 id 查詢車站聊天公告的請求，stationId: {}", stationId);
-                List<StationChatAnnouncementVO> announcements = stationChatService.getAnnouncements(stationId);
+        public ResponseEntity<PaginatedVO<StationChatAnnouncementVO>> getAnnouncementsByStationId(
+                        @Parameter(description = "車站 id") @RequestParam Integer stationId,
+                        @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
+                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "16") int size) {
+                logger.debug("收到依車站 id 分頁查詢車站聊天公告的請求，stationId: {}, page: {}, size: {}", stationId, page, size);
+                PaginatedVO<StationChatAnnouncementVO> paginatedAnnouncements = stationChatService
+                                .getAnnouncements(stationId, page, size);
 
-                return ResponseEntity.ok(announcements);
+                return ResponseEntity.ok(paginatedAnnouncements);
+        }
+
+        /**
+         * 依車站 id 匯出該車站完整的聊天紀錄 excel 檔。
+         *
+         * @param stationIdDTO
+         * @return ResponseEntity<byte[]>
+         */
+        @Operation(summary = "依車站 id 匯出車站完整聊天紀錄 excel", description = "取得指定車站的完整（不分頁）聊天紀錄並匯出 excel 檔")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功匯出車站當日聊天紀錄 excel", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))),
+                        @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+                        @ApiResponse(responseCode = "404", description = "找不到指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping("/get-excel-by-station-id")
+        public ResponseEntity<byte[]> getExcelByStationId(@Valid @RequestBody StationIdDTO stationIdDTO) {
+                logger.debug("收到依車站 id 匯出車站當日聊天紀錄 excel 的請求，stationIdDTO: {}", stationIdDTO);
+                byte[] excel = stationChatService.exportMessagesByStationId(stationIdDTO.getStationId());
+
+                String encodedFilename = UriUtils.encode("車站當日聊天紀錄.xlsx", StandardCharsets.UTF_8);
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename*=utf-8''" + encodedFilename)
+                                .contentType(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .body(excel);
         }
 
         /**

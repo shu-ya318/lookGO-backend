@@ -42,12 +42,32 @@ public interface StationChatDAO {
         long countMessagesByStationId(@Param("stationId") Integer stationId);
 
         /**
-         * 依車站 id 取得該車站的公告列表，依建立時間新到舊排序。
+         * 依車站 id 取得該車站完整（不分頁）的聊天留言，並依 chatType 組裝文字訊息或旅程分享內容，依建立時間舊到新排序，供匯出 excel 使用。
          *
          * @param stationId
+         * @return List<StationChatMessageVO>
+         */
+        List<StationChatMessageVO> getAllMessagesByStationId(@Param("stationId") Integer stationId);
+
+        /**
+         * 依車站 id 分頁取得該車站的公告列表，依建立時間新到舊排序。
+         *
+         * @param stationId
+         * @param offset
+         * @param limit
          * @return List<StationChatAnnouncementVO>
          */
-        List<StationChatAnnouncementVO> getAnnouncementsByStationId(@Param("stationId") Integer stationId);
+        List<StationChatAnnouncementVO> getAnnouncementsByStationIdPaginated(@Param("stationId") Integer stationId,
+                        @Param("offset") int offset,
+                        @Param("limit") int limit);
+
+        /**
+         * 計算指定車站的公告總筆數。
+         *
+         * @param stationId
+         * @return 總筆數
+         */
+        long countAnnouncementsByStationId(@Param("stationId") Integer stationId);
 
         /**
          * 用 id 查詢指定公告的資料。

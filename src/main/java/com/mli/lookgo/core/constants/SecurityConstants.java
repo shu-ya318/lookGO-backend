@@ -20,6 +20,7 @@ public class SecurityConstants {
             "/api/v1/metro/get-all-line-transfer",
             "/api/v1/metro/get-all-station",
             "/api/v1/metro/get-all-line-station",
+            "/api/v1/metro/get-all-station-option",
             "/api/v1/metro/get-all-station-fare",
             "/api/v1/metro/get-station-by-code",
             "/api/v1/metro/get-origin-destination-detail",

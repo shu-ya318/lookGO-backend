@@ -14,7 +14,8 @@ import com.mli.lookgo.module.metro.model.graph.Edge;
 
 /**
  * 處理捷運分岔路線的業務邏輯。lines_stations 資料表以 (line_id, station_sequence) 唯一遞增排序，
- * 無法表達 Y 字分岔拓樸，{@link MetroRouteGraphService#buildAdjacencyList} 依 stationSequence 線性推導同線邊時，
+ * 無法表達 Y 字分岔拓樸，{@link MetroRouteGraphService#buildAdjacencyList} 依
+ * stationSequence 線性推導同線邊時，
  * 會在分岔口產生錯誤連接（例如把兩條支線硬串成一直線）。此類別改以人工維護的分岔站序覆蓋該區段，取代線性推導邏輯。
  * 目前涵蓋：
  * - 中和新蘆線（橘線 O）：大橋頭(O12) 分岔，蘆洲(O54)／迴龍(O21) 兩條支線
@@ -67,23 +68,22 @@ public class MetroForkBranchRouteGraphService {
 
     /**
      * 依所有分岔路線定義建立同線邊，取代 buildAdjacencyList 依 stationSequence 排序推導的線性連接方式。
-     * 邊權重計算方式與一般同線邊一致：策略 2 採相鄰站累計時間秒數差，策略 1 固定為 0。
+     * 邊權重一律採相鄰站累計時間秒數差，與一般同線邊一致；策略 1（最少轉乘）亦使用實際秒數，
+     * 使轉乘次數相同的多條路徑之間能以實際車程時間作為次要比較依據（見 MetroRouteGraphService.buildAdjacencyList）。
      *
      * @param adjacencyList     鄰接表，會直接在此 Map 加入分岔邊
      * @param lineStationByCode 車站代碼對應的路線車站資料，供查詢累計時間以計算權重
-     * @param strategy          路線策略（1：最少轉乘次數，2：最短車程時間）
      */
     public void addBranchEdges(
             Map<String, List<Edge>> adjacencyList,
-            Map<String, LineStation> lineStationByCode,
-            int strategy) {
+            Map<String, LineStation> lineStationByCode) {
 
         for (BranchLineDefinition definition : branchLineDefinitions) {
             for (List<String> branch : definition.branches()) {
                 for (int i = 0; i < branch.size() - 1; i++) {
                     String fromCode = branch.get(i);
                     String toCode = branch.get(i + 1);
-                    int weight = strategy == 2 ? calculateSegmentWeight(lineStationByCode, fromCode, toCode) : 0;
+                    int weight = calculateSegmentWeight(lineStationByCode, fromCode, toCode);
 
                     adjacencyList.computeIfAbsent(fromCode, code -> new ArrayList<>())
                             .add(new Edge(toCode, weight, false));
@@ -100,9 +100,11 @@ public class MetroForkBranchRouteGraphService {
     private int calculateSegmentWeight(Map<String, LineStation> lineStationByCode, String fromCode, String toCode) {
         LineStation from = lineStationByCode.get(fromCode);
         LineStation to = lineStationByCode.get(toCode);
+
         if (from == null || to == null || from.getCumulativeTime() == null || to.getCumulativeTime() == null) {
             return 0;
         }
+
         return Math.abs(to.getCumulativeTime().intValue() - from.getCumulativeTime().intValue());
     }
 

@@ -72,6 +72,11 @@ public class MetroSyncService {
             "R22A", 180,
             "G03A", 37);
 
+    // DataTaipei 車站設施資料集為與台鐵、高鐵同名的板橋站區隔，將捷運板橋站命名為「板橋(板南線)」，
+    // 與 TDX 車站中文名稱「板橋」不一致，故在合併資料前正規化為 TDX 命名，以此 Map 為唯一真實來源
+    private static final Map<String, String> DATA_TAIPEI_STATION_NAME_ALIASES = Map.of(
+            "板橋(板南線)", "板橋");
+
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
      *
@@ -122,8 +127,9 @@ public class MetroSyncService {
         List<StationFacilityVO> dataTaipeiStationVOs = fetchAllStationFacility();
 
         // 以車站中文名稱為 key，建立 DataTaipei 設施資料的 Map，方便查詢
+        // 名稱先經過 normalizeDataTaipeiStationName 正規化，修正與 TDX 命名不一致的已知特例（如板橋站）
         Map<String, StationFacilityVO> dataTaipeiMap = dataTaipeiStationVOs.stream()
-                .collect(Collectors.toMap(StationFacilityVO::getStationName, vo -> vo,
+                .collect(Collectors.toMap(vo -> normalizeDataTaipeiStationName(vo.getStationName()), vo -> vo,
                         // 車站不重複: 若有相同 key，保留第一次出現的值
                         (existingValue, newValue) -> existingValue));
 
@@ -526,6 +532,17 @@ public class MetroSyncService {
                 tdxLineVO.getNameEn(),
                 tdxLineVO.getColor(),
                 updatedAt);
+    }
+
+    /**
+     * 將 DataTaipei 車站設施資料的中文名稱正規化為 TDX 命名，修正已知的資料源命名不一致特例
+     * （見 {@link #DATA_TAIPEI_STATION_NAME_ALIASES}）。
+     *
+     * @param dataTaipeiStationName DataTaipei 回傳的原始車站中文名稱
+     * @return 正規化後、與 TDX 命名一致的車站中文名稱
+     */
+    private String normalizeDataTaipeiStationName(String dataTaipeiStationName) {
+        return DATA_TAIPEI_STATION_NAME_ALIASES.getOrDefault(dataTaipeiStationName, dataTaipeiStationName);
     }
 
     /**

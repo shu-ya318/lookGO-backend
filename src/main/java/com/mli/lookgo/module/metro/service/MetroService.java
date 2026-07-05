@@ -336,13 +336,16 @@ public class MetroService {
                 int totalTime = metroRouteGraphService.calculateTotalTime(
                                 dijkstraResult.getPath(), dijkstraResult.getPrevIsTransfer(), lineStationByCode,
                                 transferTimeMap);
+                int transferTime = metroRouteGraphService.calculateTransferTime(
+                                dijkstraResult.getPath(), dijkstraResult.getPrevIsTransfer(), transferTimeMap);
                 BigDecimal farePrice = fareType != null
                                 ? metroDAO.getFareByStationCodesAndType(fromCode, toCode, fareType)
                                 : null;
 
-                logger.debug("起終點站詳細資料查詢完成，轉乘次數: {}，總行駛時間: {} 秒", transferCount, totalTime);
+                logger.debug("起終點站詳細資料查詢完成，轉乘次數: {}，總行駛時間: {} 秒，轉乘時間: {} 秒",
+                                transferCount, totalTime, transferTime);
 
                 return new OriginDestinationDetailVO(fromCode, toCode, fareType, strategy,
-                                route, transferCount, totalTime, farePrice);
+                                route, transferCount, totalTime, transferTime, farePrice);
         }
 }

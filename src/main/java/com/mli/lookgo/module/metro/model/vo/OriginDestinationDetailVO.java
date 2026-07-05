@@ -33,8 +33,11 @@ public class OriginDestinationDetailVO {
     @Schema(description = "轉乘次數", example = "1")
     private int transferCount;
 
-    @Schema(description = "總行駛時間 (秒)", example = "1800")
+    @Schema(description = "總行駛時間 (秒，含轉乘時間)", example = "1800")
     private Integer totalTravelTimeSeconds;
+
+    @Schema(description = "轉乘時間 (秒，換乘站步行時間加總，已包含於總行駛時間內)", example = "180")
+    private Integer transferTimeSeconds;
 
     @Schema(description = "票價 (元；未指定票種時為 null)", example = "45.00")
     private BigDecimal farePrice;
@@ -44,7 +47,7 @@ public class OriginDestinationDetailVO {
 
     public OriginDestinationDetailVO(String fromStationCode, String toStationCode, Integer fareType,
             Integer routingStrategy, List<RouteSegmentVO> route, int transferCount,
-            Integer totalTravelTimeSeconds, BigDecimal farePrice) {
+            Integer totalTravelTimeSeconds, Integer transferTimeSeconds, BigDecimal farePrice) {
         this.fromStationCode = fromStationCode;
         this.toStationCode = toStationCode;
         this.fareType = fareType;
@@ -52,6 +55,7 @@ public class OriginDestinationDetailVO {
         this.route = route;
         this.transferCount = transferCount;
         this.totalTravelTimeSeconds = totalTravelTimeSeconds;
+        this.transferTimeSeconds = transferTimeSeconds;
         this.farePrice = farePrice;
     }
 
@@ -111,6 +115,14 @@ public class OriginDestinationDetailVO {
         this.totalTravelTimeSeconds = totalTravelTimeSeconds;
     }
 
+    public Integer getTransferTimeSeconds() {
+        return transferTimeSeconds;
+    }
+
+    public void setTransferTimeSeconds(Integer transferTimeSeconds) {
+        this.transferTimeSeconds = transferTimeSeconds;
+    }
+
     public BigDecimal getFarePrice() {
         return farePrice;
     }
@@ -126,6 +138,7 @@ public class OriginDestinationDetailVO {
                 ", toStationCode='" + toStationCode + '\'' +
                 ", transferCount=" + transferCount +
                 ", totalTravelTimeSeconds=" + totalTravelTimeSeconds +
+                ", transferTimeSeconds=" + transferTimeSeconds +
                 ", farePrice=" + farePrice +
                 '}';
     }

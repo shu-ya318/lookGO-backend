@@ -33,6 +33,10 @@ public class MetroRouteGraphService {
 
     public static final BigDecimal SAME_STATION_FARE = BigDecimal.valueOf(20);
 
+    // 策略 1（最少轉乘）換乘邊權重的主要成分，遠大於任何實際車程秒數，確保轉乘次數為主要比較依據，
+    // 實際秒數只在轉乘次數相同時作為次要比較依據（見 buildAdjacencyList）
+    private static final int TRANSFER_COUNT_DOMINANT_WEIGHT = 1_000_000;
+
     private final MetroForkBranchRouteGraphService metroForkBranchRouteGraphService;
 
     /**
@@ -75,7 +79,7 @@ public class MetroRouteGraphService {
         BigDecimal farePrice = fareType != null ? SAME_STATION_FARE : null;
 
         return new OriginDestinationDetailVO(stationCode, stationCode, fareType, strategy,
-                Collections.singletonList(segment), 0, 0, farePrice);
+                Collections.singletonList(segment), 0, 0, 0, farePrice);
     }
 
     /**
@@ -101,7 +105,9 @@ public class MetroRouteGraphService {
 
     /**
      * 依路線策略建立鄰接表。
-     * 策略 1：同線邊權重 0、換乘邊權重 1（最小化轉乘次數）。
+     * 策略 1：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為一個遠大於任何實際秒數的常數
+     * 加上換乘時間秒數（最小化轉乘次數；轉乘次數相同時，以實際秒數作為次要比較依據，
+     * 避免任意選到轉乘次數相同但多繞路的路徑）。
      * 策略 2：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為換乘時間秒數（最短車程時間）。
      * 具 Y 字分岔拓樸的路線（見 {@link MetroForkBranchRouteGraphService}）無法單純依 stationSequence
      * 排序推導同線邊，分岔口相鄰站對會略過線性推導，改由 {@link MetroForkBranchRouteGraphService#addBranchEdges} 建立正確邊。
@@ -144,16 +150,15 @@ public class MetroRouteGraphService {
                     continue;
                 }
 
-                int weight = 0;
-                if (strategy == 2) {
-                    int currentTime = currentStation.getCumulativeTime() != null
-                            ? currentStation.getCumulativeTime().intValue()
-                            : 0;
-                    int nextTime = nextStation.getCumulativeTime() != null
-                            ? nextStation.getCumulativeTime().intValue()
-                            : 0;
-                    weight = Math.abs(nextTime - currentTime);
-                }
+                // 策略 1 亦採用實際秒數（而非固定 0），使轉乘次數相同的多條路徑之間，
+                // 以實際車程時間作為次要比較依據，避免任意選到多坐好幾站才轉乘的路徑（見換乘邊權重註解）
+                int currentTime = currentStation.getCumulativeTime() != null
+                        ? currentStation.getCumulativeTime().intValue()
+                        : 0;
+                int nextTime = nextStation.getCumulativeTime() != null
+                        ? nextStation.getCumulativeTime().intValue()
+                        : 0;
+                int weight = Math.abs(nextTime - currentTime);
 
                 adjacencyList.computeIfAbsent(currentStation.getStationCode(), code -> new ArrayList<>())
                         .add(new Edge(nextStation.getStationCode(), weight, false));
@@ -163,7 +168,7 @@ public class MetroRouteGraphService {
         }
 
         // 分岔路線同線邊（覆蓋依 stationSequence 線性推導無法表達的 Y 字拓樸）
-        metroForkBranchRouteGraphService.addBranchEdges(adjacencyList, lineStationByCode, strategy);
+        metroForkBranchRouteGraphService.addBranchEdges(adjacencyList, lineStationByCode);
 
         // 換乘邊
         for (LineTransfer lineTransfer : lineTransfers) {
@@ -172,8 +177,10 @@ public class MetroRouteGraphService {
             if (from == null || to == null)
                 continue;
 
-            int weight = (strategy == 1) ? 1
-                    : (lineTransfer.getTransferTime() != null ? lineTransfer.getTransferTime().intValue() * 60 : 0);
+            int transferSeconds = lineTransfer.getTransferTime() != null
+                    ? lineTransfer.getTransferTime().intValue() * 60
+                    : 0;
+            int weight = (strategy == 1) ? TRANSFER_COUNT_DOMINANT_WEIGHT + transferSeconds : transferSeconds;
 
             adjacencyList.computeIfAbsent(from.getStationCode(), code -> new ArrayList<>())
                     .add(new Edge(to.getStationCode(), weight, true));
@@ -322,6 +329,26 @@ public class MetroRouteGraphService {
             }
         }
         return totalTime;
+    }
+
+    /**
+     * 計算全程轉乘時間加總（秒），僅加總換乘邊的時間，已包含於 {@link #calculateTotalTime} 的結果內。
+     */
+    public int calculateTransferTime(
+            List<String> path,
+            Map<String, Boolean> prevIsTransfer,
+            Map<String, Short> transferTimeMap) {
+
+        int transferTime = 0;
+        for (int i = 1; i < path.size(); i++) {
+            String prev = path.get(i - 1);
+            String code = path.get(i);
+            if (Boolean.TRUE.equals(prevIsTransfer.get(code))) {
+                Short time = transferTimeMap.get(prev + ":" + code);
+                transferTime += (time != null ? time.intValue() * 60 : 0);
+            }
+        }
+        return transferTime;
     }
 
     /**

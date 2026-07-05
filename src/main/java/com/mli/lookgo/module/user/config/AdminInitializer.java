@@ -50,7 +50,7 @@ public class AdminInitializer implements ApplicationRunner {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         User admin = new User();
 
@@ -61,9 +61,9 @@ public class AdminInitializer implements ApplicationRunner {
         admin.setUsername(adminUsername);
         admin.setCellphone(adminCellphone);
         admin.setStatus(UserStatus.ACTIVE.getCode());
-        admin.setCreatedAt(now);
-        admin.setUpdatedAt(now);
-        admin.setLastLoginAt(now);
+        admin.setCreatedAt(currentTime);
+        admin.setUpdatedAt(currentTime);
+        admin.setLastLoginAt(currentTime);
 
         authDAO.createUser(admin);
     }

@@ -143,4 +143,11 @@ public interface StationChatDAO {
          * @return Optional<Integer> 旅程規劃擁有者的 user id，查無資料或已軟刪除則為空
          */
         Optional<Integer> getActiveTripPlanOwnerId(@Param("tripPlanId") Integer tripPlanId);
+
+        /**
+         * 磬刪（物理刪除）所有車站的聊天留言，供每日排程清除使用。
+         *
+         * @return 影響筆數
+         */
+        int deleteAllMessages();
 }

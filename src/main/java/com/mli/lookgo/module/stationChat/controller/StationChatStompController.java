@@ -7,6 +7,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -26,7 +27,8 @@ import com.mli.lookgo.module.stationChat.service.StationChatService;
 import jakarta.validation.Valid;
 
 /**
- * 處理站點聊天留言即時發送與刪除的 STOMP 控制器，處理完成後廣播給訂閱該車站的所有使用者。
+ * 處理車站聊天留言即時發送與刪除的 STOMP 控制器，處理完成後廣播給訂閱該車站的所有使用者。
+ * 需使用支援 STOMP 的工具 (例如: Postman 的 WebSocket Request) 或前端測試，無法使用 Swagger 測試。
  *
  * @author D5042101
  * @since 2026.07.04
@@ -53,7 +55,7 @@ public class StationChatStompController {
         }
 
         /**
-         * 發送一則站點聊天留言（文字訊息或旅程分享），並廣播給訂閱該車站的所有使用者。
+         * 發送一則車站聊天留言（文字訊息或旅程分享），並廣播給訂閱該車站的所有使用者。
          *
          * @param stationId
          * @param sendMessageDTO
@@ -62,18 +64,18 @@ public class StationChatStompController {
         @MessageMapping("/station-chat/{stationId}/send-message")
         public void sendMessage(@DestinationVariable Integer stationId, @Valid @Payload SendMessageDTO sendMessageDTO,
                         Principal principal) {
-                logger.debug("收到 STOMP 發送站點聊天留言的請求，stationId: {}, email: {}, sendMessageDTO: {}", stationId,
+                logger.debug("收到 STOMP 發送車站聊天留言的請求，stationId: {}, email: {}, sendMessageDTO: {}", stationId,
                                 principal.getName(), sendMessageDTO);
 
                 StationChatMessageVO messageVO = stationChatService.sendMessage(stationId, sendMessageDTO,
                                 principal.getName());
 
                 simpMessagingTemplate.convertAndSend(TOPIC_PREFIX + stationId,
-                                new StationChatEventVO(ChatEventTypeEnum.NEW.getCode(), messageVO, null));
+                                new StationChatEventVO(ChatEventTypeEnum.NEW, messageVO, null));
         }
 
         /**
-         * 刪除指定的站點聊天留言（本人或 ADMIN），並廣播給訂閱該車站的所有使用者。
+         * 刪除指定的車站聊天留言（本人或 ADMIN），並廣播給訂閱該車站的所有使用者。
          *
          * @param stationId
          * @param messageId
@@ -82,13 +84,13 @@ public class StationChatStompController {
         @MessageMapping("/station-chat/{stationId}/delete-message/{messageId}")
         public void deleteMessage(@DestinationVariable Integer stationId, @DestinationVariable Integer messageId,
                         Principal principal) {
-                logger.debug("收到 STOMP 刪除站點聊天留言的請求，stationId: {}, messageId: {}, email: {}", stationId, messageId,
+                logger.debug("收到 STOMP 刪除車站聊天留言的請求，stationId: {}, messageId: {}, email: {}", stationId, messageId,
                                 principal.getName());
 
                 stationChatService.deleteMessage(stationId, messageId, principal.getName());
 
                 simpMessagingTemplate.convertAndSend(TOPIC_PREFIX + stationId,
-                                new StationChatEventVO(ChatEventTypeEnum.DELETE.getCode(), null, messageId));
+                                new StationChatEventVO(ChatEventTypeEnum.DELETE, null, messageId));
         }
 
         /**
@@ -107,6 +109,21 @@ public class StationChatStompController {
                                 .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
 
                 return errors;
+        }
+
+        /**
+         * 處理 STOMP payload JSON 轉換失敗的例外（如欄位型別錯誤、列舉值不合法），回傳統一的繁中錯誤訊息給發送者本人，
+         * 避免把 Jackson 內部的技術性錯誤訊息（含套件、類別路徑）直接暴露給前端。
+         *
+         * @param exception
+         * @return MessageVO
+         */
+        @MessageExceptionHandler(MessageConversionException.class)
+        @SendToUser("/queue/errors")
+        public MessageVO handleMessageConversionException(MessageConversionException exception) {
+                logger.error("STOMP payload JSON 轉換失敗: {}", exception.getMessage());
+
+                return new MessageVO("請求格式錯誤，請確認欄位型別是否正確!");
         }
 
         /**

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.mli.lookgo.module.stationChat.enums.ChatTypeEnum;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -23,28 +24,28 @@ public class StationChatMessageVO {
     @Schema(description = "留言者名稱", example = "小明")
     private String username;
 
-    @Schema(description = "留言類型 (1=文字訊息, 2=旅程分享)", example = "1")
-    private Integer chatType;
+    @Schema(description = "留言類型 (TEXT=文字訊息, TRIP_PLAN=旅程分享)", example = "TEXT")
+    private ChatTypeEnum chatType;
 
-    @Schema(description = "文字訊息內容 (chatType=1 時提供)", example = "這裡的電梯正在維修")
+    @Schema(description = "文字訊息內容 (chatType=TEXT 時提供)", example = "這裡的電梯正在維修")
     private String content;
 
-    @Schema(description = "旅程分享關聯的旅程規劃 id (chatType=2 時提供)", example = "10")
+    @Schema(description = "旅程分享關聯的旅程規劃 id (chatType=TRIP_PLAN 時提供)", example = "10")
     private Integer tripPlanId;
 
-    @Schema(description = "起始車站名稱 (chatType=2 時提供)", example = "淡水站")
+    @Schema(description = "起始車站名稱 (chatType=TRIP_PLAN 時提供)", example = "淡水站")
     private String fromStationName;
 
-    @Schema(description = "終點車站名稱 (chatType=2 時提供)", example = "台北車站")
+    @Schema(description = "終點車站名稱 (chatType=TRIP_PLAN 時提供)", example = "台北車站")
     private String toStationName;
 
-    @Schema(description = "票種 (1=全票, 4=學生, 5=兒童, 7=愛心；chatType=2 時提供)", example = "1")
+    @Schema(description = "票種 (1=全票, 4=學生, 5=兒童, 7=愛心；chatType=TRIP_PLAN 時提供)", example = "1")
     private Integer fareType;
 
-    @Schema(description = "票價 (元；chatType=2 時提供)", example = "45.00")
+    @Schema(description = "票價 (元；chatType=TRIP_PLAN 時提供)", example = "45.00")
     private BigDecimal farePrice;
 
-    @Schema(description = "轉乘次數 (chatType=2 時提供)", example = "1")
+    @Schema(description = "轉乘次數 (chatType=TRIP_PLAN 時提供)", example = "1")
     private Integer transferCount;
 
     @Schema(description = "留言建立時間 (UTC, ISO 8601)", example = "2026-07-03T12:00:00Z")
@@ -69,11 +70,11 @@ public class StationChatMessageVO {
         this.username = username;
     }
 
-    public Integer getChatType() {
+    public ChatTypeEnum getChatType() {
         return chatType;
     }
 
-    public void setChatType(Integer chatType) {
+    public void setChatType(ChatTypeEnum chatType) {
         this.chatType = chatType;
     }
 

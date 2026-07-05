@@ -1,6 +1,7 @@
 package com.mli.lookgo.module.stationChat.model.vo;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.mli.lookgo.module.stationChat.enums.ChatEventTypeEnum;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -14,29 +15,29 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "回傳車站聊天即時事件資料的物件")
 public class StationChatEventVO {
 
-    @Schema(description = "事件類型 (1=新訊息, 2=刪除訊息)", example = "1")
-    private Integer eventType;
+    @Schema(description = "事件類型 (NEW=新訊息, DELETE=刪除訊息)", example = "NEW")
+    private ChatEventTypeEnum eventType;
 
-    @Schema(description = "新增的留言內容 (eventType=1 時提供)")
+    @Schema(description = "新增的留言內容 (eventType=NEW 時提供)")
     private StationChatMessageVO message;
 
-    @Schema(description = "被刪除的留言 id (eventType=2 時提供)", example = "5")
+    @Schema(description = "被刪除的留言 id (eventType=DELETE 時提供)", example = "5")
     private Integer deletedMessageId;
 
     public StationChatEventVO() {
     }
 
-    public StationChatEventVO(Integer eventType, StationChatMessageVO message, Integer deletedMessageId) {
+    public StationChatEventVO(ChatEventTypeEnum eventType, StationChatMessageVO message, Integer deletedMessageId) {
         this.eventType = eventType;
         this.message = message;
         this.deletedMessageId = deletedMessageId;
     }
 
-    public Integer getEventType() {
+    public ChatEventTypeEnum getEventType() {
         return eventType;
     }
 
-    public void setEventType(Integer eventType) {
+    public void setEventType(ChatEventTypeEnum eventType) {
         this.eventType = eventType;
     }
 

@@ -85,11 +85,11 @@ public class MetroSyncService {
         logger.debug("開始從 TDX 同步路線資料");
 
         List<LineVO> tdxStationVOs = fetchAllLine();
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         List<Line> lines = new ArrayList<>(tdxStationVOs.size());
         for (LineVO tdxLineVO : tdxStationVOs) {
-            lines.add(this.toLineEntity(tdxLineVO, now));
+            lines.add(this.toLineEntity(tdxLineVO, currentTime));
         }
 
         metroDAO.upsertAllLine(lines);
@@ -123,7 +123,7 @@ public class MetroSyncService {
                         // 車站不重複: 若有相同 key，保留第一次出現的值
                         (existingValue, newValue) -> existingValue));
 
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         // TDX /Station 是依「路線」而非「實體車站」回傳，換乘站會有多筆重複站名（如台北車站同時是 R10、BL12）；
         // 同一批次內對同一個 name_zh_tw 送出多筆 MERGE 會互相覆蓋、導致該站最終未被寫入，故先在 Java 端以站名去重，只保留第一筆
@@ -132,7 +132,7 @@ public class MetroSyncService {
             // 透過 Key (車站名稱) 比對並取得 DataTaipei 的設施資料
             StationFacilityVO dataTaipeiVO = dataTaipeiMap.get(tdxStationVO.getNameZhTw());
             stationByName.putIfAbsent(tdxStationVO.getNameZhTw(),
-                    this.toStationEntity(tdxStationVO, dataTaipeiVO, now));
+                    this.toStationEntity(tdxStationVO, dataTaipeiVO, currentTime));
         }
         List<Station> stations = new ArrayList<>(stationByName.values());
 
@@ -172,7 +172,7 @@ public class MetroSyncService {
 
         // 3. 向 TDX API 取得所有路線與車站的對照資料
         List<LineStationVO> tdxLineStationVOs = fetchAllLineStation();
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         List<LineStation> lineStations = new ArrayList<>();
         for (LineStationVO tdxLineStationVO : tdxLineStationVOs) {
@@ -200,7 +200,7 @@ public class MetroSyncService {
                         detail.getStationCode(),
                         detail.getCumulativeDistance(),
                         detail.getTravelTime(),
-                        now));
+                        currentTime));
             }
         }
 
@@ -237,7 +237,7 @@ public class MetroSyncService {
 
         // 2. 從 TDX API 取得所有車站間的行駛與停站時間資料
         List<StationTravelTimeVO> s2sTravelTimeVOs = fetchAllStationTravelTime();
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         // 3. 用於追蹤已處理的路線（以途經車站集合為鍵），避免同路線去回程重複覆寫
         Set<String> processedRouteKeys = new HashSet<>();
@@ -278,7 +278,7 @@ public class MetroSyncService {
                 fromStation.setLineId(lineId);
                 fromStation.setStationCode(td.getFromStationId());
                 fromStation.setCumulativeTime((short) cumulativeTime);
-                fromStation.setUpdatedAt(now);
+                fromStation.setUpdatedAt(currentTime);
                 lineStations.add(fromStation);
 
                 // 8. 累加目前區段的停站與行駛秒數（例如：累加淡水停站 30 秒 + 淡水到紅樹林行車 130 秒，累加後為 160 秒）
@@ -290,7 +290,7 @@ public class MetroSyncService {
                     toStation.setLineId(lineId);
                     toStation.setStationCode(td.getToStationId());
                     toStation.setCumulativeTime((short) cumulativeTime);
-                    toStation.setUpdatedAt(now);
+                    toStation.setUpdatedAt(currentTime);
                     lineStations.add(toStation);
                 }
             }
@@ -324,7 +324,7 @@ public class MetroSyncService {
 
         // 2. 從 TDX API 取得所有車站配對的票價資料
         List<StationFareVO> stationFareVOs = fetchAllStationFare();
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         List<StationFare> stationFares = new ArrayList<>();
         for (StationFareVO stationFareVO : stationFareVOs) {
@@ -351,7 +351,7 @@ public class MetroSyncService {
                         toStationId,
                         fareDetail.getFareClass(),
                         fareDetail.getPrice(),
-                        now));
+                        currentTime));
             }
         }
 
@@ -388,7 +388,7 @@ public class MetroSyncService {
 
         // 2. 從 TDX API 取得所有轉乘站的路線間換乘（步行）時間資料
         List<LineTransferVO> lineTransferVOs = fetchAllLineTransfer();
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         List<LineTransfer> lineTransfers = new ArrayList<>();
         for (LineTransferVO vo : lineTransferVOs) {
@@ -408,7 +408,7 @@ public class MetroSyncService {
                     fromLineStationId,
                     toLineStationId,
                     vo.getTransferTime().shortValue(),
-                    now));
+                    currentTime));
         }
 
         // 6. 每筆綁定 4 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 500 分批 Upsert

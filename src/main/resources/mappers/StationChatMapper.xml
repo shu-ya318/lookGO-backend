@@ -8,7 +8,12 @@
         SELECT
             scm.id,
             u.username,
-            scm.chat_type,
+            <!-- 轉成列舉常數名稱字串，MyBatis 預設的 EnumTypeHandler 才能直接對映到 ChatTypeEnum 欄位；
+                 新增 ChatTypeEnum 常數時務必同步在此補上對應的 WHEN 分支 -->
+            CASE scm.chat_type
+                WHEN 1 THEN 'TEXT'
+                WHEN 2 THEN 'TRIP_PLAN'
+            END AS chat_type,
             CASE
                 WHEN scm.chat_type = 2 AND fs.id IS NULL THEN N'該旅程分享已被移除'
                 ELSE scm.content
@@ -32,7 +37,7 @@
         <include refid="messageVOSelectAndJoins" />
         WHERE scm.station_id = #{stationId, jdbcType=INTEGER}
           AND scm.deleted_at IS NULL
-        ORDER BY scm.created_at DESC
+        ORDER BY scm.created_at DESC, scm.id DESC
         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
     </select>
 
@@ -145,5 +150,10 @@
         WHERE id = #{tripPlanId, jdbcType=INTEGER}
           AND deleted_at IS NULL
     </select>
+
+    <!-- 磬刪（物理刪除）所有車站的聊天留言，供每日排程清除使用 -->
+    <delete id="deleteAllMessages">
+        DELETE FROM [dbo].[station_chat_messages]
+    </delete>
 
 </mapper>

@@ -183,8 +183,7 @@ public class StationChatService {
      * @return StationChatMessageVO 供 STOMP 廣播使用
      * @throws UserNotFoundException           找不到當前使用者。
      * @throws StationNotFoundException        找不到指定車站。
-     * @throws IllegalArgumentException        留言類型無效，或 content／tripPlanId
-     *                                         未依留言類型正確擇一提供。
+     * @throws IllegalArgumentException        content／tripPlanId 未依留言類型正確擇一提供。
      * @throws TripPlanNotFoundException       找不到指定旅程規劃，或該旅程規劃已被軟刪除。
      * @throws TripPlanAccessDeniedException   嘗試分享非本人擁有的旅程規劃。
      * @throws ChatDailyLimitExceededException 當日發送則數已達會員等級上限。
@@ -200,7 +199,7 @@ public class StationChatService {
             throw new StationNotFoundException("找不到 id:" + stationId + " 的車站!");
         }
 
-        ChatTypeEnum chatType = ChatTypeEnum.fromCode(sendMessageDTO.getChatType());
+        ChatTypeEnum chatType = sendMessageDTO.getChatType();
 
         if (chatType == ChatTypeEnum.TEXT) {
             if (sendMessageDTO.getContent() == null || sendMessageDTO.getContent().isBlank()) {
@@ -277,6 +276,20 @@ public class StationChatService {
         }
 
         stationChatDAO.softDeleteMessageById(message.getId(), LocalDateTime.now(ZoneOffset.UTC));
+    }
+
+    /**
+     * 磬刪（物理刪除）所有車站的聊天留言，供每日排程清除使用。
+     *
+     * @return 清除筆數
+     */
+    public int clearAllMessages() {
+        logger.debug("開始清除所有車站聊天留言");
+
+        int deletedCount = stationChatDAO.deleteAllMessages();
+        logger.debug("車站聊天留言清除完成，共清除 {} 筆", deletedCount);
+
+        return deletedCount;
     }
 
     /**

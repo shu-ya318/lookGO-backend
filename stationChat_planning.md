@@ -107,10 +107,10 @@ CREATE TABLE [dbo].[station_chat_announcements] (
 
 | 分層              | 對應內容                                                                                                                                                                                                                                                                    |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| (1) Model 層      | VO：`StationChatAnnouncementVO(id, stationId, content, createdByUsername, createdAt, updatedAt)`；包裝：`List<StationChatAnnouncementVO>`；DTO：`GetAnnouncementByStationIdDTO(stationId)`                                                                                  |
+| (1) Model 層      | VO：`StationChatAnnouncementVO(id, stationId, content, createdByUsername, createdAt, updatedAt)`；包裝：`List<StationChatAnnouncementVO>`；不使用 DTO，`stationId` 以 `@RequestParam` 接收（比照 API 1 `get-message-by-station-id` 的既有慣例，單一純量參數不需另外包一個 DTO）                                                                                  |
 | (2) 資料存取層    | `StationChatDAO.getAnnouncementsByStationId(stationId)`：`WHERE station_id=? AND deleted_at IS NULL ORDER BY created_at DESC`，join `users` 以 `created_by` 取 `createdByUsername`；對應 `StationChatMapper.xml`                                                             |
 | (3) 業務邏輯層    | `StationChatService.getAnnouncements(stationId)`：`metroService.existsStationById(stationId)` 不存在拋 `StationNotFoundException`                                                                                                                                           |
-| (4) Controller 層 | `StationChatController` `POST /api/v1/station-chat/get-announcement-by-station-id`，權限：已驗證 user                                                                                                                                                                        |
+| (4) Controller 層 | `StationChatController` `POST /api/v1/station-chat/get-announcement-by-station-id?stationId=`，權限：已驗證 user                                                                                                                                                                        |
 
 #### API 3：POST /create-announcement（新增公告）
 

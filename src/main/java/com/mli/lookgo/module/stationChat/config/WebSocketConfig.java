@@ -4,11 +4,19 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.converter.ByteArrayMessageConverter;
+import org.springframework.messaging.converter.DefaultContentTypeResolver;
+import org.springframework.messaging.converter.MappingJackson2MessageConverter;
+import org.springframework.messaging.converter.MessageConverter;
+import org.springframework.messaging.converter.StringMessageConverter;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 處理 WebSocket 的客製化配置。
@@ -22,11 +30,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
     private final List<String> allowedOrigins;
+    private final ObjectMapper objectMapper;
 
     public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor,
-            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins, ObjectMapper objectMapper) {
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
         this.allowedOrigins = allowedOrigins;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -63,5 +73,29 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(stompAuthChannelInterceptor);
+    }
+
+    /**
+     * 讓 STOMP payload 的 JSON 轉換共用 Spring 管理的 {@link ObjectMapper}（{@code JacksonConfig} 客製化過），
+     * 否則框架預設會另外建立一個全新、未套用任何客製化設定的 ObjectMapper，導致 HTTP 與 STOMP 的 JSON
+     * 行為不一致（例如列舉數字誤判成 ordinal 的防呆設定不會套用到 STOMP）。
+     *
+     * @param messageConverters 訊息轉換器清單（初始為空）
+     * @return false，表示不再疊加框架預設的轉換器
+     */
+    @Override
+    public boolean configureMessageConverters(List<MessageConverter> messageConverters) {
+        DefaultContentTypeResolver resolver = new DefaultContentTypeResolver();
+        resolver.setDefaultMimeType(MimeTypeUtils.APPLICATION_JSON);
+
+        MappingJackson2MessageConverter jacksonConverter = new MappingJackson2MessageConverter();
+        jacksonConverter.setObjectMapper(objectMapper);
+        jacksonConverter.setContentTypeResolver(resolver);
+
+        messageConverters.add(new StringMessageConverter());
+        messageConverters.add(new ByteArrayMessageConverter());
+        messageConverters.add(jacksonConverter);
+
+        return false;
     }
 }

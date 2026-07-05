@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -61,6 +62,16 @@ public class MetroSyncService {
     // TDX: 票價 (StationFare) API 前等待 60 秒再開始分頁請求，避免超出基礎會員限制
     private static final int STATION_FARE_INITIAL_WAIT_MS = 60_000;
 
+    // 新北投 (R22A)、小碧潭 (G03A) 為獨立接駁區間車站，幹線列車不會直達，乘客必須下車走月台換乘，
+    // 與蘆洲 (O54)、迴龍 (O21) 屬幹線列車直達分岔不同（見 MetroForkBranchRouteGraphService）。
+    // TDX S2STravelTime 僅提供純行駛與停靠秒數，未涵蓋此月台轉乘時間，故在此手動加上估計秒數，
+    // 使其併入該站的 cumulative_time，讓下游計算（無論同線任何站對）都用同一套累計時間相減公式，不需另外特例處理。
+    // 兩站月台配置與走行距離不同，轉乘秒數各自依官方公布的門到門總時間反推，不可共用同一數值：
+    // 新北投依官方標示步行 3 分鐘；小碧潭依官方 4 分鐘總時間扣除純車程 203 秒反推約 37 秒
+    private static final Map<String, Integer> SHUTTLE_TRANSFER_SECONDS_BY_CODE = Map.of(
+            "R22A", 180,
+            "G03A", 37);
+
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
      *
@@ -108,13 +119,6 @@ public class MetroSyncService {
         logger.debug("開始從 TDX + DataTaipei 同步請求車站資料");
 
         List<StationVO> tdxStationVOs = fetchAllStation();
-        // 診斷用: 印出 TDX 回傳中名稱含「北車站」的原始資料與字串長度，確認 fetch 端是否拿到台北車站、名稱是否含不可見字元
-        tdxStationVOs.stream()
-                .filter(vo -> vo.getNameZhTw() != null && vo.getNameZhTw().contains("北車站"))
-                .forEach(vo -> logger.debug("[診斷] TDX 回傳車站: StationID={}, name=\"{}\", nameLength={}",
-                        vo.getStationSequence(), vo.getNameZhTw(), vo.getNameZhTw().length()));
-        logger.debug("[診斷] TDX /Station 共回傳 {} 筆", tdxStationVOs.size());
-
         List<StationFacilityVO> dataTaipeiStationVOs = fetchAllStationFacility();
 
         // 以車站中文名稱為 key，建立 DataTaipei 設施資料的 Map，方便查詢
@@ -221,9 +225,17 @@ public class MetroSyncService {
     /**
      * 從 TDX StationTravelTime API 取得相鄰車站行駛時間，計算累計行駛時間後更新資料庫。
      * 需先同步路線車站資料，以確保 station_code 存在。
-     * 同一 LineId 可能對應多筆路線資料（同路線的去回程重複資料，或像中和新蘆線這種 Y
-     * 字分岔路線、蘆洲／迴龍兩條支線共用同一個 LineId 的資料），故以路線實際途經的車站代碼集合
-     * （而非僅 LineId）判斷是否為重複路線，避免分岔支線被誤判為重複而整條略過。
+     * 同一 LineId 可能對應多筆路線資料：同路線的去回程重複資料、像中和新蘆線這種 Y
+     * 字分岔路線蘆洲／迴龍兩條支線共用同一個 LineId 的資料，或淡水信義線／松山新店線這種
+     * 單站分支接駁區間（如北投-新北投）。故以路線實際途經的車站代碼集合（而非僅 LineId）判斷是否為
+     * 重複路線，避免分岔支線被誤判為重複而整條略過；並依途經站數由多到少處理，確保幹線（站數最多）
+     * 優先確立每站的累計時間基準，較短的分支接駁區間只能接續基準值繼續累加未確立的新站，
+     * 不會覆寫幹線站已確立的值（見 {@link #addLineStationCumulativeTimeIfAbsent}）。
+     * 較短的分支接駁區間中，TDX 回傳的車站順序不一定是「幹線交會站在前」（例如蘆洲支線資料是從
+     * 蘆洲往大橋頭方向排列，大橋頭在最後一站才出現）。故不直接依「起點站是否已確立」決定起算值，
+     * 而是先以路線資料自身原始順序、從 0 秒起算，得出這筆資料內部一致的相對數值（同一實體區間在不同
+     * 路線資料中的秒數彼此相符，只是各自起點不同），再找出資料中任一已確立基準的車站，算出平移量套用到
+     * 整筆資料，將其平移至與幹線相同的基準（見 {@link #shiftToEstablishedBaseline}）。
      *
      * @return MessageVO
      */
@@ -235,21 +247,25 @@ public class MetroSyncService {
         Map<String, Short> lineLetterToIdMap = metroDAO.getAllLine().stream()
                 .collect(Collectors.toMap(Line::getLetter, Line::getId, (existingValue, newValue) -> existingValue));
 
-        // 2. 從 TDX API 取得所有車站間的行駛與停站時間資料
-        List<StationTravelTimeVO> s2sTravelTimeVOs = fetchAllStationTravelTime();
+        // 2. 從 TDX API 取得所有車站間的行駛與停站時間資料，依途經站數由多到少排序，
+        // 讓幹線（或像橘線兩條完整支線）優先於較短的分支接駁區間被處理，確立全域基準
+        List<StationTravelTimeVO> s2sTravelTimeVOs = fetchAllStationTravelTime().stream()
+                .filter(vo -> vo.getTravelTimes() != null && !vo.getTravelTimes().isEmpty())
+                .sorted(Comparator.comparingInt(
+                        (StationTravelTimeVO vo) -> vo.getTravelTimes().size()).reversed())
+                .collect(Collectors.toList());
         LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         // 3. 用於追蹤已處理的路線（以途經車站集合為鍵），避免同路線去回程重複覆寫
         Set<String> processedRouteKeys = new HashSet<>();
+        // 4. 追蹤已確立累計時間基準的車站代碼，車站代碼全域唯一，故不需按路線區分
+        Map<String, Integer> establishedCumulativeTimeByCode = new HashMap<>();
         List<LineStation> lineStations = new ArrayList<>();
 
         for (StationTravelTimeVO vo : s2sTravelTimeVOs) {
             List<StationTravelTimeVO.TravelTimeDetail> travelTimes = vo.getTravelTimes();
-            if (travelTimes == null || travelTimes.isEmpty()) {
-                continue;
-            }
 
-            // 4. 以「LineId + 途經車站代碼集合（排序後去向無關）」建立路線識別鍵，
+            // 5. 以「LineId + 途經車站代碼集合（排序後去向無關）」建立路線識別鍵，
             // 去回程資料途經車站相同會得到同一把鍵而被略過；分岔支線因途經車站不同（如蘆洲支線含
             // O50~O54、迴龍支線含 O13~O21）會得到不同的鍵，兩條支線才都會被處理到
             Set<String> stationCodesInRoute = travelTimes.stream()
@@ -261,48 +277,109 @@ public class MetroSyncService {
                 continue;
             }
 
-            // 5. 依路線代號查出資料庫對應的 lineId，找不到則警告並跳過
+            // 6. 依路線代號查出資料庫對應的 lineId，找不到則警告並跳過
             Short lineId = lineLetterToIdMap.get(vo.getLineId());
             if (lineId == null) {
                 logger.warn("找不到路線代號 {} 對應的資料庫 id，跳過", vo.getLineId());
                 continue;
             }
 
-            // 6. 逐站累加行駛秒數，起點站設為 0 秒（例如：淡水站為 0 秒）
-            int cumulativeTime = 0;
-            for (int i = 0; i < travelTimes.size(); i++) {
-                StationTravelTimeVO.TravelTimeDetail td = travelTimes.get(i);
-
-                // 7. 建立目前車站（起點端）的累計時間記錄（例如：建立淡水站 R28 的記錄，時間為 0 秒）
-                LineStation fromStation = new LineStation();
-                fromStation.setLineId(lineId);
-                fromStation.setStationCode(td.getFromStationId());
-                fromStation.setCumulativeTime((short) cumulativeTime);
-                fromStation.setUpdatedAt(currentTime);
-                lineStations.add(fromStation);
-
-                // 8. 累加目前區段的停站與行駛秒數（例如：累加淡水停站 30 秒 + 淡水到紅樹林行車 130 秒，累加後為 160 秒）
-                cumulativeTime += td.getStopTime() + td.getRunTime();
-
-                // 9. 若已是最後一筆站間記錄，則補上最後終點站的累計記錄（例如：建立紅樹林站 R27 的記錄，時間為 160 秒）
-                if (i == travelTimes.size() - 1) {
-                    LineStation toStation = new LineStation();
-                    toStation.setLineId(lineId);
-                    toStation.setStationCode(td.getToStationId());
-                    toStation.setCumulativeTime((short) cumulativeTime);
-                    toStation.setUpdatedAt(currentTime);
-                    lineStations.add(toStation);
+            // 7. 依路線資料原始順序，從 0 秒起算，得出各站相對於此路線資料自身起點的累計秒數，
+            // 逐站累加停站、行駛秒數（例如：累加淡水停站 30 秒 + 淡水到紅樹林行車 130 秒，累加後為 160 秒），
+            // 若該站為獨立接駁分支站（新北投、小碧潭），額外加上月台轉乘秒數
+            List<String> stationCodesInOrder = new ArrayList<>();
+            stationCodesInOrder.add(travelTimes.get(0).getFromStationId());
+            List<Integer> localCumulativeTimes = new ArrayList<>();
+            localCumulativeTimes.add(0);
+            for (StationTravelTimeVO.TravelTimeDetail td : travelTimes) {
+                stationCodesInOrder.add(td.getToStationId());
+                int nextTime = localCumulativeTimes.get(localCumulativeTimes.size() - 1)
+                        + td.getStopTime() + td.getRunTime();
+                // 起訖任一端為接駁分支站即視為跨越該轉乘區間，不論 TDX 回傳方向為何，
+                // 轉乘秒數依該分支站各自的估計值計算，而非共用同一數值
+                Integer shuttleTransferSeconds = SHUTTLE_TRANSFER_SECONDS_BY_CODE.getOrDefault(
+                        td.getToStationId(), SHUTTLE_TRANSFER_SECONDS_BY_CODE.get(td.getFromStationId()));
+                if (shuttleTransferSeconds != null) {
+                    nextTime += shuttleTransferSeconds;
                 }
+                localCumulativeTimes.add(nextTime);
+            }
+
+            // 8. 將此路線資料自身的相對數值，平移至與已確立車站相同的全域基準後，逐站寫入
+            // （已確立基準的車站會在 addLineStationCumulativeTimeIfAbsent 內被略過，不會被覆寫）
+            int offset = shiftToEstablishedBaseline(stationCodesInOrder, localCumulativeTimes,
+                    establishedCumulativeTimeByCode);
+            for (int i = 0; i < stationCodesInOrder.size(); i++) {
+                addLineStationCumulativeTimeIfAbsent(lineStations, establishedCumulativeTimeByCode,
+                        lineId, stationCodesInOrder.get(i), localCumulativeTimes.get(i) + offset, currentTime);
             }
         }
 
-        // 10. 若有成功解析出累計時間資料，則整批更新寫入資料庫
+        // 9. 若有成功解析出累計時間資料，則整批更新寫入資料庫
         if (!lineStations.isEmpty()) {
             metroDAO.updateAllLineStationCumulativeTime(lineStations);
         }
         logger.debug("累計行駛時間同步完成，共更新 {} 筆", lineStations.size());
 
         return new MessageVO("路線車站累計行駛時間同步成功!");
+    }
+
+    /**
+     * 找出路線資料中任一已確立累計時間基準的車站，算出「該站已確立值」與「該站此路線資料自身相對值」的
+     * 差，作為平移量：由於同一實體區間在不同路線資料中的秒數彼此相符，只是各自路線起點不同，
+     * 平移後即可讓整筆資料與幹線基準一致，不論該已確立車站落在資料中的第一站、最後一站或中間站皆適用。
+     * 若整筆資料都尚未有任何車站確立基準（代表這是目前途經站數最多、最先處理的路線），平移量為 0，
+     * 直接以自身數值作為全域基準。
+     *
+     * @param stationCodesInOrder             依路線資料原始順序排列的車站代碼
+     * @param localCumulativeTimes            對應各車站、僅相對於此路線資料自身起點的累計秒數
+     * @param establishedCumulativeTimeByCode 已確立累計時間的車站代碼對照表
+     * @return 平移量（秒），套用於 localCumulativeTimes 可得到與全域基準一致的數值
+     */
+    private int shiftToEstablishedBaseline(
+            List<String> stationCodesInOrder,
+            List<Integer> localCumulativeTimes,
+            Map<String, Integer> establishedCumulativeTimeByCode) {
+
+        for (int i = 0; i < stationCodesInOrder.size(); i++) {
+            Integer established = establishedCumulativeTimeByCode.get(stationCodesInOrder.get(i));
+            if (established != null) {
+                return established - localCumulativeTimes.get(i);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * 建立車站累計時間記錄並加入待寫入清單；若該車站代碼已由先前處理、途經站數較多的路線確立累計時間，
+     * 則略過不重複寫入，確保幹線的基準值不會被之後處理、途經站數較少的分支接駁路線（如北投-新北投）覆寫。
+     *
+     * @param lineStations                    待寫入資料庫的路線車站清單，符合條件時會加入新記錄
+     * @param establishedCumulativeTimeByCode 已確立累計時間的車站代碼對照表，會加入新確立的車站
+     * @param lineId                          路線 id
+     * @param stationCode                     車站代碼
+     * @param cumulativeTime                  該車站的累計行駛秒數
+     * @param updatedAt                       更新時間 (UTC)
+     */
+    private void addLineStationCumulativeTimeIfAbsent(
+            List<LineStation> lineStations,
+            Map<String, Integer> establishedCumulativeTimeByCode,
+            Short lineId,
+            String stationCode,
+            int cumulativeTime,
+            LocalDateTime updatedAt) {
+
+        if (establishedCumulativeTimeByCode.containsKey(stationCode)) {
+            return;
+        }
+        establishedCumulativeTimeByCode.put(stationCode, cumulativeTime);
+
+        LineStation lineStation = new LineStation();
+        lineStation.setLineId(lineId);
+        lineStation.setStationCode(stationCode);
+        lineStation.setCumulativeTime((short) cumulativeTime);
+        lineStation.setUpdatedAt(updatedAt);
+        lineStations.add(lineStation);
     }
 
     /**

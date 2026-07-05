@@ -295,6 +295,7 @@ public class MetroRouteGraphService {
     /**
      * 計算全程總行駛時間（秒）。換乘段以換乘時間計，行駛段以相鄰站累計時間差計。
      */
+    // 回傳加總後的原始總秒數，讓前端對總時間進位一次，而非各段分別進位後再相加
     public int calculateTotalTime(
             List<String> path,
             Map<String, Boolean> prevIsTransfer,
@@ -334,7 +335,6 @@ public class MetroRouteGraphService {
             List<StationFacilities> stationFacilities) {
 
         LineStation firstLineStation = lineStationByCode.get(codes.get(0));
-        LineStation lastLineStation = lineStationByCode.get(codes.get(codes.size() - 1));
 
         Short lineId = (firstLineStation != null) ? firstLineStation.getLineId() : null;
         Line line = (lineId != null) ? lineById.get(lineId) : null;
@@ -352,11 +352,19 @@ public class MetroRouteGraphService {
                 })
                 .collect(Collectors.toList());
 
+        // 逐相鄰站對加總（而非首尾站 cumulative_time 直接相減），
+        // 避免路徑行經 Y 字分岔（蘆洲／新北投／小碧潭）切換支線時，首尾站的累計時間基準不同而算出錯誤秒數
         int segmentTime = 0;
-        if (firstLineStation != null && lastLineStation != null &&
-                firstLineStation.getCumulativeTime() != null && lastLineStation.getCumulativeTime() != null) {
-            segmentTime = Math.abs(
-                    lastLineStation.getCumulativeTime().intValue() - firstLineStation.getCumulativeTime().intValue());
+        for (int i = 1; i < codes.size(); i++) {
+            LineStation previousLineStation = lineStationByCode.get(codes.get(i - 1));
+            LineStation currentLineStation = lineStationByCode.get(codes.get(i));
+            if (previousLineStation != null && currentLineStation != null
+                    && previousLineStation.getCumulativeTime() != null
+                    && currentLineStation.getCumulativeTime() != null) {
+                segmentTime += Math.abs(
+                        currentLineStation.getCumulativeTime().intValue()
+                                - previousLineStation.getCumulativeTime().intValue());
+            }
         }
 
         return new OriginDestinationDetailVO.RouteSegmentVO(

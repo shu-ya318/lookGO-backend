@@ -9,10 +9,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
+import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkDuplicateException;
+import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkLimitExceededException;
 import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkNotFoundException;
 import com.mli.lookgo.module.stationBookmark.exceptions.StationBookmarkExportExcelFailedException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatExportExcelFailedException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatNotFoundException;
+import com.mli.lookgo.module.tripPlan.exceptions.TripPlanAccessDeniedException;
+import com.mli.lookgo.module.tripPlan.exceptions.TripPlanExportExcelFailedException;
+import com.mli.lookgo.module.tripPlan.exceptions.TripPlanLimitExceededException;
+import com.mli.lookgo.module.tripPlan.exceptions.TripPlanNotFoundException;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 
@@ -264,6 +270,36 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 處理使用者對同一車站重複建立書籤的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 400 (Bad Request) 給客戶端。
+     */
+    @ExceptionHandler(BookmarkDuplicateException.class)
+    public ResponseEntity<MessageVO> handleBookmarkDuplicateException(BookmarkDuplicateException exception) {
+        logger.error("不能重複建立: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResult);
+    }
+
+    /**
+     * 處理車站書籤數量已達會員等級上限的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 400 (Bad Request) 給客戶端。
+     */
+    @ExceptionHandler(BookmarkLimitExceededException.class)
+    public ResponseEntity<MessageVO> handleBookmarkLimitExceededException(BookmarkLimitExceededException exception) {
+        logger.error("已達車站書籤數量上限: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResult);
+    }
+
+    /**
      * 處理匯出車站書籤 excel 檔失敗的例外。
      *
      * @param exception
@@ -273,6 +309,69 @@ public class GlobalExceptionHandler {
     public ResponseEntity<MessageVO> handleStationBookmarkExportExcelFailedException(
             StationBookmarkExportExcelFailedException exception) {
         logger.error("匯出車站書籤 excel 檔失敗: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(apiResult);
+    }
+
+    // ----- Trip Plan -----
+
+    /**
+     * 處理找不到指定旅程規劃的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 404 (Not Found) 給客戶端。
+     */
+    @ExceptionHandler(TripPlanNotFoundException.class)
+    public ResponseEntity<MessageVO> handleTripPlanNotFoundException(TripPlanNotFoundException exception) {
+        logger.error("找不到結果: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiResult);
+    }
+
+    /**
+     * 處理使用者操作非本人旅程規劃的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 403 (Forbidden) 給客戶端。
+     */
+    @ExceptionHandler(TripPlanAccessDeniedException.class)
+    public ResponseEntity<MessageVO> handleTripPlanAccessDeniedException(TripPlanAccessDeniedException exception) {
+        logger.error("存取被拒絕: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResult);
+    }
+
+    /**
+     * 處理旅程規劃數量已達會員等級上限的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 400 (Bad Request) 給客戶端。
+     */
+    @ExceptionHandler(TripPlanLimitExceededException.class)
+    public ResponseEntity<MessageVO> handleTripPlanLimitExceededException(TripPlanLimitExceededException exception) {
+        logger.error("已達旅程規劃數量上限: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResult);
+    }
+
+    /**
+     * 處理匯出旅程規劃 excel 檔失敗的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 500 (Internal Server Error) 給客戶端。
+     */
+    @ExceptionHandler(TripPlanExportExcelFailedException.class)
+    public ResponseEntity<MessageVO> handleTripPlanExportExcelFailedException(
+            TripPlanExportExcelFailedException exception) {
+        logger.error("匯出旅程規劃 excel 檔失敗: {}", exception.getMessage());
 
         MessageVO apiResult = new MessageVO(exception.getMessage());
 

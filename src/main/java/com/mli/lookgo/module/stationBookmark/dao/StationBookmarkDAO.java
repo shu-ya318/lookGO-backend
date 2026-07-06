@@ -55,6 +55,48 @@ public interface StationBookmarkDAO {
     Optional<UserStationBookmark> getById(@Param("id") Integer id);
 
     /**
+     * 用 id 查詢指定書籤的顯示用資料（含車站與使用者資訊），僅限有效（未軟刪除）的資料，供新增書籤後組裝回應使用。
+     *
+     * @param id
+     * @return Optional<StationBookmarkVO>
+     */
+    Optional<StationBookmarkVO> getVOById(@Param("id") Integer id);
+
+    /**
+     * 查詢指定使用者對指定車站是否已存在有效（未軟刪除）的書籤。
+     *
+     * @param userId
+     * @param stationId
+     * @return Optional<Integer> 已存在則為該書籤 id，否則為空
+     */
+    Optional<Integer> getActiveBookmarkIdByUserIdAndStationId(@Param("userId") Integer userId,
+            @Param("stationId") Integer stationId);
+
+    /**
+     * 計算指定使用者目前有效（未軟刪除）的車站書籤筆數，供新增前檢查會員等級數量上限使用。
+     *
+     * @param userId
+     * @return 有效書籤筆數
+     */
+    int countActiveByUserId(@Param("userId") Integer userId);
+
+    /**
+     * 依使用者 id 取得其會員等級對應的車站書籤數量上限。
+     *
+     * @param userId
+     * @return 書籤數量上限
+     */
+    int getMaxBookmarksByUserId(@Param("userId") Integer userId);
+
+    /**
+     * 新增一筆車站書籤。
+     *
+     * @param bookmark
+     * @return 影響筆數
+     */
+    int insert(@Param("bookmark") UserStationBookmark bookmark);
+
+    /**
      * 用 id 軟刪除指定書籤。
      *
      * @param id

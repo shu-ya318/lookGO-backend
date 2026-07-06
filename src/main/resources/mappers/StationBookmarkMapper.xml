@@ -63,6 +63,47 @@
         WHERE id = #{id, jdbcType=INTEGER}
     </select>
 
+    <!-- 用 id 查詢指定書籤的顯示用資料，僅限有效（未軟刪除）的資料 -->
+    <select id="getVOById" resultType="com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO">
+        <include refid="bookmarkVOSelectAndJoins" />
+        WHERE b.id = #{id, jdbcType=INTEGER}
+          AND b.deleted_at IS NULL
+    </select>
+
+    <!-- 查詢指定使用者對指定車站是否已存在有效（未軟刪除）的書籤 -->
+    <select id="getActiveBookmarkIdByUserIdAndStationId" resultType="int">
+        SELECT id
+        FROM [dbo].[user_station_bookmarks]
+        WHERE user_id = #{userId, jdbcType=INTEGER}
+          AND station_id = #{stationId, jdbcType=INTEGER}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 計算指定使用者目前有效（未軟刪除）的車站書籤筆數 -->
+    <select id="countActiveByUserId" resultType="int">
+        SELECT COUNT(1)
+        FROM [dbo].[user_station_bookmarks]
+        WHERE user_id = #{userId, jdbcType=INTEGER}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 依使用者 id 取得其會員等級對應的車站書籤數量上限 -->
+    <select id="getMaxBookmarksByUserId" resultType="int">
+        SELECT mt.max_station_bookmarks
+        FROM [dbo].[users] u
+        INNER JOIN [dbo].[membership_tiers] mt ON mt.id = u.membership_tier_id
+        WHERE u.id = #{userId, jdbcType=INTEGER}
+    </select>
+
+    <!-- 新增一筆車站書籤 -->
+    <insert id="insert" parameterType="com.mli.lookgo.module.stationBookmark.model.entity.UserStationBookmark"
+            useGeneratedKeys="true" keyProperty="bookmark.id" keyColumn="id">
+        INSERT INTO [dbo].[user_station_bookmarks]
+            (station_id, user_id, created_at)
+        VALUES
+            (#{bookmark.stationId}, #{bookmark.userId}, #{bookmark.createdAt})
+    </insert>
+
     <!-- 用 id 軟刪除指定書籤 -->
     <update id="softDeleteById">
         UPDATE [dbo].[user_station_bookmarks]

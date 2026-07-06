@@ -14,15 +14,24 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
+import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
+import com.mli.lookgo.module.metro.service.MetroService;
 import com.mli.lookgo.module.stationBookmark.dao.StationBookmarkDAO;
+import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkDuplicateException;
+import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkLimitExceededException;
 import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkNotFoundException;
 import com.mli.lookgo.module.stationBookmark.exceptions.StationBookmarkExportExcelFailedException;
+import com.mli.lookgo.module.stationBookmark.model.dto.CreateBookmarkDTO;
 import com.mli.lookgo.module.stationBookmark.model.entity.UserStationBookmark;
 import com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO;
+import com.mli.lookgo.module.user.dao.UserDAO;
+import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
+import com.mli.lookgo.module.user.model.entity.User;
 
 /**
  * 處理車站書籤管理相關業務邏輯。
@@ -38,14 +47,66 @@ public class StationBookmarkService {
             .ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final StationBookmarkDAO stationBookmarkDAO;
+    private final MetroService metroService;
+    private final UserDAO userDAO;
 
     /**
-     * 讓 Spring 容器能在應用程式啟動時，自動注入車站書籤相關的資料存取層 {@link StationBookmarkDAO}。
+     * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
      *
      * @param stationBookmarkDAO
+     * @param metroService
+     * @param userDAO
      */
-    public StationBookmarkService(StationBookmarkDAO stationBookmarkDAO) {
+    public StationBookmarkService(StationBookmarkDAO stationBookmarkDAO, MetroService metroService,
+            UserDAO userDAO) {
         this.stationBookmarkDAO = stationBookmarkDAO;
+        this.metroService = metroService;
+        this.userDAO = userDAO;
+    }
+
+    /**
+     * 為當前使用者新增一筆車站書籤。
+     *
+     * @param createBookmarkDTO
+     * @return StationBookmarkVO
+     * @throws UserNotFoundException          找不到當前使用者。
+     * @throws StationNotFoundException       找不到指定車站。
+     * @throws BookmarkDuplicateException     當前使用者已對該車站建立過書籤。
+     * @throws BookmarkLimitExceededException 已達會員等級車站書籤數量上限。
+     */
+    public StationBookmarkVO createBookmark(CreateBookmarkDTO createBookmarkDTO) {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始呼叫 API 來新增車站書籤，email: {}, createBookmarkDTO: {}", email, createBookmarkDTO);
+
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        Integer stationId = createBookmarkDTO.getStationId();
+
+        if (!metroService.existsStationById(stationId)) {
+            throw new StationNotFoundException("找不到 id:" + stationId + " 的車站!");
+        }
+
+        if (stationBookmarkDAO.getActiveBookmarkIdByUserIdAndStationId(user.getId(), stationId).isPresent()) {
+            throw new BookmarkDuplicateException("已對 id:" + stationId + " 的車站建立過書籤!");
+        }
+
+        int maxBookmarks = stationBookmarkDAO.getMaxBookmarksByUserId(user.getId());
+        int activeBookmarkCount = stationBookmarkDAO.countActiveByUserId(user.getId());
+
+        if (activeBookmarkCount >= maxBookmarks) {
+            throw new BookmarkLimitExceededException("已達會員等級車站書籤數量上限 (" + maxBookmarks + " 筆)，請先刪除部分書籤!");
+        }
+
+        UserStationBookmark bookmark = new UserStationBookmark();
+        bookmark.setStationId(stationId);
+        bookmark.setUserId(user.getId());
+        bookmark.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
+
+        stationBookmarkDAO.insert(bookmark);
+
+        return stationBookmarkDAO.getVOById(bookmark.getId())
+                .orElseThrow(() -> new BookmarkNotFoundException("找不到剛新增的 id:" + bookmark.getId() + " 車站書籤!"));
     }
 
     /**
@@ -97,6 +158,15 @@ public class StationBookmarkService {
         List<StationBookmarkVO> bookmarks = stationBookmarkDAO.getAllActive();
 
         return exportBookmarksToExcel(bookmarks);
+    }
+
+    /**
+     * 從 Spring Security Context 中取得當前已驗證使用者的 email。
+     *
+     * @return email
+     */
+    private String getAuthenticatedEmail() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     /**

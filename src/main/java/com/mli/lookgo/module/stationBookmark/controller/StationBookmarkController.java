@@ -19,6 +19,7 @@ import org.springframework.web.util.UriUtils;
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
 import com.mli.lookgo.module.stationBookmark.model.dto.BookmarkIdDTO;
+import com.mli.lookgo.module.stationBookmark.model.dto.CreateBookmarkDTO;
 import com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO;
 import com.mli.lookgo.module.stationBookmark.service.StationBookmarkService;
 
@@ -32,7 +33,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 /**
- * 處理車站書籤管理相關 HTTP 請求的介面層，僅限 ADMIN 角色存取。負責把資料傳給業務層處理，最後封裝結果為 HTTP 回應回傳給客戶端。
+ * 處理車站書籤管理相關 HTTP 請求的介面層。新增書籤為一般已登入使用者對自己收藏的操作，
+ * 其餘查詢全部書籤、刪除與匯出則僅限 ADMIN 角色存取。負責把資料傳給業務層處理，最後封裝結果為 HTTP 回應回傳給客戶端。
  *
  * @author D5042101
  * @since 2026.07.06
@@ -53,6 +55,26 @@ public class StationBookmarkController {
      */
     public StationBookmarkController(StationBookmarkService stationBookmarkService) {
         this.stationBookmarkService = stationBookmarkService;
+    }
+
+    /**
+     * 為當前使用者新增一筆車站書籤。
+     *
+     * @param createBookmarkDTO
+     * @return ResponseEntity<StationBookmarkVO>
+     */
+    @Operation(summary = "新增車站書籤", description = "為當前使用者收藏指定車站")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "書籤新增成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationBookmarkVO.class))),
+            @ApiResponse(responseCode = "400", description = "請求參數錯誤、重複收藏或已達書籤數量上限", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "已對 id:3 的車站建立過書籤!"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "404", description = "找不到當前使用者或指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
+    @PostMapping("/create-bookmark")
+    public ResponseEntity<StationBookmarkVO> createBookmark(@Valid @RequestBody CreateBookmarkDTO createBookmarkDTO) {
+        logger.debug("收到新增車站書籤的請求，createBookmarkDTO: {}", createBookmarkDTO);
+        StationBookmarkVO bookmark = stationBookmarkService.createBookmark(createBookmarkDTO);
+
+        return ResponseEntity.ok(bookmark);
     }
 
     /**

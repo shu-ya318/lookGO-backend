@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mli.lookgo.module.tripPlan.dao.TripPlanDAO">
+
+    <!-- 旅程規劃 VO 共用的 SELECT 欄位與 JOIN -->
+    <sql id="tripPlanVOSelectAndJoins">
+        SELECT
+            t.id,
+            t.name,
+            t.from_station_id,
+            fs.name_zh_tw AS from_station_name_zh_tw,
+            t.to_station_id,
+            ts.name_zh_tw AS to_station_name_zh_tw,
+            t.fare_type,
+            t.fare_price,
+            t.transfer_count,
+            t.routing_strategy,
+            t.notes,
+            t.created_at,
+            t.updated_at
+        FROM [dbo].[user_trip_plans] t
+        INNER JOIN [dbo].[stations] fs ON fs.id = t.from_station_id
+        INNER JOIN [dbo].[stations] ts ON ts.id = t.to_station_id
+    </sql>
+
+    <!-- 取得指定使用者分頁與模糊搜尋（旅程名稱）後的旅程規劃列表 -->
+    <select id="getAllPaginatedByUserId" resultType="com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO">
+        <include refid="tripPlanVOSelectAndJoins" />
+        WHERE t.user_id = #{userId, jdbcType=INTEGER}
+          AND t.deleted_at IS NULL
+        <if test="keyword != null and keyword != ''">
+            AND t.name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY t.created_at DESC, t.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- 計算指定使用者符合搜尋條件的旅程規劃總筆數 -->
+    <select id="countAllByUserId" resultType="long">
+        SELECT COUNT(1)
+        FROM [dbo].[user_trip_plans] t
+        WHERE t.user_id = #{userId, jdbcType=INTEGER}
+          AND t.deleted_at IS NULL
+        <if test="keyword != null and keyword != ''">
+            AND t.name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+    </select>
+
+    <!-- 用 id 查詢指定旅程規劃的顯示用資料，僅限有效（未軟刪除）的資料 -->
+    <select id="getById" resultType="com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO">
+        <include refid="tripPlanVOSelectAndJoins" />
+        WHERE t.id = #{id, jdbcType=INTEGER}
+          AND t.deleted_at IS NULL
+    </select>
+
+    <!-- 用 id 查詢指定旅程規劃是否存在且未被軟刪除，並回傳其擁有者 user id -->
+    <select id="getActiveOwnerId" resultType="int">
+        SELECT user_id
+        FROM [dbo].[user_trip_plans]
+        WHERE id = #{id, jdbcType=INTEGER}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 計算指定使用者目前有效（未軟刪除）的旅程規劃筆數 -->
+    <select id="countActiveByUserId" resultType="int">
+        SELECT COUNT(1)
+        FROM [dbo].[user_trip_plans]
+        WHERE user_id = #{userId, jdbcType=INTEGER}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 依使用者 id 取得其會員等級對應的旅程規劃數量上限 -->
+    <select id="getMaxTripPlansByUserId" resultType="int">
+        SELECT mt.max_trip_plans
+        FROM [dbo].[users] u
+        INNER JOIN [dbo].[membership_tiers] mt ON mt.id = u.membership_tier_id
+        WHERE u.id = #{userId, jdbcType=INTEGER}
+    </select>
+
+    <!-- 新增一筆旅程規劃 -->
+    <insert id="insert" parameterType="com.mli.lookgo.module.tripPlan.model.entity.UserTripPlan"
+            useGeneratedKeys="true" keyProperty="tripPlan.id" keyColumn="id">
+        INSERT INTO [dbo].[user_trip_plans]
+            (user_id, from_station_id, to_station_id, name, fare_type, fare_price,
+             transfer_count, routing_strategy, notes, created_at, updated_at)
+        VALUES
+            (#{tripPlan.userId}, #{tripPlan.fromStationId}, #{tripPlan.toStationId}, #{tripPlan.name},
+             #{tripPlan.fareType}, #{tripPlan.farePrice}, #{tripPlan.transferCount}, #{tripPlan.routingStrategy},
+             #{tripPlan.notes}, #{tripPlan.createdAt}, #{tripPlan.updatedAt})
+    </insert>
+
+    <!-- 用 id 軟刪除指定旅程規劃 -->
+    <update id="softDeleteById">
+        UPDATE [dbo].[user_trip_plans]
+        SET deleted_at = #{deletedAt}
+        WHERE id = #{id, jdbcType=INTEGER}
+    </update>
+
+    <!-- 用 id 更新指定旅程規劃的名稱 -->
+    <update id="updateNameById">
+        UPDATE [dbo].[user_trip_plans]
+        SET name = #{name}, updated_at = #{updatedAt}
+        WHERE id = #{id, jdbcType=INTEGER}
+    </update>
+
+    <!-- 用 id 更新指定旅程規劃的資訊（起訖站以外） -->
+    <update id="updateInfoById">
+        UPDATE [dbo].[user_trip_plans]
+        SET fare_type = #{fareType}, fare_price = #{farePrice},
+            transfer_count = #{transferCount}, routing_strategy = #{routingStrategy},
+            notes = #{notes}, updated_at = #{updatedAt}
+        WHERE id = #{id, jdbcType=INTEGER}
+    </update>
+
+</mapper>

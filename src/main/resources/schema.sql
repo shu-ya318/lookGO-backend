@@ -77,6 +77,8 @@ IF NOT EXISTS (
 CREATE TABLE [dbo].[stations] (
     [id]              INT             NOT NULL IDENTITY(1, 1),
     [name_zh_tw]      NVARCHAR(100)   NOT NULL,
+    -- stations.original_name_zh_tw：僅供同步比對，任何管理端 API 皆不可寫入此欄位
+    [original_name_zh_tw] NVARCHAR(100) NOT NULL,
     [name_en]         NVARCHAR(200)   NOT NULL,
     [atm]             NVARCHAR(1000)  NULL,
     [nursing_room]    NVARCHAR(1000)  NULL,
@@ -92,22 +94,7 @@ CREATE TABLE [dbo].[stations] (
     CONSTRAINT [PK_stations] PRIMARY KEY ([id])
 );
 
--- stations.original_name_zh_tw：僅供同步比對，任何管理端 API 皆不可寫入此欄位
--- 註：拆成多個單一陳述式（而非 BEGIN...END 區塊），因 Spring 的 schema.sql 執行器僅以「;」切割陳述式，
--- 不解析 T-SQL 的 BEGIN...END，區塊寫法會被攔腰切斷造成語法錯誤
-IF NOT EXISTS (
-    SELECT 1 FROM sys.columns
-    WHERE object_id = OBJECT_ID('dbo.stations') AND [name] = 'original_name_zh_tw'
-)
-ALTER TABLE [dbo].[stations] ADD [original_name_zh_tw] NVARCHAR(100) NULL;
 
-UPDATE [dbo].[stations] SET [original_name_zh_tw] = [name_zh_tw] WHERE [original_name_zh_tw] IS NULL;
-
-IF EXISTS (
-    SELECT 1 FROM sys.columns
-    WHERE object_id = OBJECT_ID('dbo.stations') AND [name] = 'original_name_zh_tw' AND [is_nullable] = 1
-)
-ALTER TABLE [dbo].[stations] ALTER COLUMN [original_name_zh_tw] NVARCHAR(100) NOT NULL;
 
 -- station_fares
 IF NOT EXISTS (
@@ -212,7 +199,9 @@ CREATE TABLE [dbo].[user_trip_plans] (
     [transfer_count]   SMALLINT        NOT NULL,
     [routing_strategy] TINYINT         NOT NULL,
     [notes]            NVARCHAR(2000)  NULL,
+    [name]             NVARCHAR(100)   NOT NULL CONSTRAINT [DF_user_trip_plans_name] DEFAULT (N'未命名旅程'),
     [created_at]       DATETIME2(0)    NOT NULL,
+    [updated_at]       DATETIME2(0)    NOT NULL CONSTRAINT [DF_user_trip_plans_updated_at] DEFAULT (SYSUTCDATETIME()),
     [deleted_at]       DATETIME2(0)    NULL,
     CONSTRAINT [PK_user_trip_plans] PRIMARY KEY ([id]),
     CONSTRAINT [FK_user_trip_plans_user_id]
@@ -222,6 +211,8 @@ CREATE TABLE [dbo].[user_trip_plans] (
     CONSTRAINT [FK_user_trip_plans_to_station_id]
         FOREIGN KEY ([to_station_id]) REFERENCES [dbo].[stations] ([id])
 );
+
+
 
 -- station_chat_messages
 IF NOT EXISTS (

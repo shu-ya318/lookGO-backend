@@ -60,8 +60,10 @@
                     #{station.escalator, jdbcType=NVARCHAR} AS escalator,
                     #{station.updatedAt, jdbcType=TIMESTAMP} AS updated_at
             ) AS source
-            ON target.name_zh_tw = source.name_zh_tw
+            ON target.original_name_zh_tw = source.name_zh_tw
             WHEN MATCHED THEN
+                <!-- original_name_zh_tw 為同步比對鍵，僅於下方 WHEN NOT MATCHED 建站時寫入一次，此處絕不可更新，
+                     否則管理端對 name_zh_tw 的手動修改會在下次同步時被視為比對不到而誤插入重複車站 -->
                 UPDATE SET
                     name_en          = ISNULL(source.name_en, target.name_en),
                     atm              = ISNULL(source.atm, target.atm),
@@ -76,10 +78,10 @@
                     escalator        = ISNULL(source.escalator, target.escalator),
                     updated_at       = ISNULL(source.updated_at, target.updated_at)
             WHEN NOT MATCHED THEN
-                INSERT (name_zh_tw, name_en, atm, nursing_room, diaper_table,
+                INSERT (name_zh_tw, original_name_zh_tw, name_en, atm, nursing_room, diaper_table,
                         charging_station, ticket_machine, locker, drinking_water, restroom,
                         elevator, escalator, updated_at)
-                VALUES (source.name_zh_tw, source.name_en, source.atm,
+                VALUES (source.name_zh_tw, source.name_zh_tw, source.name_en, source.atm,
                         source.nursing_room, source.diaper_table, source.charging_station,
                         source.ticket_machine, source.locker, source.drinking_water,
                         source.restroom, source.elevator, source.escalator, source.updated_at);
@@ -100,9 +102,9 @@
         WHERE id = #{stationId, jdbcType=INTEGER}
     </select>
 
-    <!-- 取得所有車站資料 -->
+    <!-- 取得所有車站資料，含 original_name_zh_tw 供 syncAllLineStation 依原始站名比對 -->
     <select id="getAllStation" resultType="com.mli.lookgo.module.metro.model.entity.Station">
-        SELECT id, name_zh_tw, name_en, atm, nursing_room, diaper_table,
+        SELECT id, name_zh_tw, original_name_zh_tw, name_en, atm, nursing_room, diaper_table,
                charging_station, ticket_machine, locker, drinking_water, restroom,
                elevator, escalator, updated_at
         FROM [dbo].[stations]
@@ -142,6 +144,71 @@
         INNER JOIN [dbo].[lines_stations] ls ON ls.station_id = s.id
         WHERE ls.station_code = #{dto.stationCode, jdbcType=NVARCHAR}
     </select>
+
+    <!-- 車站管理 -->
+
+    <!-- 取得所有車站的 id 與中文名稱，供車站管理頁面下拉選單使用 -->
+    <select id="getAllStationIdOption" resultType="com.mli.lookgo.module.metro.model.vo.StationIdOptionVO">
+        SELECT id, name_zh_tw
+        FROM [dbo].[stations]
+        ORDER BY id ASC
+    </select>
+
+    <!-- 分頁查詢車站資料，可選擇性依中文或英文名稱模糊搜尋 -->
+    <select id="getAllStationPaginated" resultType="com.mli.lookgo.module.metro.model.entity.Station">
+        SELECT id, name_zh_tw, name_en, atm, nursing_room, diaper_table,
+               charging_station, ticket_machine, locker, drinking_water, restroom,
+               elevator, escalator, updated_at
+        FROM [dbo].[stations]
+        <where>
+            <if test="keyword != null and keyword != ''">
+                name_zh_tw LIKE CONCAT('%', #{keyword}, '%') OR name_en LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY id ASC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- 計算符合模糊搜尋條件的車站總筆數 -->
+    <select id="countAllStation" resultType="long">
+        SELECT COUNT(id)
+        FROM [dbo].[stations]
+        <where>
+            <if test="keyword != null and keyword != ''">
+                name_zh_tw LIKE CONCAT('%', #{keyword}, '%') OR name_en LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 用車站 id 查詢車站詳細資料 -->
+    <select id="getById" resultType="com.mli.lookgo.module.metro.model.entity.Station">
+        SELECT id, name_zh_tw, name_en, atm, nursing_room, diaper_table,
+               charging_station, ticket_machine, locker, drinking_water, restroom,
+               elevator, escalator, updated_at
+        FROM [dbo].[stations]
+        WHERE id = #{stationId, jdbcType=INTEGER}
+    </select>
+
+    <!-- 依傳入的欄位更新指定車站的資料，僅更新有帶值的欄位；original_name_zh_tw 為同步比對鍵，不在此更新範圍內 -->
+    <update id="updateStationById">
+        UPDATE [dbo].[stations]
+        <set>
+            <if test="dto.nameZhTw != null">name_zh_tw = #{dto.nameZhTw, jdbcType=NVARCHAR},</if>
+            <if test="dto.nameEn != null">name_en = #{dto.nameEn, jdbcType=NVARCHAR},</if>
+            <if test="dto.atm != null">atm = #{dto.atm, jdbcType=NVARCHAR},</if>
+            <if test="dto.nursingRoom != null">nursing_room = #{dto.nursingRoom, jdbcType=NVARCHAR},</if>
+            <if test="dto.diaperTable != null">diaper_table = #{dto.diaperTable, jdbcType=NVARCHAR},</if>
+            <if test="dto.chargingStation != null">charging_station = #{dto.chargingStation, jdbcType=NVARCHAR},</if>
+            <if test="dto.ticketMachine != null">ticket_machine = #{dto.ticketMachine, jdbcType=NVARCHAR},</if>
+            <if test="dto.locker != null">locker = #{dto.locker, jdbcType=NVARCHAR},</if>
+            <if test="dto.drinkingWater != null">drinking_water = #{dto.drinkingWater, jdbcType=NVARCHAR},</if>
+            <if test="dto.restroom != null">restroom = #{dto.restroom, jdbcType=NVARCHAR},</if>
+            <if test="dto.elevator != null">elevator = #{dto.elevator, jdbcType=NVARCHAR},</if>
+            <if test="dto.escalator != null">escalator = #{dto.escalator, jdbcType=NVARCHAR},</if>
+            updated_at = #{updatedAt, jdbcType=TIMESTAMP}
+        </set>
+        WHERE id = #{dto.id, jdbcType=INTEGER}
+    </update>
 
     <!-- 所有路線的車站 -->
 
@@ -184,7 +251,7 @@
     </select>
 
     <!-- 取得所有路線車站的代碼與中文名稱，供前端下拉選單使用 -->
-    <select id="getAllStationOptions" resultType="com.mli.lookgo.module.metro.model.vo.StationOptionVO">
+    <select id="getAllStationOption" resultType="com.mli.lookgo.module.metro.model.vo.StationOptionVO">
         SELECT ls.station_code, s.name_zh_tw
         FROM [dbo].[lines_stations] ls
         INNER JOIN [dbo].[stations] s ON s.id = ls.station_id

@@ -9,9 +9,11 @@ import jakarta.validation.constraints.NotNull;
  * @author D5042101
  * @since 2026.07.05
  */
-@Schema(description = "處理依車站 id 匯出車站當日聊天紀錄相關的資料傳輸物件")
+// schema 指定命名 ，避免因預設用類別名稱，致 Swagger 在掃描時發生名稱相同衝突
+@Schema(name = "StationChatStationIdDTO", description = "處理依車站 id 匯出車站當日聊天紀錄相關的資料傳輸物件")
 public class StationIdDTO {
 
+    // 因模組是 stationChat，所以 id 前面加上 station
     @Schema(description = "車站 id", example = "1")
     @NotNull(message = "請輸入車站 id!")
     private Integer stationId;

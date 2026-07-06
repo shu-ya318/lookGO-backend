@@ -92,6 +92,17 @@ CREATE TABLE [dbo].[stations] (
     CONSTRAINT [PK_stations] PRIMARY KEY ([id])
 );
 
+-- stations.original_name_zh_tw：僅供同步比對，任何管理端 API 皆不可寫入此欄位
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('dbo.stations') AND [name] = 'original_name_zh_tw'
+)
+BEGIN
+    ALTER TABLE [dbo].[stations] ADD [original_name_zh_tw] NVARCHAR(100) NULL;
+    UPDATE [dbo].[stations] SET [original_name_zh_tw] = [name_zh_tw] WHERE [original_name_zh_tw] IS NULL;
+    ALTER TABLE [dbo].[stations] ALTER COLUMN [original_name_zh_tw] NVARCHAR(100) NOT NULL;
+END
+
 -- station_fares
 IF NOT EXISTS (
     SELECT 1 FROM sys.tables

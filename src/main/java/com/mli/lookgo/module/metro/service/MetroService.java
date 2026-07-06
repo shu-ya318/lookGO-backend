@@ -1,6 +1,8 @@
 package com.mli.lookgo.module.metro.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -13,11 +15,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.mli.lookgo.core.result.MessageVO;
+import com.mli.lookgo.core.result.PaginatedVO;
 import com.mli.lookgo.module.metro.dao.MetroDAO;
 import com.mli.lookgo.module.metro.enums.StationFacilities;
 import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
 import com.mli.lookgo.module.metro.model.dto.StationDetailsDTO;
+import com.mli.lookgo.module.metro.model.dto.StationIdDTO;
 import com.mli.lookgo.module.metro.model.dto.StationRouteDTO;
+import com.mli.lookgo.module.metro.model.dto.UpdateStationDTO;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
@@ -28,7 +34,9 @@ import com.mli.lookgo.module.metro.model.graph.Edge;
 import com.mli.lookgo.module.metro.model.vo.MapVO;
 import com.mli.lookgo.module.metro.model.vo.OriginDestinationDetailVO;
 import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
+import com.mli.lookgo.module.metro.model.vo.StationIdOptionVO;
 import com.mli.lookgo.module.metro.model.vo.StationOptionVO;
+import com.mli.lookgo.module.metro.model.vo.StationSummaryVO;
 
 /**
  * 處理前端查詢捷運資料相關的業務邏輯。
@@ -112,9 +120,9 @@ public class MetroService {
          *
          * @return List<StationOptionVO>
          */
-        public List<StationOptionVO> getAllStationOptions() {
+        public List<StationOptionVO> getAllStationOption() {
                 logger.debug("開始查詢所有車站選項資料");
-                return metroDAO.getAllStationOptions();
+                return metroDAO.getAllStationOption();
         }
 
         /**
@@ -150,6 +158,76 @@ public class MetroService {
 
                 logger.debug("開始依車站代碼查詢車站詳細資料，stationCode: {}", stationDetailsDTO.getStationCode());
                 return metroDAO.getStationByCode(stationDetailsDTO);
+        }
+
+        /**
+         * 取得所有車站的 id 與中文名稱，供車站管理頁面下拉選單使用。
+         *
+         * @return List<StationIdOptionVO>
+         */
+        public List<StationIdOptionVO> getAllStationIdOption() {
+                logger.debug("開始查詢所有車站 id 選項資料");
+                return metroDAO.getAllStationIdOption();
+        }
+
+        /**
+         * 取得分頁與模糊搜尋後的車站資料，僅限 ADMIN 角色存取，角色權限由 Controller 層的 @PreAuthorize 控制。
+         *
+         * @param keyword
+         * @param page
+         * @param size
+         * @return PaginatedVO<StationSummaryVO>
+         */
+        public PaginatedVO<StationSummaryVO> getAllStation(String keyword, int page, int size) {
+                logger.debug("開始分頁查詢車站資料，keyword: {}, page: {}, size: {}", keyword, page, size);
+                List<Station> stations = metroDAO.getAllStationPaginated(keyword, page * size, size);
+                long totalElements = metroDAO.countAllStation(keyword);
+                int totalPages = (int) Math.ceil((double) totalElements / size);
+
+                List<StationSummaryVO> stationSummaryVOs = stations.stream()
+                                .map(station -> new StationSummaryVO(station.getId(), station.getNameZhTw(),
+                                                station.getNameEn(), station.getUpdatedAt()))
+                                .toList();
+
+                return new PaginatedVO<>(
+                                stationSummaryVOs,
+                                page,
+                                size,
+                                totalElements,
+                                totalPages);
+        }
+
+        /**
+         * 依車站 id 查詢車站詳細資料，僅限 ADMIN 角色存取，供車站管理頁面編輯前帶出目前資料使用。
+         *
+         * @param stationIdDTO
+         * @return Station
+         */
+        public Station getStationById(StationIdDTO stationIdDTO) {
+                logger.debug("開始依車站 id 查詢車站詳細資料，id: {}", stationIdDTO.getId());
+                return metroDAO.getById(stationIdDTO.getId())
+                                .orElseThrow(() -> new StationNotFoundException(
+                                                "找不到id:" + stationIdDTO.getId() + "的車站!"));
+        }
+
+        /**
+         * 更新指定車站的資料，僅限 ADMIN 角色存取，僅會更新有帶值的欄位；同步比對鍵 original_name_zh_tw 不受影響。
+         *
+         * @param updateStationDTO
+         * @return MessageVO
+         */
+        public MessageVO updateStation(UpdateStationDTO updateStationDTO) {
+                if (!metroDAO.existsById(updateStationDTO.getId())) {
+                        throw new StationNotFoundException("找不到id:" + updateStationDTO.getId() + "的車站!");
+                }
+                if (updateStationDTO.hasNoUpdatableField()) {
+                        throw new IllegalArgumentException("請至少提供一個要修改的欄位!");
+                }
+
+                logger.debug("開始更新車站資料，updateStationDTO: {}", updateStationDTO);
+                metroDAO.updateStationById(updateStationDTO, LocalDateTime.now(ZoneOffset.UTC));
+
+                return new MessageVO("車站資料更新成功!");
         }
 
         /**

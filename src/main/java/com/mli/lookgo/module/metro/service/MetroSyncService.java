@@ -175,9 +175,11 @@ public class MetroSyncService {
         Map<String, Short> lineLetterToIdMap = metroDAO.getAllLine().stream()
                 .collect(Collectors.toMap(Line::getLetter, Line::getId, (existingValue, newValue) -> existingValue));
 
-        // 2. 取得資料庫所有車站，建立「車站中文名稱 -> 車站 id」的對照 Map。例如:{"淡水" -> 101, "紅樹林" -> 102}
+        // 2. 取得資料庫所有車站，建立「原始車站中文名稱 -> 車站 id」的對照 Map。例如:{"淡水" -> 101, "紅樹林" -> 102}
+        // 須以 originalNameZhTw（同步比對鍵）而非 nameZhTw（管理端可能已修改的顯示名稱）比對，
+        // 避免管理員改名後，此處依 TDX 原始站名比對不到而遺漏該站的路線關聯
         Map<String, Integer> stationNameToIdMap = metroDAO.getAllStation().stream()
-                .collect(Collectors.toMap(Station::getNameZhTw, Station::getId,
+                .collect(Collectors.toMap(Station::getOriginalNameZhTw, Station::getId,
                         (existingValue, newValue) -> existingValue));
 
         // 3. 向 TDX API 取得所有路線與車站的對照資料

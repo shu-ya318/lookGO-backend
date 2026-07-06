@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mli.lookgo.module.stationBookmark.dao.StationBookmarkDAO">
+
+    <!-- 車站書籤 VO 共用的 SELECT 欄位與 JOIN -->
+    <sql id="bookmarkVOSelectAndJoins">
+        SELECT
+            b.id,
+            b.station_id,
+            s.name_zh_tw AS station_name_zh_tw,
+            b.user_id,
+            u.username,
+            u.email,
+            b.created_at
+        FROM [dbo].[user_station_bookmarks] b
+        INNER JOIN [dbo].[stations] s ON s.id = b.station_id
+        INNER JOIN [dbo].[users] u ON u.id = b.user_id
+    </sql>
+
+    <!-- 取得分頁與模糊搜尋後的車站書籤列表 -->
+    <select id="getAllPaginated" resultType="com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO">
+        <include refid="bookmarkVOSelectAndJoins" />
+        WHERE b.deleted_at IS NULL
+        <if test="keyword != null and keyword != ''">
+            AND (
+                s.name_zh_tw LIKE CONCAT('%', #{keyword}, '%')
+                OR u.username LIKE CONCAT('%', #{keyword}, '%')
+                OR u.email LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY b.created_at DESC, b.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- 計算符合搜尋條件的車站書籤總筆數 -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(1)
+        FROM [dbo].[user_station_bookmarks] b
+        INNER JOIN [dbo].[stations] s ON s.id = b.station_id
+        INNER JOIN [dbo].[users] u ON u.id = b.user_id
+        WHERE b.deleted_at IS NULL
+        <if test="keyword != null and keyword != ''">
+            AND (
+                s.name_zh_tw LIKE CONCAT('%', #{keyword}, '%')
+                OR u.username LIKE CONCAT('%', #{keyword}, '%')
+                OR u.email LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </select>
+
+    <!-- 取得所有有效（未軟刪除）的車站書籤，供匯出 excel 使用 -->
+    <select id="getAllActive" resultType="com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO">
+        <include refid="bookmarkVOSelectAndJoins" />
+        WHERE b.deleted_at IS NULL
+        ORDER BY b.created_at DESC, b.id DESC
+    </select>
+
+    <!-- 用 id 查詢指定書籤的原始資料 -->
+    <select id="getById" resultType="com.mli.lookgo.module.stationBookmark.model.entity.UserStationBookmark">
+        SELECT id, station_id, user_id, created_at, deleted_at
+        FROM [dbo].[user_station_bookmarks]
+        WHERE id = #{id, jdbcType=INTEGER}
+    </select>
+
+    <!-- 用 id 軟刪除指定書籤 -->
+    <update id="softDeleteById">
+        UPDATE [dbo].[user_station_bookmarks]
+        SET deleted_at = #{deletedAt}
+        WHERE id = #{id, jdbcType=INTEGER}
+    </update>
+
+</mapper>

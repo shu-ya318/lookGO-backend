@@ -93,15 +93,21 @@ CREATE TABLE [dbo].[stations] (
 );
 
 -- stations.original_name_zh_tw：僅供同步比對，任何管理端 API 皆不可寫入此欄位
+-- 註：拆成多個單一陳述式（而非 BEGIN...END 區塊），因 Spring 的 schema.sql 執行器僅以「;」切割陳述式，
+-- 不解析 T-SQL 的 BEGIN...END，區塊寫法會被攔腰切斷造成語法錯誤
 IF NOT EXISTS (
     SELECT 1 FROM sys.columns
     WHERE object_id = OBJECT_ID('dbo.stations') AND [name] = 'original_name_zh_tw'
 )
-BEGIN
-    ALTER TABLE [dbo].[stations] ADD [original_name_zh_tw] NVARCHAR(100) NULL;
-    UPDATE [dbo].[stations] SET [original_name_zh_tw] = [name_zh_tw] WHERE [original_name_zh_tw] IS NULL;
-    ALTER TABLE [dbo].[stations] ALTER COLUMN [original_name_zh_tw] NVARCHAR(100) NOT NULL;
-END
+ALTER TABLE [dbo].[stations] ADD [original_name_zh_tw] NVARCHAR(100) NULL;
+
+UPDATE [dbo].[stations] SET [original_name_zh_tw] = [name_zh_tw] WHERE [original_name_zh_tw] IS NULL;
+
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('dbo.stations') AND [name] = 'original_name_zh_tw' AND [is_nullable] = 1
+)
+ALTER TABLE [dbo].[stations] ALTER COLUMN [original_name_zh_tw] NVARCHAR(100) NOT NULL;
 
 -- station_fares
 IF NOT EXISTS (

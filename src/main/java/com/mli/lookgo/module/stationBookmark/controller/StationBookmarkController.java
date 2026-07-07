@@ -44,112 +44,135 @@ import jakarta.validation.Valid;
 @Tag(name = "Station Bookmark", description = "車站書籤管理相關操作的 API")
 public class StationBookmarkController {
 
-    private static final Logger logger = LoggerFactory.getLogger(StationBookmarkController.class);
+        private static final Logger logger = LoggerFactory.getLogger(StationBookmarkController.class);
 
-    private final StationBookmarkService stationBookmarkService;
+        private final StationBookmarkService stationBookmarkService;
 
-    /**
-     * 讓 Spring 容器能在應用程式啟動時，自動注入車站書籤相關的業務層 {@link StationBookmarkService}。
-     *
-     * @param stationBookmarkService
-     */
-    public StationBookmarkController(StationBookmarkService stationBookmarkService) {
-        this.stationBookmarkService = stationBookmarkService;
-    }
+        /**
+         * 讓 Spring 容器能在應用程式啟動時，自動注入車站書籤相關的業務層 {@link StationBookmarkService}。
+         *
+         * @param stationBookmarkService
+         */
+        public StationBookmarkController(StationBookmarkService stationBookmarkService) {
+                this.stationBookmarkService = stationBookmarkService;
+        }
 
-    /**
-     * 為當前使用者新增一筆車站書籤。
-     *
-     * @param createBookmarkDTO
-     * @return ResponseEntity<StationBookmarkVO>
-     */
-    @Operation(summary = "新增車站書籤", description = "為當前使用者收藏指定車站")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "書籤新增成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationBookmarkVO.class))),
-            @ApiResponse(responseCode = "400", description = "請求參數錯誤、重複收藏或已達書籤數量上限", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "已對 id:3 的車站建立過書籤!"))),
-            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
-            @ApiResponse(responseCode = "404", description = "找不到當前使用者或指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
-    @PostMapping("/create-bookmark")
-    public ResponseEntity<StationBookmarkVO> createBookmark(@Valid @RequestBody CreateBookmarkDTO createBookmarkDTO) {
-        logger.debug("收到新增車站書籤的請求，createBookmarkDTO: {}", createBookmarkDTO);
-        StationBookmarkVO bookmark = stationBookmarkService.createBookmark(createBookmarkDTO);
+        /**
+         * 為當前使用者新增一筆車站書籤。
+         *
+         * @param createBookmarkDTO
+         * @return ResponseEntity<StationBookmarkVO>
+         */
+        @Operation(summary = "新增車站書籤", description = "為當前使用者收藏指定車站")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "書籤新增成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationBookmarkVO.class))),
+                        @ApiResponse(responseCode = "400", description = "請求參數錯誤、重複收藏或已達書籤數量上限", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "已對 id:3 的車站建立過書籤!"))),
+                        @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到當前使用者或指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站!"))) })
+        @PostMapping("/create-bookmark")
+        public ResponseEntity<StationBookmarkVO> createBookmark(
+                        @Valid @RequestBody CreateBookmarkDTO createBookmarkDTO) {
+                logger.debug("收到新增車站書籤的請求，createBookmarkDTO: {}", createBookmarkDTO);
+                StationBookmarkVO bookmark = stationBookmarkService.createBookmark(createBookmarkDTO);
 
-        return ResponseEntity.ok(bookmark);
-    }
+                return ResponseEntity.ok(bookmark);
+        }
 
-    /**
-     * 取得分頁與模糊搜尋後的車站書籤列表，僅限 ADMIN 角色存取。
-     *
-     * @param keyword
-     * @param page
-     * @param size
-     * @return ResponseEntity<PaginatedVO<StationBookmarkVO>>
-     */
-    @Operation(summary = "取得所有車站書籤資料", description = "取得所有車站書籤資料，僅限 ADMIN 角色存取，支援分頁與模糊搜尋（比對車站名稱、使用者名稱、email）")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功取得所有車站書籤資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = PaginatedVO.class))),
-            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
-            @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
-            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/get-all-bookmark-paginated")
-    public ResponseEntity<PaginatedVO<StationBookmarkVO>> getAllBookmark(
-            @Parameter(description = "搜尋關鍵字") @RequestParam(name = "keyword", required = false) String keyword,
-            @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "16") int size) {
-        logger.debug("收到分頁查詢車站書籤資料的請求，keyword: {}, page: {}, size: {}", keyword, page, size);
-        PaginatedVO<StationBookmarkVO> paginatedBookmarks = stationBookmarkService.getAllBookmark(keyword, page,
-                size);
+        /**
+         * 依車站中文名稱模糊搜尋，取得當前使用者的單一車站書籤。
+         *
+         * @param stationName
+         * @return ResponseEntity<StationBookmarkVO>
+         */
+        @Operation(summary = "取得單一車站書籤", description = "依車站中文名稱模糊搜尋，取得當前使用者收藏的單一車站書籤，若比對到多筆則取收藏時間最新的一筆")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功取得車站書籤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StationBookmarkVO.class))),
+                        @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "缺少必要的請求參數: stationName"))),
+                        @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到當前使用者或符合條件的車站書籤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到符合「淡水」的車站書籤!"))) })
+        @PostMapping("/get-bookmark-by-station-name")
+        public ResponseEntity<StationBookmarkVO> getBookmarkByStationName(
+                        @Parameter(description = "車站中文名稱關鍵字", required = true) @RequestParam(name = "stationName") String stationName) {
+                logger.debug("收到取得單一車站書籤的請求，stationName: {}", stationName);
+                StationBookmarkVO bookmark = stationBookmarkService.getBookmarkByStationName(stationName);
 
-        return ResponseEntity.ok(paginatedBookmarks);
-    }
+                return ResponseEntity.ok(bookmark);
+        }
 
-    /**
-     * 移除指定的車站書籤，僅限 ADMIN 角色存取。
-     *
-     * @param bookmarkIdDTO
-     * @return ResponseEntity<MessageVO>
-     */
-    @Operation(summary = "移除車站書籤", description = "軟刪除指定 id 的車站書籤，僅限 ADMIN 角色存取")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "書籤刪除成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
-            @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入書籤id!"))),
-            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
-            @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
-            @ApiResponse(responseCode = "404", description = "找不到指定書籤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站書籤!"))),
-            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/delete-bookmark")
-    public ResponseEntity<MessageVO> deleteBookmark(@Valid @RequestBody BookmarkIdDTO bookmarkIdDTO) {
-        logger.debug("收到刪除車站書籤的請求，bookmarkIdDTO: {}", bookmarkIdDTO);
-        MessageVO apiResult = stationBookmarkService.deleteBookmark(bookmarkIdDTO.getBookmarkId());
+        /**
+         * 取得分頁與模糊搜尋後的車站書籤列表，僅限 ADMIN 角色存取。
+         *
+         * @param keyword
+         * @param page
+         * @param size
+         * @return ResponseEntity<PaginatedVO<StationBookmarkVO>>
+         */
+        @Operation(summary = "取得所有車站書籤資料", description = "取得所有車站書籤資料，僅限 ADMIN 角色存取，支援分頁與模糊搜尋（比對車站名稱、使用者名稱、email）")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功取得所有車站書籤資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = PaginatedVO.class))),
+                        @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+                        @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping("/get-all-bookmark-paginated")
+        public ResponseEntity<PaginatedVO<StationBookmarkVO>> getAllBookmark(
+                        @Parameter(description = "搜尋關鍵字") @RequestParam(name = "keyword", required = false) String keyword,
+                        @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
+                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "8") int size) {
+                logger.debug("收到分頁查詢車站書籤資料的請求，keyword: {}, page: {}, size: {}", keyword, page, size);
+                PaginatedVO<StationBookmarkVO> paginatedBookmarks = stationBookmarkService.getAllBookmark(keyword, page,
+                                size);
 
-        return ResponseEntity.ok(apiResult);
-    }
+                return ResponseEntity.ok(paginatedBookmarks);
+        }
 
-    /**
-     * 匯出所有有效（未軟刪除）的車站書籤 excel 檔，僅限 ADMIN 角色存取。
-     *
-     * @return ResponseEntity<byte[]>
-     */
-    @Operation(summary = "匯出所有車站書籤 excel", description = "取得所有有效（未軟刪除）的車站書籤並匯出 excel 檔，僅限 ADMIN 角色存取，不受列表分頁與關鍵字篩選影響")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "成功匯出車站書籤 excel", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))),
-            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
-            @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
-            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/get-excel")
-    public ResponseEntity<byte[]> getExcel() {
-        logger.debug("收到匯出車站書籤 excel 的請求");
-        byte[] excel = stationBookmarkService.exportBookmarkExcel();
+        /**
+         * 移除指定的車站書籤，僅限 ADMIN 角色存取。
+         *
+         * @param bookmarkIdDTO
+         * @return ResponseEntity<MessageVO>
+         */
+        @Operation(summary = "移除車站書籤", description = "軟刪除指定 id 的車站書籤，僅限 ADMIN 角色存取")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "書籤刪除成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+                        @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入書籤id!"))),
+                        @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+                        @ApiResponse(responseCode = "404", description = "找不到指定書籤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的車站書籤!"))),
+                        @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping("/delete-bookmark")
+        public ResponseEntity<MessageVO> deleteBookmark(@Valid @RequestBody BookmarkIdDTO bookmarkIdDTO) {
+                logger.debug("收到刪除車站書籤的請求，bookmarkIdDTO: {}", bookmarkIdDTO);
+                MessageVO apiResult = stationBookmarkService.deleteBookmark(bookmarkIdDTO.getBookmarkId());
 
-        String encodedFilename = UriUtils.encode("車站書籤清單.xlsx", StandardCharsets.UTF_8);
+                return ResponseEntity.ok(apiResult);
+        }
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=utf-8''" + encodedFilename)
-                .contentType(MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(excel);
-    }
+        /**
+         * 匯出所有有效（未軟刪除）的車站書籤 excel 檔，僅限 ADMIN 角色存取。
+         *
+         * @return ResponseEntity<byte[]>
+         */
+        @Operation(summary = "匯出所有車站書籤 excel", description = "取得所有有效（未軟刪除）的車站書籤並匯出 excel 檔，僅限 ADMIN 角色存取，不受列表分頁與關鍵字篩選影響")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功匯出車站書籤 excel", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))),
+                        @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+                        @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+        @PreAuthorize("hasRole('ADMIN')")
+        @PostMapping("/get-excel")
+        public ResponseEntity<byte[]> getExcel() {
+                logger.debug("收到匯出車站書籤 excel 的請求");
+                byte[] excel = stationBookmarkService.exportBookmarkExcel();
+
+                String encodedFilename = UriUtils.encode("車站書籤清單.xlsx", StandardCharsets.UTF_8);
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename*=utf-8''" + encodedFilename)
+                                .contentType(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .body(excel);
+        }
 }

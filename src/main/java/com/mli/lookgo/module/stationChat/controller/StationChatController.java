@@ -76,7 +76,7 @@ public class StationChatController {
         public ResponseEntity<PaginatedVO<StationChatMessageVO>> getMessagesByStationId(
                         @Parameter(description = "車站 id") @RequestParam Integer stationId,
                         @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
-                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "16") int size) {
+                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "8") int size) {
                 logger.debug("收到依車站 id 分頁查詢車站聊天留言的請求，stationId: {}, page: {}, size: {}", stationId, page, size);
                 PaginatedVO<StationChatMessageVO> paginatedMessages = stationChatService.getMessages(stationId, page,
                                 size);
@@ -101,7 +101,7 @@ public class StationChatController {
         public ResponseEntity<PaginatedVO<StationChatAnnouncementVO>> getAnnouncementsByStationId(
                         @Parameter(description = "車站 id") @RequestParam Integer stationId,
                         @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
-                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "16") int size) {
+                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "8") int size) {
                 logger.debug("收到依車站 id 分頁查詢車站聊天公告的請求，stationId: {}, page: {}, size: {}", stationId, page, size);
                 PaginatedVO<StationChatAnnouncementVO> paginatedAnnouncements = stationChatService
                                 .getAnnouncements(stationId, page, size);

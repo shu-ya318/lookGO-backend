@@ -63,6 +63,16 @@ public interface StationBookmarkDAO {
     Optional<StationBookmarkVO> getVOById(@Param("id") Integer id);
 
     /**
+     * 依使用者 id 與車站中文名稱模糊搜尋，取得該使用者單一有效（未軟刪除）的車站書籤，若比對到多筆則取收藏時間最新的一筆。
+     *
+     * @param userId
+     * @param stationName
+     * @return Optional<StationBookmarkVO>
+     */
+    Optional<StationBookmarkVO> getActiveVOByUserIdAndStationNameLike(@Param("userId") Integer userId,
+            @Param("stationName") String stationName);
+
+    /**
      * 查詢指定使用者對指定車站是否已存在有效（未軟刪除）的書籤。
      *
      * @param userId

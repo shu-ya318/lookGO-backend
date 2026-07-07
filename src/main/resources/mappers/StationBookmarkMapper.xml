@@ -9,6 +9,7 @@
             b.id,
             b.station_id,
             s.name_zh_tw AS station_name_zh_tw,
+            s.name_en AS station_name_en,
             b.user_id,
             u.username,
             u.email,
@@ -68,6 +69,17 @@
         <include refid="bookmarkVOSelectAndJoins" />
         WHERE b.id = #{id, jdbcType=INTEGER}
           AND b.deleted_at IS NULL
+    </select>
+
+    <!-- 依使用者 id 與車站中文名稱模糊搜尋，取得該使用者單一有效（未軟刪除）的車站書籤，比對到多筆則取收藏時間最新的一筆 -->
+    <select id="getActiveVOByUserIdAndStationNameLike"
+            resultType="com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO">
+        <include refid="bookmarkVOSelectAndJoins" />
+        WHERE b.user_id = #{userId, jdbcType=INTEGER}
+          AND b.deleted_at IS NULL
+          AND s.name_zh_tw LIKE CONCAT('%', #{stationName}, '%')
+        ORDER BY b.created_at DESC, b.id DESC
+        OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
     </select>
 
     <!-- 查詢指定使用者對指定車站是否已存在有效（未軟刪除）的書籤 -->

@@ -22,6 +22,9 @@ public class StationBookmarkVO {
     @Schema(description = "車站中文名稱", example = "淡水站")
     private String stationNameZhTw;
 
+    @Schema(description = "車站英文名稱", example = "Tamsui")
+    private String stationNameEn;
+
     @Schema(description = "使用者 id", example = "10")
     private Integer userId;
 
@@ -59,6 +62,14 @@ public class StationBookmarkVO {
 
     public void setStationNameZhTw(String stationNameZhTw) {
         this.stationNameZhTw = stationNameZhTw;
+    }
+
+    public String getStationNameEn() {
+        return stationNameEn;
+    }
+
+    public void setStationNameEn(String stationNameEn) {
+        this.stationNameEn = stationNameEn;
     }
 
     public Integer getUserId() {

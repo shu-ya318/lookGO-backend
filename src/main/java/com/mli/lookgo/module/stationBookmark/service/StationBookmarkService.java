@@ -110,6 +110,25 @@ public class StationBookmarkService {
     }
 
     /**
+     * 依車站中文名稱模糊搜尋，取得當前使用者單一有效（未軟刪除）的車站書籤，若比對到多筆則取收藏時間最新的一筆。
+     *
+     * @param stationName
+     * @return StationBookmarkVO
+     * @throws UserNotFoundException     找不到當前使用者。
+     * @throws BookmarkNotFoundException 找不到符合條件的車站書籤。
+     */
+    public StationBookmarkVO getBookmarkByStationName(String stationName) {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始呼叫 API 依車站名稱查詢單一車站書籤，email: {}, stationName: {}", email, stationName);
+
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        return stationBookmarkDAO.getActiveVOByUserIdAndStationNameLike(user.getId(), stationName)
+                .orElseThrow(() -> new BookmarkNotFoundException("找不到符合「" + stationName + "」的車站書籤!"));
+    }
+
+    /**
      * 取得分頁與模糊搜尋後的車站書籤列表。
      *
      * @param keyword

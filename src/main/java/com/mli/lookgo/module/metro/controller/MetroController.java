@@ -213,7 +213,7 @@ public class MetroController {
         public ResponseEntity<PaginatedVO<StationSummaryVO>> getAllStation(
                         @Parameter(description = "搜尋關鍵字") @RequestParam(name = "keyword", required = false) String keyword,
                         @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
-                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "16") int size) {
+                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "8") int size) {
                 logger.debug("收到分頁查詢車站資料的請求，keyword: {}, page: {}, size: {}", keyword, page, size);
                 PaginatedVO<StationSummaryVO> paginatedStations = metroService.getAllStation(keyword, page, size);
 

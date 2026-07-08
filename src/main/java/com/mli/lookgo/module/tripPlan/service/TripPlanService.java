@@ -50,7 +50,10 @@ public class TripPlanService {
 
     /** 有效票種代碼，比照 {@code MetroService.VALID_FARE_TYPES}：1=全票, 4=學生, 5=兒童, 7=愛心。 */
     private static final Set<Integer> VALID_FARE_TYPES = Set.of(1, 4, 5, 7);
-    /** 有效路線規劃策略代碼，比照 {@code MetroService.VALID_ROUTING_STRATEGIES}：1=最少轉乘次數, 2=最短車程時間。 */
+    /**
+     * 有效路線規劃策略代碼，比照 {@code MetroService.VALID_ROUTING_STRATEGIES}：1=最少轉乘次數,
+     * 2=最短車程時間。
+     */
     private static final Set<Integer> VALID_ROUTING_STRATEGIES = Set.of(1, 2);
 
     private static final String FARE_TYPE_ROUTING_STRATEGY_HINT = "，有效票種為 1(全票)、4(學生)、5(兒童)、7(愛心)，"
@@ -78,9 +81,9 @@ public class TripPlanService {
      *
      * @param createTripPlanDTO
      * @return TripPlanVO
-     * @throws UserNotFoundException         找不到當前使用者。
-     * @throws StationNotFoundException      找不到指定起站或訖站。
-     * @throws IllegalArgumentException      票種或路線規劃策略代碼不合法。
+     * @throws UserNotFoundException          找不到當前使用者。
+     * @throws StationNotFoundException       找不到指定起站或訖站。
+     * @throws IllegalArgumentException       票種或路線規劃策略代碼不合法。
      * @throws TripPlanLimitExceededException 已達會員等級旅程規劃數量上限。
      */
     public TripPlanVO createTripPlan(CreateTripPlanDTO createTripPlanDTO) {
@@ -123,8 +126,11 @@ public class TripPlanService {
 
         tripPlanDAO.insert(tripPlan);
 
-        return tripPlanDAO.getById(tripPlan.getId())
+        TripPlanVO createdTripPlan = tripPlanDAO.getById(tripPlan.getId())
                 .orElseThrow(() -> new TripPlanNotFoundException("找不到剛新增的 id:" + tripPlan.getId() + " 旅程規劃!"));
+        enrichTravelTime(createdTripPlan);
+
+        return createdTripPlan;
     }
 
     /**
@@ -134,7 +140,8 @@ public class TripPlanService {
      * @param page
      * @param size
      * @return PaginatedVO<TripPlanVO>
-     * @throws UserNotFoundException 找不到當前使用者。
+     * @throws UserNotFoundException    找不到當前使用者。
+     * @throws StationNotFoundException 找不到旅程規劃起站或訖站對應的路線車站代碼。
      */
     public PaginatedVO<TripPlanVO> getAllTripPlan(String keyword, int page, int size) {
         String email = getAuthenticatedEmail();
@@ -144,10 +151,56 @@ public class TripPlanService {
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
         List<TripPlanVO> tripPlans = tripPlanDAO.getAllPaginatedByUserId(user.getId(), keyword, page * size, size);
+        tripPlans.forEach(this::enrichTravelTime);
+
         long totalElements = tripPlanDAO.countAllByUserId(user.getId(), keyword);
         int totalPages = (int) Math.ceil((double) totalElements / size);
 
         return new PaginatedVO<>(tripPlans, page, size, totalElements, totalPages);
+    }
+
+    /**
+     * 取得當前使用者所有有效旅程規劃的名稱列表，依建立時間新到舊排序。
+     *
+     * @return List<String>
+     * @throws UserNotFoundException 找不到當前使用者。
+     */
+    public List<String> getAllTripPlanName() {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始查詢所有旅程規劃名稱，email: {}", email);
+
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        return tripPlanDAO.getAllNamesByUserId(user.getId());
+    }
+
+    /**
+     * 用旅程名稱模糊搜尋，取得當前使用者符合條件中最新建立的一筆旅程規劃。
+     *
+     * @param keyword
+     * @return TripPlanVO
+     * @throws IllegalArgumentException  未輸入旅程名稱關鍵字。
+     * @throws UserNotFoundException     找不到當前使用者。
+     * @throws TripPlanNotFoundException 找不到名稱符合關鍵字的旅程規劃。
+     * @throws StationNotFoundException  找不到旅程規劃起站或訖站對應的路線車站代碼。
+     */
+    public TripPlanVO getTripPlanByName(String keyword) {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始以旅程名稱模糊搜尋單一旅程規劃，email: {}, keyword: {}", email, keyword);
+
+        if (keyword == null || keyword.isBlank()) {
+            throw new IllegalArgumentException("請輸入旅程名稱!");
+        }
+
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        TripPlanVO tripPlan = tripPlanDAO.getLatestByUserIdAndKeyword(user.getId(), keyword)
+                .orElseThrow(() -> new TripPlanNotFoundException("找不到名稱包含「" + keyword + "」的旅程規劃!"));
+        enrichTravelTime(tripPlan);
+
+        return tripPlan;
     }
 
     /**
@@ -179,6 +232,7 @@ public class TripPlanService {
      * @throws UserNotFoundException         找不到當前使用者。
      * @throws TripPlanNotFoundException     找不到指定旅程規劃，或該旅程規劃已被軟刪除。
      * @throws TripPlanAccessDeniedException 嘗試操作非本人擁有的旅程規劃。
+     * @throws StationNotFoundException      找不到旅程規劃起站或訖站對應的路線車站代碼。
      */
     public TripPlanVO updateTripPlanName(Integer tripPlanId, String name) {
         logger.debug("開始呼叫 API 來更新旅程規劃名稱，tripPlanId: {}, name: {}", tripPlanId, name);
@@ -187,8 +241,11 @@ public class TripPlanService {
 
         tripPlanDAO.updateNameById(tripPlanId, name, LocalDateTime.now(ZoneOffset.UTC));
 
-        return tripPlanDAO.getById(tripPlanId)
+        TripPlanVO updatedTripPlan = tripPlanDAO.getById(tripPlanId)
                 .orElseThrow(() -> new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!"));
+        enrichTravelTime(updatedTripPlan);
+
+        return updatedTripPlan;
     }
 
     /**
@@ -200,6 +257,7 @@ public class TripPlanService {
      * @throws TripPlanNotFoundException     找不到指定旅程規劃，或該旅程規劃已被軟刪除。
      * @throws TripPlanAccessDeniedException 嘗試操作非本人擁有的旅程規劃。
      * @throws IllegalArgumentException      票種或路線規劃策略代碼不合法。
+     * @throws StationNotFoundException      找不到旅程規劃起站或訖站對應的路線車站代碼。
      */
     public TripPlanVO updateTripPlanInfo(UpdateTripPlanDTO updateTripPlanDTO) {
         logger.debug("開始呼叫 API 來更新旅程規劃資訊，updateTripPlanDTO: {}", updateTripPlanDTO);
@@ -213,8 +271,11 @@ public class TripPlanService {
                 updateTripPlanDTO.getTransferCount(), updateTripPlanDTO.getRoutingStrategy(),
                 updateTripPlanDTO.getNotes(), LocalDateTime.now(ZoneOffset.UTC));
 
-        return tripPlanDAO.getById(tripPlanId)
+        TripPlanVO updatedTripPlan = tripPlanDAO.getById(tripPlanId)
                 .orElseThrow(() -> new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!"));
+        enrichTravelTime(updatedTripPlan);
+
+        return updatedTripPlan;
     }
 
     /**
@@ -286,6 +347,18 @@ public class TripPlanService {
      */
     private String getAuthenticatedEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    /**
+     * 依旅程規劃的起訖站與路線規劃策略，即時計算總車程時間並補進傳入的 {@link TripPlanVO}。
+     *
+     * @param tripPlan
+     * @throws StationNotFoundException 找不到起站或訖站對應的路線車站代碼。
+     */
+    private void enrichTravelTime(TripPlanVO tripPlan) {
+        Integer travelTimeSeconds = metroService.getTravelTimeSecondsByStationIds(
+                tripPlan.getFromStationId(), tripPlan.getToStationId(), tripPlan.getRoutingStrategy());
+        tripPlan.setTravelTimeSeconds(travelTimeSeconds);
     }
 
     /**

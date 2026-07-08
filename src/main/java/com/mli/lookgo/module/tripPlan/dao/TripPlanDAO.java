@@ -44,6 +44,24 @@ public interface TripPlanDAO {
     long countAllByUserId(@Param("userId") Integer userId, @Param("keyword") String keyword);
 
     /**
+     * 取得指定使用者所有有效（未軟刪除）旅程規劃的名稱列表，依建立時間新到舊排序。
+     *
+     * @param userId
+     * @return List<String>
+     */
+    List<String> getAllNamesByUserId(@Param("userId") Integer userId);
+
+    /**
+     * 用旅程名稱模糊搜尋指定使用者有效（未軟刪除）的旅程規劃，回傳符合條件中最新建立的一筆。
+     *
+     * @param userId
+     * @param keyword
+     * @return Optional<TripPlanVO>
+     */
+    Optional<TripPlanVO> getLatestByUserIdAndKeyword(@Param("userId") Integer userId,
+            @Param("keyword") String keyword);
+
+    /**
      * 用 id 查詢指定旅程規劃的顯示用資料（含起訖站名稱），僅限有效（未軟刪除）的資料。
      *
      * @param id

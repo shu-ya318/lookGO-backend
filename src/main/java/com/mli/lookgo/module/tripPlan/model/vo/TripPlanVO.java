@@ -44,6 +44,9 @@ public class TripPlanVO {
     @Schema(description = "路線規劃策略代碼 (1=最少轉乘次數, 2=最短車程時間)", example = "1")
     private Integer routingStrategy;
 
+    @Schema(description = "總車程時間 (秒，含轉乘時間；依起訖站與路線規劃策略即時計算)", example = "1800")
+    private Integer travelTimeSeconds;
+
     @Schema(description = "備註", example = "平日上班使用")
     private String notes;
 
@@ -136,6 +139,14 @@ public class TripPlanVO {
         this.routingStrategy = routingStrategy;
     }
 
+    public Integer getTravelTimeSeconds() {
+        return travelTimeSeconds;
+    }
+
+    public void setTravelTimeSeconds(Integer travelTimeSeconds) {
+        this.travelTimeSeconds = travelTimeSeconds;
+    }
+
     public String getNotes() {
         return notes;
     }
@@ -167,6 +178,7 @@ public class TripPlanVO {
                 ", name='" + name + '\'' +
                 ", fromStationNameZhTw='" + fromStationNameZhTw + '\'' +
                 ", toStationNameZhTw='" + toStationNameZhTw + '\'' +
+                ", travelTimeSeconds=" + travelTimeSeconds +
                 ", createdAt=" + createdAt +
                 '}';
     }

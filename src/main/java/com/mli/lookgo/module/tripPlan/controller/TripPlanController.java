@@ -1,6 +1,7 @@
 package com.mli.lookgo.module.tripPlan.controller;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import com.mli.lookgo.module.tripPlan.service.TripPlanService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -100,6 +102,45 @@ public class TripPlanController {
                 PaginatedVO<TripPlanVO> paginatedTripPlans = tripPlanService.getAllTripPlan(keyword, page, size);
 
                 return ResponseEntity.ok(paginatedTripPlans);
+        }
+
+        /**
+         * 取得當前使用者所有旅程規劃的名稱列表。
+         *
+         * @return ResponseEntity<List<String>>
+         */
+        @Operation(summary = "取得所有旅程規劃名稱", description = "取得當前使用者建立的所有旅程規劃名稱，依建立時間新到舊排序")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功取得旅程規劃名稱列表", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = String.class, example = "淡水一日遊")))),
+                        @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))) })
+        @PostMapping("/get-all-plan-name")
+        public ResponseEntity<List<String>> getAllTripPlanName() {
+                logger.debug("收到取得所有旅程規劃名稱的請求");
+                List<String> tripPlanNames = tripPlanService.getAllTripPlanName();
+
+                return ResponseEntity.ok(tripPlanNames);
+        }
+
+        /**
+         * 取得單一旅程規劃資料，以旅程名稱模糊搜尋。
+         *
+         * @param keyword
+         * @return ResponseEntity<TripPlanVO>
+         */
+        @Operation(summary = "取得單一旅程規劃資料", description = "以旅程名稱模糊搜尋當前使用者的旅程規劃，回傳符合條件中最新建立的一筆")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "成功取得旅程規劃資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TripPlanVO.class))),
+                        @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入旅程名稱!"))),
+                        @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到當前使用者或符合條件的旅程規劃", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到名稱包含「淡水一日遊」的旅程規劃!"))) })
+        @PostMapping("/get-plan")
+        public ResponseEntity<TripPlanVO> getTripPlan(
+                        @Parameter(description = "搜尋關鍵字（旅程名稱，模糊比對）", required = true) @RequestParam(name = "keyword") String keyword) {
+                logger.debug("收到以旅程名稱查詢單一旅程規劃的請求，keyword: {}", keyword);
+                TripPlanVO tripPlan = tripPlanService.getTripPlanByName(keyword);
+
+                return ResponseEntity.ok(tripPlan);
         }
 
         /**

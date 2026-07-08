@@ -95,6 +95,52 @@ public class MetroService {
         }
 
         /**
+         * 依車站 id 取得任一隸屬路線車站代碼，供其他模組以車站 id（而非路線車站代碼）查詢路線資料時轉換使用。
+         * 換乘站雖對應多筆不同路線代碼（例如民權西路同時是 "R13"、"O11"），但路徑演算法已將同站不同代碼視為等價起訖點，任取一筆代碼即可。
+         *
+         * @param stationId
+         * @return Optional<String>
+         */
+        public Optional<String> getAnyStationCodeByStationId(Integer stationId) {
+                logger.debug("開始依車站 id 查詢任一路線車站代碼，stationId: {}", stationId);
+                return metroDAO.getAllLineStation().stream()
+                                .filter(lineStation -> stationId.equals(lineStation.getStationId()))
+                                .map(LineStation::getStationCode)
+                                .filter(stationCode -> stationCode != null)
+                                .findFirst();
+        }
+
+        /**
+         * 依起訖車站 id 與路線規劃策略計算總車程時間，供其他模組（如旅程規劃）取得車程時間顯示使用，不含票價與詳細路線段資料。
+         *
+         * @param fromStationId
+         * @param toStationId
+         * @param routingStrategy
+         * @return 總行駛時間（秒，含轉乘時間）
+         * @throws StationNotFoundException 找不到起站或訖站對應的路線車站代碼。
+         * @throws IllegalArgumentException 路線規劃策略代碼不合法。
+         */
+        public Integer getTravelTimeSecondsByStationIds(Integer fromStationId, Integer toStationId,
+                        Integer routingStrategy) {
+                logger.debug("開始依車站 id 計算總車程時間，fromStationId: {}, toStationId: {}, routingStrategy: {}",
+                                fromStationId, toStationId, routingStrategy);
+
+                String fromCode = getAnyStationCodeByStationId(fromStationId)
+                                .orElseThrow(() -> new StationNotFoundException(
+                                                "找不到 id:" + fromStationId + " 車站對應的路線資料!"));
+                String toCode = getAnyStationCodeByStationId(toStationId)
+                                .orElseThrow(() -> new StationNotFoundException(
+                                                "找不到 id:" + toStationId + " 車站對應的路線資料!"));
+
+                StationRouteDTO stationRouteDTO = new StationRouteDTO();
+                stationRouteDTO.setFromStationCode(fromCode);
+                stationRouteDTO.setToStationCode(toCode);
+                stationRouteDTO.setRoutingStrategy(routingStrategy);
+
+                return getOriginDestinationDetail(stationRouteDTO).getTotalTravelTimeSeconds();
+        }
+
+        /**
          * 用車站 id 查詢指定車站的中文名稱，供其他模組組裝匯出檔案等用途使用。
          *
          * @param stationId

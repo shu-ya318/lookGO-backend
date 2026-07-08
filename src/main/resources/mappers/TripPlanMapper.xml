@@ -47,6 +47,25 @@
         </if>
     </select>
 
+    <!-- 取得指定使用者所有有效旅程規劃的名稱列表，依建立時間新到舊排序 -->
+    <select id="getAllNamesByUserId" resultType="string">
+        SELECT name
+        FROM [dbo].[user_trip_plans]
+        WHERE user_id = #{userId, jdbcType=INTEGER}
+          AND deleted_at IS NULL
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <!-- 用旅程名稱模糊搜尋指定使用者有效的旅程規劃，回傳符合條件中最新建立的一筆 -->
+    <select id="getLatestByUserIdAndKeyword" resultType="com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO">
+        <include refid="tripPlanVOSelectAndJoins" />
+        WHERE t.user_id = #{userId, jdbcType=INTEGER}
+          AND t.deleted_at IS NULL
+          AND t.name LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY t.created_at DESC, t.id DESC
+        OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
+    </select>
+
     <!-- 用 id 查詢指定旅程規劃的顯示用資料，僅限有效（未軟刪除）的資料 -->
     <select id="getById" resultType="com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO">
         <include refid="tripPlanVOSelectAndJoins" />

@@ -57,6 +57,15 @@
         WHERE email = #{email}
     </update>
 
+    <!-- WHERE 條件再次守住升級規則，確保「檢查 + 更新」在資料庫層原子化，避免併發下重複升級 -->
+    <update id="updateMembershipTierByEmail">
+        UPDATE [dbo].[users]
+        SET membership_tier_id = #{membershipTierId}, updated_at = #{updatedAt}
+        WHERE email = #{email}
+          AND birth_date IS NOT NULL
+          AND membership_tier_id != #{membershipTierId}
+    </update>
+
     <select id="getById" resultType="com.mli.lookgo.module.user.model.entity.User">
         SELECT id, membership_tier_id, role_id, email, password, username, birth_date, cellphone, status,
                created_at, updated_at, last_login_at

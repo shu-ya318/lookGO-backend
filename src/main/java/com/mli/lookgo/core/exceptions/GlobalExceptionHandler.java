@@ -20,6 +20,7 @@ import com.mli.lookgo.module.tripPlan.exceptions.TripPlanExportExcelFailedExcept
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanLimitExceededException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanNotFoundException;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
+import com.mli.lookgo.module.user.exceptions.MembershipUpgradeException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 
 import java.util.HashMap;
@@ -185,6 +186,21 @@ public class GlobalExceptionHandler {
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResult);
+    }
+
+    /**
+     * 處理不符合會員等級升級條件的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 409 (Conflict) 給客戶端。
+     */
+    @ExceptionHandler(MembershipUpgradeException.class)
+    public ResponseEntity<MessageVO> handleMembershipUpgradeException(MembershipUpgradeException exception) {
+        logger.error("會員等級升級失敗: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(apiResult);
     }
 
     /**

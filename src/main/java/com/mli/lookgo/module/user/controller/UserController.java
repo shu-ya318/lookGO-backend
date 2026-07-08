@@ -185,6 +185,26 @@ public class UserController {
     }
 
     /**
+     * 將當前已驗證使用者的會員等級由 BASIC 升級為 PREMIUM。
+     *
+     * @return ResponseEntity<MessageVO>
+     */
+    @Operation(summary = "升級會員等級", description = "將當前已驗證使用者的會員等級由 BASIC 升級為 PREMIUM，須已填寫出生日期")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "會員等級升級成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
+            @ApiResponse(responseCode = "409", description = "不符合升級條件", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "尚未填寫出生日期，無法升級會員等級!"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/upgrade-membership-tier")
+    public ResponseEntity<MessageVO> upgradeMembershipTier() {
+        logger.debug("收到升級會員等級的請求");
+        MessageVO apiResult = userService.upgradeMembershipTier();
+
+        return ResponseEntity.ok(apiResult);
+    }
+
+    /**
      * 更新指定使用者的狀態，僅限 ADMIN 角色存取。
      *
      * @param updateUserStatusDTO

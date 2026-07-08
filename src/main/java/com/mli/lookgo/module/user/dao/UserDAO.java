@@ -103,6 +103,18 @@ public interface UserDAO {
                         @Param("updatedAt") LocalDateTime updatedAt);
 
         /**
+         * 用 email 更新指定使用者的會員等級。僅在使用者已填寫出生日期且目前等級不同時才會更新。
+         *
+         * @param email
+         * @param membershipTierId
+         * @param updatedAt
+         * @return 影響筆數
+         */
+        int updateMembershipTierByEmail(@Param("email") String email,
+                        @Param("membershipTierId") int membershipTierId,
+                        @Param("updatedAt") LocalDateTime updatedAt);
+
+        /**
          * 用 id 查詢指定使用者的資料。
          *
          * @param id

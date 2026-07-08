@@ -237,6 +237,16 @@ CREATE TABLE [dbo].[station_chat_messages] (
         FOREIGN KEY ([trip_plan_id]) REFERENCES [dbo].[user_trip_plans] ([id])
 );
 
+-- 既有環境的資料表建立於 content 仍為 NOT NULL 的舊版 DDL，
+-- 上方 CREATE TABLE 受 IF NOT EXISTS 保護不會重建，需另行將欄位改為允許 NULL（旅程分享類型不儲存文字內容）
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE [object_id] = OBJECT_ID('dbo.station_chat_messages')
+      AND [name] = 'content'
+      AND is_nullable = 0
+)
+ALTER TABLE [dbo].[station_chat_messages] ALTER COLUMN [content] NVARCHAR(1000) NULL;
+
 -- station_chat_announcements
 IF NOT EXISTS (
     SELECT 1 FROM sys.tables

@@ -128,15 +128,15 @@
             </when>
             <otherwise>
                 <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ATM)">, s.atm</if>
-                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@NURSING_ROOM)">, s.nursing_room, s.diaper_table</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@NURSING_ROOM)">, s.nursing_room</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@DIAPER_TABLE)">, s.diaper_table</if>
                 <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@CHARGING_STATION)">, s.charging_station</if>
                 <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@TICKET_MACHINE)">, s.ticket_machine</if>
                 <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@LOCKER)">, s.locker</if>
                 <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@DRINKING_WATER)">, s.drinking_water</if>
-                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@TOILET)">, s.restroom</if>
-                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ELEVATOR)
-                       or dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ACCESSIBLE_FACILITIES)">, s.elevator</if>
-                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ELEVATOR)">, s.escalator</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@RESTROOM)">, s.restroom</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ELEVATOR)">, s.elevator</if>
+                <if test="dto.stationFacilities.contains(@com.mli.lookgo.module.metro.enums.StationFacilities@ESCALATOR)">, s.escalator</if>
             </otherwise>
         </choose>
         , s.updated_at

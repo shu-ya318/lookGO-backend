@@ -88,6 +88,7 @@ public class StationChatService {
 
         List<StationChatMessageVO> messages = stationChatDAO.getMessagesByStationIdPaginated(stationId, page * size,
                 size);
+        messages.forEach(this::enrichTravelTime);
         long totalElements = stationChatDAO.countMessagesByStationId(stationId);
         int totalPages = (int) Math.ceil((double) totalElements / size);
 
@@ -279,8 +280,11 @@ public class StationChatService {
 
         stationChatDAO.insertMessage(message);
 
-        return stationChatDAO.getMessageVOById(message.getId())
+        StationChatMessageVO messageVO = stationChatDAO.getMessageVOById(message.getId())
                 .orElseThrow(() -> new StationChatNotFoundException("找不到剛新增的 id:" + message.getId() + " 留言!"));
+        enrichTravelTime(messageVO);
+
+        return messageVO;
     }
 
     /**
@@ -335,6 +339,28 @@ public class StationChatService {
      */
     private String getAuthenticatedEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    /**
+     * 為旅程分享類型的留言即時計算總車程時間並補進 VO。車程時間非資料庫欄位，需依起訖站與路線規劃策略計算。
+     * 計算失敗（如路線資料尚未同步）時僅記錄警告，不影響留言本身的回傳。
+     *
+     * @param message
+     */
+    private void enrichTravelTime(StationChatMessageVO message) {
+        if (message.getTripPlanId() == null || message.getFromStationId() == null
+                || message.getToStationId() == null) {
+            return;
+        }
+
+        try {
+            Integer travelTimeSeconds = metroService.getTravelTimeSecondsByStationIds(
+                    message.getFromStationId(), message.getToStationId(), message.getRoutingStrategy());
+            message.setTravelTimeSeconds(travelTimeSeconds);
+        } catch (RuntimeException exception) {
+            logger.warn("計算旅程分享留言的車程時間失敗，messageId: {}, tripPlanId: {}, 原因: {}",
+                    message.getId(), message.getTripPlanId(), exception.getMessage());
+        }
     }
 
     /**

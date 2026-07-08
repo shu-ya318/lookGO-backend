@@ -76,6 +76,7 @@ public class AuthService {
 
     /**
      * 把傳入資訊寫入資料庫，建立一筆對應的使用者帳號，並回傳存取token。
+     * 若註冊時已填寫出生日期，會員等級直接以 PREMIUM 建立，否則為 BASIC。
      *
      * @param signupDTO
      * @param httpServletResponse
@@ -91,8 +92,12 @@ public class AuthService {
         String hashedPassword = passwordEncoder.encode(signupDTO.getPassword());
         LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
+        MembershipTier initialTier = signupDTO.getBirthDate() != null
+                ? MembershipTier.PREMIUM
+                : MembershipTier.BASIC;
+
         User user = new User();
-        user.setMembershipTierId(MembershipTier.BASIC.getId());
+        user.setMembershipTierId(initialTier.getId());
         user.setRoleId(UserRole.USER.getId());
         user.setEmail(signupDTO.getEmail());
         user.setPassword(hashedPassword);

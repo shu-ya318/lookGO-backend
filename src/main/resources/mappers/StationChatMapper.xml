@@ -24,6 +24,10 @@
             utp.fare_type,
             utp.fare_price,
             utp.transfer_count,
+            utp.notes,
+            utp.from_station_id,
+            utp.to_station_id,
+            utp.routing_strategy,
             scm.created_at
         FROM [dbo].[station_chat_messages] scm
         INNER JOIN [dbo].[users] u ON u.id = scm.user_id

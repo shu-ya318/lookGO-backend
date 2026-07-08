@@ -3,6 +3,7 @@ package com.mli.lookgo.module.stationChat.model.vo;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.mli.lookgo.module.stationChat.enums.ChatTypeEnum;
 
@@ -48,8 +49,29 @@ public class StationChatMessageVO {
     @Schema(description = "轉乘次數 (chatType=TRIP_PLAN 時提供)", example = "1")
     private Integer transferCount;
 
+    @Schema(description = "總車程時間 (秒，含轉乘時間；chatType=TRIP_PLAN 時提供)", example = "1080")
+    private Integer travelTimeSeconds;
+
+    @Schema(description = "旅程規劃備註 (chatType=TRIP_PLAN 時提供)", example = "週末出遊路線")
+    private String notes;
+
     @Schema(description = "留言建立時間 (UTC, ISO 8601)", example = "2026-07-03T12:00:00Z")
     private LocalDateTime createdAt;
+
+    /** 起始車站 id，僅供後端即時計算車程時間使用，不對外輸出。 */
+    @JsonIgnore
+    @Schema(hidden = true)
+    private Integer fromStationId;
+
+    /** 終點車站 id，僅供後端即時計算車程時間使用，不對外輸出。 */
+    @JsonIgnore
+    @Schema(hidden = true)
+    private Integer toStationId;
+
+    /** 路線規劃策略，僅供後端即時計算車程時間使用，不對外輸出。 */
+    @JsonIgnore
+    @Schema(hidden = true)
+    private Integer routingStrategy;
 
     public StationChatMessageVO() {
     }
@@ -132,6 +154,46 @@ public class StationChatMessageVO {
 
     public void setTransferCount(Integer transferCount) {
         this.transferCount = transferCount;
+    }
+
+    public Integer getTravelTimeSeconds() {
+        return travelTimeSeconds;
+    }
+
+    public void setTravelTimeSeconds(Integer travelTimeSeconds) {
+        this.travelTimeSeconds = travelTimeSeconds;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public Integer getFromStationId() {
+        return fromStationId;
+    }
+
+    public void setFromStationId(Integer fromStationId) {
+        this.fromStationId = fromStationId;
+    }
+
+    public Integer getToStationId() {
+        return toStationId;
+    }
+
+    public void setToStationId(Integer toStationId) {
+        this.toStationId = toStationId;
+    }
+
+    public Integer getRoutingStrategy() {
+        return routingStrategy;
+    }
+
+    public void setRoutingStrategy(Integer routingStrategy) {
+        this.routingStrategy = routingStrategy;
     }
 
     public LocalDateTime getCreatedAt() {

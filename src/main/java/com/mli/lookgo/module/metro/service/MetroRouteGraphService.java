@@ -416,20 +416,15 @@ public class MetroRouteGraphService {
         for (StationFacilities facility : facilities) {
             switch (facility) {
                 case ATM -> stationInfoVO.setAtm(station.getAtm());
-                case NURSING_ROOM -> {
-                    stationInfoVO.setNursingRoom(station.getNursingRoom());
-                    stationInfoVO.setDiaperTable(station.getDiaperTable());
-                }
+                case NURSING_ROOM -> stationInfoVO.setNursingRoom(station.getNursingRoom());
+                case DIAPER_TABLE -> stationInfoVO.setDiaperTable(station.getDiaperTable());
                 case CHARGING_STATION -> stationInfoVO.setChargingStation(station.getChargingStation());
                 case TICKET_MACHINE -> stationInfoVO.setTicketMachine(station.getTicketMachine());
                 case LOCKER -> stationInfoVO.setLocker(station.getLocker());
                 case DRINKING_WATER -> stationInfoVO.setDrinkingWater(station.getDrinkingWater());
-                case TOILET -> stationInfoVO.setRestroom(station.getRestroom());
-                case ELEVATOR -> {
-                    stationInfoVO.setElevator(station.getElevator());
-                    stationInfoVO.setEscalator(station.getEscalator());
-                }
-                case ACCESSIBLE_FACILITIES -> stationInfoVO.setElevator(station.getElevator());
+                case RESTROOM -> stationInfoVO.setRestroom(station.getRestroom());
+                case ELEVATOR -> stationInfoVO.setElevator(station.getElevator());
+                case ESCALATOR -> stationInfoVO.setEscalator(station.getEscalator());
             }
         }
     }

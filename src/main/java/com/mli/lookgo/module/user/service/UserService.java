@@ -16,7 +16,6 @@ import com.mli.lookgo.module.user.enums.MembershipTier;
 import com.mli.lookgo.module.user.enums.UserRole;
 import com.mli.lookgo.module.user.enums.UserStatus;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
-import com.mli.lookgo.module.user.exceptions.MembershipUpgradeException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateCellphoneDTO;
@@ -145,7 +144,7 @@ public class UserService {
     }
 
     /**
-     * 更新當前已驗證使用者的出生日期。
+     * 更新當前已驗證使用者的出生日期。填寫出生日期即滿足升級條件，若目前會員等級為 BASIC，會在同一交易內自動升級為 PREMIUM。
      *
      * @param updateBirthDateDTO
      * @return MessageVO
@@ -159,7 +158,15 @@ public class UserService {
         userDAO.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
-        userDAO.updateBirthDateByEmail(email, updateBirthDateDTO.getBirthDate(), LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
+        userDAO.updateBirthDateByEmail(email, updateBirthDateDTO.getBirthDate(), currentTime);
+
+        int upgradedRows = userDAO.updateMembershipTierByEmail(email, MembershipTier.PREMIUM.getId(), currentTime);
+        if (upgradedRows > 0) {
+            logger.debug("使用者 email: {} 已填寫出生日期，會員等級自動升級為 PREMIUM", email);
+
+            return new MessageVO("出生日期更新成功，會員等級已自動升級為 PREMIUM!");
+        }
 
         return new MessageVO("出生日期更新成功!");
     }
@@ -182,39 +189,6 @@ public class UserService {
         userDAO.updateCellphoneByEmail(email, updateCellphoneDTO.getCellphone(), LocalDateTime.now(ZoneOffset.UTC));
 
         return new MessageVO("電話號碼更新成功!");
-    }
-
-    /**
-     * 將當前已驗證使用者的會員等級由 BASIC 升級為 PREMIUM。升級條件：已填寫出生日期，且目前等級為 BASIC。
-     *
-     * @return MessageVO
-     * @throws UserNotFoundException      找不到對應使用者。
-     * @throws MembershipUpgradeException 不符合升級條件（未填寫出生日期或已是 PREMIUM）。
-     */
-    @Transactional
-    public MessageVO upgradeMembershipTier() {
-        String email = getAuthenticatedEmail();
-        logger.debug("開始呼叫 API 來升級會員等級，email: {}", email);
-
-        User user = userDAO.getByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
-
-        if (user.getBirthDate() == null) {
-            throw new MembershipUpgradeException("尚未填寫出生日期，無法升級會員等級!");
-        }
-
-        if (MembershipTier.fromId(user.getMembershipTierId()) == MembershipTier.PREMIUM) {
-            throw new MembershipUpgradeException("已是 PREMIUM 會員，不需升級!");
-        }
-
-        int affectedRows = userDAO.updateMembershipTierByEmail(email, MembershipTier.PREMIUM.getId(),
-                LocalDateTime.now(ZoneOffset.UTC));
-
-        if (affectedRows == 0) {
-            throw new MembershipUpgradeException("不符合升級條件，會員等級升級失敗!");
-        }
-
-        return new MessageVO("會員等級升級成功!");
     }
 
     /**

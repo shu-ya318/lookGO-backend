@@ -30,7 +30,7 @@ public class StationRouteDTO {
     @Schema(description = "路線策略 (1=最少轉乘次數, 2=最短車程時間；未傳入時預設為 1)", example = "1")
     private Integer routingStrategy;
 
-    @Schema(description = "指定的車站設備過濾清單，例如: TOILET, ELEVATOR；傳入後路線中每個車站將回傳指定設備資訊")
+    @Schema(description = "指定的車站設備過濾清單，例如: RESTROOM, ELEVATOR；傳入後路線中每個車站將回傳指定設備資訊")
     private List<StationFacilities> stationFacilities;
 
     public String getFromStationCode() {

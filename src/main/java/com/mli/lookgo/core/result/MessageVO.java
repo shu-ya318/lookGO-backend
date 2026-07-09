@@ -27,8 +27,4 @@ public class MessageVO {
     public String getMessage() {
         return message;
     }
-
-    public void setgetMessage(String message) {
-        this.message = message;
-    }
 }

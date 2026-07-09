@@ -31,13 +31,13 @@ import com.mli.lookgo.module.metro.model.vo.OriginDestinationDetailVO;
 @Service
 public class MetroRouteGraphService {
 
+    private final MetroForkBranchRouteGraphService metroForkBranchRouteGraphService;
+
     public static final BigDecimal SAME_STATION_FARE = BigDecimal.valueOf(20);
 
     // 策略 1（最少轉乘）換乘邊權重的主要成分，遠大於任何實際車程秒數，確保轉乘次數為主要比較依據，
     // 實際秒數只在轉乘次數相同時作為次要比較依據（見 buildAdjacencyList）
     private static final int TRANSFER_COUNT_DOMINANT_WEIGHT = 1_000_000;
-
-    private final MetroForkBranchRouteGraphService metroForkBranchRouteGraphService;
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -108,9 +108,11 @@ public class MetroRouteGraphService {
      * 策略 1：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為一個遠大於任何實際秒數的常數
      * 加上換乘時間秒數（最小化轉乘次數；轉乘次數相同時，以實際秒數作為次要比較依據，
      * 避免任意選到轉乘次數相同但多繞路的路徑）。
+     * 
      * 策略 2：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為換乘時間秒數（最短車程時間）。
-     * 具 Y 字分岔拓樸的路線（見 {@link MetroForkBranchRouteGraphService}）無法單純依 stationSequence
-     * 排序推導同線邊，分岔口相鄰站對會略過線性推導，改由 {@link MetroForkBranchRouteGraphService#addBranchEdges} 建立正確邊。
+     * 具 Y 字分岔的路線（見 {@link MetroForkBranchRouteGraphService}）無法單純依 stationSequence
+     * 排序推導同線邊，分岔口相鄰站對會略過線性推導，改由
+     * {@link MetroForkBranchRouteGraphService#addBranchEdges} 建立正確邊。
      *
      * @param lineStations      所有路線車站關聯資料
      * @param lineTransfers     所有路線換乘資料

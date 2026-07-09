@@ -49,7 +49,9 @@ public class MetroService {
 
         private final MetroDAO metroDAO;
         private final MetroRouteGraphService metroRouteGraphService;
+
         private static final Logger logger = LoggerFactory.getLogger(MetroService.class);
+
         private static final Set<Integer> VALID_FARE_TYPES = Set.of(1, 4, 5, 7);
         private static final Set<Integer> VALID_ROUTING_STRATEGIES = Set.of(1, 2);
 

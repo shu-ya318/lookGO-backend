@@ -48,32 +48,31 @@ import com.mli.lookgo.module.metro.model.vo.StationVO;
  */
 @Service
 public class MetroSyncService {
-
     private final TDXApiClientConfig tdxApiClientConfig;
     private final DataTaipeiApiClientConfig dataTaipeiApiClientConfig;
     private final MetroDAO metroDAO;
+
     private static final Logger logger = LoggerFactory.getLogger(MetroSyncService.class);
 
-    // DataTaipei: 車站設施資料集 id
+    // 資料來源 DataTaipei: 請求車站設施的資料集 id
     private static final String DATA_TAIPEI_STATION_DATASET_id = "f69dfd66-3d8e-408a-9645-c02384bda5b8";
 
-    // TDX: 基礎會員限制 5 次/分鐘；頁間 20 秒 → 每分鐘最多 3 頁，任意 60 秒視窗最多 4 次請求
+    /*
+     * 資料來源 TDX: 基礎會員限制請求頻率 5 次/分鐘；頁間 20 秒 → 每分鐘最多 3 頁，任意 60 秒視窗最多 4 次請求
+     * 且票價 API 資料較多，等待 60 秒再開始分頁請求
+     */
     private static final int PAGE_INTERVAL_MS = 20_000;
-    // TDX: 票價 (StationFare) API 前等待 60 秒再開始分頁請求，避免超出基礎會員限制
     private static final int STATION_FARE_INITIAL_WAIT_MS = 60_000;
 
-    // 新北投 (R22A)、小碧潭 (G03A) 為獨立接駁區間車站，幹線列車不會直達，乘客必須下車走月台換乘，
-    // 與蘆洲 (O54)、迴龍 (O21) 屬幹線列車直達分岔不同（見 MetroForkBranchRouteGraphService）。
-    // TDX S2STravelTime 僅提供純行駛與停靠秒數，未涵蓋此月台轉乘時間，故在此手動加上估計秒數，
-    // 使其併入該站的 cumulative_time，讓下游計算（無論同線任何站對）都用同一套累計時間相減公式，不需另外特例處理。
-    // 兩站月台配置與走行距離不同，轉乘秒數各自依官方公布的門到門總時間反推，不可共用同一數值：
-    // 新北投依官方標示步行 3 分鐘；小碧潭依官方 4 分鐘總時間扣除純車程 203 秒反推約 37 秒
+    /*
+     * 獨立區間車站 (包含新北投 、小碧潭) 必須下車走月台換乘。
+     * 但目前 TDX S2STravelTime 無包含月台轉乘時間，依照北捷官方資料在 cumulative_time 加入轉乘秒數。
+     */
     private static final Map<String, Integer> SHUTTLE_TRANSFER_SECONDS_BY_CODE = Map.of(
             "R22A", 180,
             "G03A", 37);
 
-    // DataTaipei 車站設施資料集為與台鐵、高鐵同名的板橋站區隔，將捷運板橋站命名為「板橋(板南線)」，
-    // 與 TDX 車站中文名稱「板橋」不一致，故在合併資料前正規化為 TDX 命名，以此 Map 為唯一真實來源
+    // 處理例外情形: 比對車站中文名稱寫入 stations 表時，資料來源 DataTaipei 與 TDX 對於板橋命名不一致
     private static final Map<String, String> DATA_TAIPEI_STATION_NAME_ALIASES = Map.of(
             "板橋(板南線)", "板橋");
 
@@ -115,7 +114,7 @@ public class MetroSyncService {
     }
 
     /**
-     * 從 TDX API 取得車站名稱，從 DataTaipei API 取得車站設施，合併後同步寫入資料庫。
+     * 從 TDX API 取得車站名稱，再從 DataTaipei API 取得對應的車站設施，合併後同步寫入資料庫。
      *
      * @return MessageVO
      */
@@ -126,28 +125,31 @@ public class MetroSyncService {
         List<StationVO> tdxStationVOs = fetchAllStation();
         List<StationFacilityVO> dataTaipeiStationVOs = fetchAllStationFacility();
 
-        // 以車站中文名稱為 key，建立 DataTaipei 設施資料的 Map，方便查詢
-        // 名稱先經過 normalizeDataTaipeiStationName 正規化，修正與 TDX 命名不一致的已知特例（如板橋站）
+        /*
+         * 資料來源 DataTaipei : 以車站中文名稱為 key，建立車站設施資料的 Map，方便後續查詢。
+         * 且名稱先經過正規化，修正與 TDX 命名不一致的特例（如板橋站）
+         */
         Map<String, StationFacilityVO> dataTaipeiMap = dataTaipeiStationVOs.stream()
                 .collect(Collectors.toMap(vo -> normalizeDataTaipeiStationName(vo.getStationName()), vo -> vo,
-                        // 車站不重複: 若有相同 key，保留第一次出現的值
+                        // 車站不得重複: 若有相同 key，保留第一次出現的值
                         (existingValue, newValue) -> existingValue));
 
         LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
-        // TDX /Station 是依「路線」而非「實體車站」回傳，換乘站會有多筆重複站名（如台北車站同時是 R10、BL12）；
-        // 同一批次內對同一個 name_zh_tw 送出多筆 MERGE 會互相覆蓋、導致該站最終未被寫入，故先在 Java 端以站名去重，只保留第一筆
+        /*
+         * 透過車站名稱比對來合併不同來源資料。
+         * 並處理轉乘站會有多筆重複站名情形，進行去重只儲存第一筆
+         */
         Map<String, Station> stationByName = new HashMap<>();
+
         for (StationVO tdxStationVO : tdxStationVOs) {
-            // 透過 Key (車站名稱) 比對並取得 DataTaipei 的設施資料
             StationFacilityVO dataTaipeiVO = dataTaipeiMap.get(tdxStationVO.getNameZhTw());
             stationByName.putIfAbsent(tdxStationVO.getNameZhTw(),
                     this.toStationEntity(tdxStationVO, dataTaipeiVO, currentTime));
         }
         List<Station> stations = new ArrayList<>(stationByName.values());
 
-        // 加上每筆綁定 13 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 150 分批 Upsert
-        // 寫入
+        // 設定 batchSize = 150 分批 Upsert: 避免每筆有 13 個參數，總參數數易超過 SQL Server 單次請求上限( 2100 )
         final int batchSize = 150;
         int totalUpserted = 0;
         for (int i = 0; i < stations.size(); i += batchSize) {
@@ -156,6 +158,7 @@ public class MetroSyncService {
             totalUpserted += batch.size();
             logger.debug("車站資料批次寫入進度：{} / {} 筆", totalUpserted, stations.size());
         }
+
         logger.debug("車站資料同步完成，共 {} 筆", stations.size());
 
         return new MessageVO("車站資料同步成功!");
@@ -176,8 +179,8 @@ public class MetroSyncService {
                 .collect(Collectors.toMap(Line::getLetter, Line::getId, (existingValue, newValue) -> existingValue));
 
         // 2. 取得資料庫所有車站，建立「原始車站中文名稱 -> 車站 id」的對照 Map。例如:{"淡水" -> 101, "紅樹林" -> 102}
-        // 須以 originalNameZhTw（同步比對鍵）而非 nameZhTw（管理端可能已修改的顯示名稱）比對，
-        // 避免管理員改名後，此處依 TDX 原始站名比對不到而遺漏該站的路線關聯
+        // 比對方式: 以 originalNameZhTw（同步比對鍵）而非 nameZhTw（管理端可能已修改的顯示名稱），
+        // 避免管理員改名後，依 TDX 原始站名比對失敗而遺漏該站的路線關聯。
         Map<String, Integer> stationNameToIdMap = metroDAO.getAllStation().stream()
                 .collect(Collectors.toMap(Station::getOriginalNameZhTw, Station::getId,
                         (existingValue, newValue) -> existingValue));
@@ -216,7 +219,6 @@ public class MetroSyncService {
             }
         }
 
-        // 每筆綁定 7 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 250 分批 Upsert 寫入
         final int batchSize = 250;
         int totalUpserted = 0;
         for (int i = 0; i < lineStations.size(); i += batchSize) {
@@ -225,26 +227,21 @@ public class MetroSyncService {
             totalUpserted += batch.size();
             logger.debug("路線車站資料批次寫入進度：{} / {} 筆", totalUpserted, lineStations.size());
         }
+
         logger.debug("路線車站資料同步完成，共 {} 筆", lineStations.size());
 
         return new MessageVO("路線車站資料同步成功!");
     }
 
     /**
-     * 從 TDX StationTravelTime API 取得相鄰車站行駛時間，計算累計行駛時間後更新資料庫。
-     * 需先同步路線車站資料，以確保 station_code 存在。
-     * 同一 LineId 可能對應多筆路線資料：同路線的去回程重複資料、像中和新蘆線這種 Y
-     * 字分岔路線蘆洲／迴龍兩條支線共用同一個 LineId 的資料，或淡水信義線／松山新店線這種
-     * 單站分支接駁區間（如北投-新北投）。故以路線實際途經的車站代碼集合（而非僅 LineId）判斷是否為
-     * 重複路線，避免分岔支線被誤判為重複而整條略過；並依途經站數由多到少處理，確保幹線（站數最多）
-     * 優先確立每站的累計時間基準，較短的分支接駁區間只能接續基準值繼續累加未確立的新站，
-     * 不會覆寫幹線站已確立的值（見 {@link #addLineStationCumulativeTimeIfAbsent}）。
-     * 較短的分支接駁區間中，TDX 回傳的車站順序不一定是「幹線交會站在前」（例如蘆洲支線資料是從
-     * 蘆洲往大橋頭方向排列，大橋頭在最後一站才出現）。故不直接依「起點站是否已確立」決定起算值，
-     * 而是先以路線資料自身原始順序、從 0 秒起算，得出這筆資料內部一致的相對數值（同一實體區間在不同
-     * 路線資料中的秒數彼此相符，只是各自起點不同），再找出資料中任一已確立基準的車站，算出平移量套用到
-     * 整筆資料，將其平移至與幹線相同的基準（見 {@link #shiftToEstablishedBaseline}）。
-     *
+     * 0. 需先同步路線車站資料，確保 station_code 存在。
+     * 1. 先計算同路線每個車站的相對時間: 從第一站歸零起算，逐站累加秒數。
+     * 2-1. 再找共用車站算平移量、套用到全部車站：
+     * (1). 平移量 = 全域基準時間(共用車站) - 這筆資料自己算出的相對時間(同個共用車站)。
+     * (2). 每站真正時間 = 這站的相對時間 + 平移量
+     * 2-2. 不依照車站代號順序相加，避免分叉路線、分支計算錯誤。
+     * 以橘線為例，先算蘆洲或迴龍分支各站時間，再以共用的大橋頭站為基準，計算累積時間要加上大橋頭站的累積秒數。
+     * 
      * @return MessageVO
      */
     @Transactional
@@ -256,7 +253,7 @@ public class MetroSyncService {
                 .collect(Collectors.toMap(Line::getLetter, Line::getId, (existingValue, newValue) -> existingValue));
 
         // 2. 從 TDX API 取得所有車站間的行駛與停站時間資料，依途經站數由多到少排序，
-        // 讓幹線（或像橘線兩條完整支線）優先於較短的分支接駁區間被處理，確立全域基準
+        // 讓幹線（或像橘線的分叉路線）優先於較短的分支接駁區間被處理，確立全域基準
         List<StationTravelTimeVO> s2sTravelTimeVOs = fetchAllStationTravelTime().stream()
                 .filter(vo -> vo.getTravelTimes() != null && !vo.getTravelTimes().isEmpty())
                 .sorted(Comparator.comparingInt(
@@ -274,8 +271,8 @@ public class MetroSyncService {
             List<StationTravelTimeVO.TravelTimeDetail> travelTimes = vo.getTravelTimes();
 
             // 5. 以「LineId + 途經車站代碼集合（排序後去向無關）」建立路線識別鍵，
-            // 去回程資料途經車站相同會得到同一把鍵而被略過；分岔支線因途經車站不同（如蘆洲支線含
-            // O50~O54、迴龍支線含 O13~O21）會得到不同的鍵，兩條支線才都會被處理到
+            // (1). 去回程資料途經車站相同會得到同一把鍵而被略過；
+            // (2). 分岔支線因途經車站不同會得到不同的鍵，確保兩條支線才處理
             Set<String> stationCodesInRoute = travelTimes.stream()
                     .flatMap(detail -> Stream.of(detail.getFromStationId(), detail.getToStationId()))
                     .collect(Collectors.toCollection(TreeSet::new));
@@ -294,7 +291,7 @@ public class MetroSyncService {
 
             // 7. 依路線資料原始順序，從 0 秒起算，得出各站相對於此路線資料自身起點的累計秒數，
             // 逐站累加停站、行駛秒數（例如：累加淡水停站 30 秒 + 淡水到紅樹林行車 130 秒，累加後為 160 秒），
-            // 若該站為獨立接駁分支站（新北投、小碧潭），額外加上月台轉乘秒數
+            // 若該站為獨立分支站（新北投、小碧潭），額外加上月台轉乘秒數
             List<String> stationCodesInOrder = new ArrayList<>();
             stationCodesInOrder.add(travelTimes.get(0).getFromStationId());
             List<Integer> localCumulativeTimes = new ArrayList<>();
@@ -333,16 +330,13 @@ public class MetroSyncService {
     }
 
     /**
-     * 找出路線資料中任一已確立累計時間基準的車站，算出「該站已確立值」與「該站此路線資料自身相對值」的
-     * 差，作為平移量：由於同一實體區間在不同路線資料中的秒數彼此相符，只是各自路線起點不同，
-     * 平移後即可讓整筆資料與幹線基準一致，不論該已確立車站落在資料中的第一站、最後一站或中間站皆適用。
-     * 若整筆資料都尚未有任何車站確立基準（代表這是目前途經站數最多、最先處理的路線），平移量為 0，
-     * 直接以自身數值作為全域基準。
-     *
+     * 計算平移量。
+     * 例如:大橋頭在全域基準的時間：1200 秒，在蘆洲分支算出的累計時間為 750 秒，平移量為兩者相減 (450 秒)。
+     * 
      * @param stationCodesInOrder             依路線資料原始順序排列的車站代碼
      * @param localCumulativeTimes            對應各車站、僅相對於此路線資料自身起點的累計秒數
      * @param establishedCumulativeTimeByCode 已確立累計時間的車站代碼對照表
-     * @return 平移量（秒），套用於 localCumulativeTimes 可得到與全域基準一致的數值
+     * @return 平移量（秒），套用於 localCumulativeTimes 得到與全域基準一致的數值
      */
     private int shiftToEstablishedBaseline(
             List<String> stationCodesInOrder,
@@ -351,17 +345,23 @@ public class MetroSyncService {
 
         for (int i = 0; i < stationCodesInOrder.size(); i++) {
             Integer established = establishedCumulativeTimeByCode.get(stationCodesInOrder.get(i));
+
             if (established != null) {
                 return established - localCumulativeTimes.get(i);
             }
         }
+
+        // 處理第一個計算的路線沒有基準車站情形。
         return 0;
     }
 
     /**
-     * 建立車站累計時間記錄並加入待寫入清單；若該車站代碼已由先前處理、途經站數較多的路線確立累計時間，
-     * 則略過不重複寫入，確保幹線的基準值不會被之後處理、途經站數較少的分支接駁路線（如北投-新北投）覆寫。
-     *
+     * 1. 紀錄車站的累計時間，加入待寫入清單。
+     * 2. 若車站代碼已由先前處理、途經站數較多的路線確立累計時間，則略過，
+     * 確保幹線的基準值不被之後處理、途經站數較少的分支接駁路線覆寫。
+     * 例如: 1. 分岔路線的共用車站 (大橋頭): 已被站數多的迴龍計算，蘆洲分支就不再計算
+     * 2. 獨立分支車站 (新北投、小碧潭): 隸屬於獨立分支，仍正常寫入。
+     * 
      * @param lineStations                    待寫入資料庫的路線車站清單，符合條件時會加入新記錄
      * @param establishedCumulativeTimeByCode 已確立累計時間的車站代碼對照表，會加入新確立的車站
      * @param lineId                          路線 id
@@ -380,20 +380,23 @@ public class MetroSyncService {
         if (establishedCumulativeTimeByCode.containsKey(stationCode)) {
             return;
         }
+
         establishedCumulativeTimeByCode.put(stationCode, cumulativeTime);
 
         LineStation lineStation = new LineStation();
+
         lineStation.setLineId(lineId);
         lineStation.setStationCode(stationCode);
         lineStation.setCumulativeTime((short) cumulativeTime);
         lineStation.setUpdatedAt(updatedAt);
+
         lineStations.add(lineStation);
     }
 
     /**
-     * 從 TDX 票價 (StationFare) API 取得任意兩站間的票價，解析後同步寫入資料庫。
-     * 需先同步路線車站資料，以確保 station_code 存在。
-     * CitizenCode 城市優惠票 (FareClass=3) 因資料表無對應欄位，同步時跳過。
+     * 0. 需先同步路線車站資料，以確保 station_code 存在。
+     * 1. 從 TDX 票價 (StationFare) API 取得任意兩站間票價，再同步寫入資料庫。
+     * 2. 暫時跳過 CitizenCode 城市優惠票 (FareClass=3)。
      *
      * @return MessageVO
      */
@@ -440,7 +443,6 @@ public class MetroSyncService {
             }
         }
 
-        // 7. 因 SQL Server 單次請求有參數數量限制，故設定 batchSize = 400 進行分批 Upsert 寫入
         final int batchSize = 400;
         int totalInserted = 0;
         for (int i = 0; i < stationFares.size(); i += batchSize) {
@@ -456,9 +458,9 @@ public class MetroSyncService {
     }
 
     /**
-     * 從 TDX LineTransfer API 取得路線換乘資料，解析後同步寫入資料庫。
-     * 需先同步路線車站資料，以確保 station_code → lines_stations.id 對應存在。
-     *
+     * 0. 需先同步路線車站資料，以確保 station_code → lines_stations.id 對應存在。
+     * 1. 從 TDX LineTransfer API 取得路線換乘資料，同步寫入資料庫。
+     * 
      * @return MessageVO
      */
     @Transactional
@@ -496,8 +498,6 @@ public class MetroSyncService {
                     currentTime));
         }
 
-        // 6. 每筆綁定 4 個參數，總參數數易超過 SQL Server 單次請求 2100 上限，故設定 batchSize = 500 分批 Upsert
-        // 寫入
         final int batchSize = 500;
         int totalUpserted = 0;
         for (int i = 0; i < lineTransfers.size(); i += batchSize) {
@@ -520,6 +520,8 @@ public class MetroSyncService {
         return metroDAO.getAllLine().isEmpty();
     }
 
+    // ----- private helper -----
+
     /**
      * 將 TDX 回傳的 LineVO 轉換為資料庫的 Line 實體。
      *
@@ -537,7 +539,7 @@ public class MetroSyncService {
     }
 
     /**
-     * 將 DataTaipei 車站設施資料的中文名稱正規化為 TDX 命名，修正已知的資料源命名不一致特例
+     * 將 DataTaipei 車站設施資料的中文名稱正規化為 TDX 命名，修正已知的資料源命名不一致特例。
      * （見 {@link #DATA_TAIPEI_STATION_NAME_ALIASES}）。
      *
      * @param dataTaipeiStationName DataTaipei 回傳的原始車站中文名稱
@@ -574,7 +576,6 @@ public class MetroSyncService {
 
     // ----- TDX API 請求定義 -----
     // $top值為數字字串，因 queryParams() 參數只接受 MultiValueMap<String, String>，無法同時處理 多種型別值
-
     private List<LineVO> fetchAllLine() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("$format", "JSON", "$top", "2000"));
@@ -618,10 +619,18 @@ public class MetroSyncService {
                 }, params);
     }
 
+    /*
+     * 資料量大，使用分頁請求:
+     * 1. 初始等待
+     * 2. 逐頁請求
+     * 3. 結束分頁: 包含遇到空頁、不足一頁、中斷等情形
+     * 4. 累加資料，且每頁請求之間等待固定間隔時間
+     * 
+     */
     private List<StationFareVO> fetchAllStationFare() {
         final int pageSize = 1000;
         int skip = 0;
-        List<StationFareVO> allResults = new ArrayList<>();
+        List<StationFareVO> allResult = new ArrayList<>();
 
         logger.debug("[StationFare] 開始初始等待 {} 秒，清空前幾個 sync 請求的速率限制", STATION_FARE_INITIAL_WAIT_MS / 1000);
         try {
@@ -629,7 +638,8 @@ public class MetroSyncService {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             logger.warn("[StationFare] 初始等待被中斷，提前結束");
-            return allResults;
+
+            return allResult;
         }
 
         logger.debug("[StationFare] 初始等待完成，開始分頁請求 (pageSize={}, pageIntervalSec={})",
@@ -651,8 +661,8 @@ public class MetroSyncService {
                 break;
             }
 
-            allResults.addAll(page);
-            logger.debug("[StationFare] 第 {} 頁完成，本頁 {} 筆，累計 {} 筆", pageNumber, page.size(), allResults.size());
+            allResult.addAll(page);
+            logger.debug("[StationFare] 第 {} 頁完成，本頁 {} 筆，累計 {} 筆", pageNumber, page.size(), allResult.size());
 
             if (page.size() < pageSize) {
                 logger.debug("[StationFare] 第 {} 頁筆數 ({}) < pageSize ({})，已是最後一頁", pageNumber, page.size(), pageSize);
@@ -661,21 +671,21 @@ public class MetroSyncService {
 
             skip += pageSize;
             logger.debug("[StationFare] 等待 {} 秒後請求第 {} 頁", PAGE_INTERVAL_MS / 1000, pageNumber + 1);
+
             try {
                 Thread.sleep(PAGE_INTERVAL_MS);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                logger.warn("[StationFare] 頁間等待被中斷，提前結束，已累計 {} 筆", allResults.size());
+                logger.warn("[StationFare] 頁間等待被中斷，提前結束，已累計 {} 筆", allResult.size());
                 break;
             }
         }
 
-        logger.debug("[StationFare] 分頁請求全部完成，共取得 {} 筆票價資料", allResults.size());
-        return allResults;
+        logger.debug("[StationFare] 分頁請求全部完成，共取得 {} 筆票價資料", allResult.size());
+        return allResult;
     }
 
     // ----- DataTaipei API 請求定義 -----
-
     private List<StationFacilityVO> fetchAllStationFacility() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.setAll(Map.of("scope", "resourceAquire", "limit", "1000"));

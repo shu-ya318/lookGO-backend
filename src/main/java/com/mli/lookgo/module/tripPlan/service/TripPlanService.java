@@ -396,7 +396,7 @@ public class TripPlanService {
 
             return byteArrayOutputStream.toByteArray();
         } catch (IOException error) {
-            throw new TripPlanExportExcelFailedException("匯出旅程規劃 excel 報表發生錯誤!");
+            throw new TripPlanExportExcelFailedException("匯出旅程規劃 excel 檔發生錯誤!");
         }
     }
 

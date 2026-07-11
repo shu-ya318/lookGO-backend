@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@MapperScan({"com.mli.lookgo.core.dao", "com.mli.lookgo.module.*.dao"})
+@MapperScan({ "com.mli.lookgo.core.dao", "com.mli.lookgo.module.*.dao" })
 @EnableScheduling
 public class LookGoBackendApplication {
 

@@ -221,9 +221,9 @@ public class TripPlanController {
                         @ApiResponse(responseCode = "403", description = "非本人的旅程規劃", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "不得操作非本人的旅程規劃!"))),
                         @ApiResponse(responseCode = "404", description = "找不到指定旅程規劃", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的旅程規劃!"))),
                         @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "匯出旅程規劃 excel 報表發生錯誤!"))) })
-        @PostMapping("/get-excel")
-        public ResponseEntity<byte[]> getExcel(@Valid @RequestBody TripPlanIdDTO tripPlanIdDTO) {
-                logger.debug("收到匯出旅程規劃 excel 的請求，tripPlanIdDTO: {}", tripPlanIdDTO);
+        @PostMapping("/get-excel-by-trip-plan-id")
+        public ResponseEntity<byte[]> getExcelByTripPlanId(@Valid @RequestBody TripPlanIdDTO tripPlanIdDTO) {
+                logger.debug("收到依旅程規劃 id 匯出旅程規劃 excel 的請求，tripPlanIdDTO: {}", tripPlanIdDTO);
                 byte[] excel = tripPlanService.exportTripPlanExcel(tripPlanIdDTO.getTripPlanId());
 
                 String encodedFilename = UriUtils.encode("旅程規劃.xlsx", StandardCharsets.UTF_8);

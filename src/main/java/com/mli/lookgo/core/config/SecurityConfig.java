@@ -39,6 +39,7 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final LogoutResultHandler logoutResultHandler;
     private final List<String> allowedOrigins;
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
@@ -46,7 +47,7 @@ public class SecurityConfig {
      *
      * @param jwtFilter
      * @param logoutResultHandler
-     * @param allowedOrigins CORS 允許的來源清單
+     * @param allowedOrigins
      */
     public SecurityConfig(JwtFilter jwtFilter, LogoutResultHandler logoutResultHandler,
             @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {

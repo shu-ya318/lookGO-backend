@@ -52,6 +52,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class MetroController {
 
         private final MetroService metroService;
+
         private static final Logger logger = LoggerFactory.getLogger(MetroController.class);
 
         /**
@@ -301,9 +302,9 @@ public class MetroController {
                         @Valid @RequestBody StationRouteDTO stationRouteDTO) {
                 logger.debug("收到查詢起終點站詳細資料的請求，fromStationCode: {}，toStationCode: {}",
                                 stationRouteDTO.getFromStationCode(), stationRouteDTO.getToStationCode());
-                OriginDestinationDetailVO originDestinationDetail = metroService
+                OriginDestinationDetailVO originDestinationDetailVO = metroService
                                 .getOriginDestinationDetail(stationRouteDTO);
 
-                return ResponseEntity.ok(originDestinationDetail);
+                return ResponseEntity.ok(originDestinationDetailVO);
         }
 }

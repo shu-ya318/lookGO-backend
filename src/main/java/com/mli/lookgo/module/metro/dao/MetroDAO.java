@@ -62,7 +62,7 @@ public interface MetroDAO {
         boolean existsByStationCode(@Param("stationCode") String stationCode);
 
         /**
-         * 用車站 id 查詢指定車站是否存在。
+         * 用 stationId 查詢指定車站是否存在。
          *
          * @param stationId
          * @return 存在為 true，否則 false
@@ -77,7 +77,7 @@ public interface MetroDAO {
         List<Station> getAllStation();
 
         /**
-         * 用車站 id 查詢指定車站的中文名稱。
+         * 用 stationId 查詢指定車站的中文名稱。
          *
          * @param stationId
          * @return Optional<String>

@@ -17,6 +17,9 @@ public class StationOptionVO {
     @Schema(description = "車站中文名稱", example = "淡水")
     private String nameZhTw;
 
+    @Schema(description = "路線顏色 (Hex)", example = "#E3002C")
+    private String lineColor;
+
     public StationOptionVO() {
     }
 
@@ -36,8 +39,17 @@ public class StationOptionVO {
         this.nameZhTw = nameZhTw;
     }
 
+    public String getLineColor() {
+        return lineColor;
+    }
+
+    public void setLineColor(String lineColor) {
+        this.lineColor = lineColor;
+    }
+
     @Override
     public String toString() {
-        return "StationOptionVO{stationCode='" + stationCode + '\'' + ", nameZhTw='" + nameZhTw + '\'' + '}';
+        return "StationOptionVO{stationCode='" + stationCode + '\'' + ", nameZhTw='" + nameZhTw + '\''
+                + ", lineColor='" + lineColor + '\'' + '}';
     }
 }

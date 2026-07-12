@@ -4,6 +4,8 @@ import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
+import com.mli.lookgo.core.validation.BirthDateRange;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import jakarta.validation.constraints.Email;
@@ -35,9 +37,10 @@ public class SignupDTO {
     @NotBlank(message = "請輸入使用者名稱!")
     private String username;
 
-    @Schema(description = "出生日期(yyyy-MM-dd)", example = "2000-01-01")
+    @Schema(description = "出生日期(yyyy-MM-dd)，換算年齡須介於 6 歲（含）至 150 歲（含）之間", example = "2000-01-01")
     @JsonFormat(pattern = "yyyy-MM-dd")
     @PastOrPresent(message = "出生日期不得大於今日!")
+    @BirthDateRange
     private LocalDate birthDate;
 
     @Schema(description = "臺灣手機號碼（0 開頭之 10 碼數字）", example = "0912345678")

@@ -8,6 +8,7 @@
         SELECT
             scm.id,
             u.username,
+            u.avatar,
             <!-- 轉成列舉常數名稱字串，MyBatis 預設的 EnumTypeHandler 才能直接對映到 ChatTypeEnum 欄位；
                  新增 ChatTypeEnum 常數時務必同步在此補上對應的 WHEN 分支 -->
             CASE scm.chat_type

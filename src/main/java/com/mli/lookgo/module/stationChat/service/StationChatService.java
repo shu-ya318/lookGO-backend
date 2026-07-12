@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -25,6 +26,7 @@ import com.mli.lookgo.module.stationChat.dao.StationChatDAO;
 import com.mli.lookgo.module.stationChat.enums.ChatTypeEnum;
 import com.mli.lookgo.module.stationChat.exceptions.ChatDailyLimitExceededException;
 import com.mli.lookgo.module.stationChat.exceptions.ChatMessageAccessDeniedException;
+import com.mli.lookgo.module.stationChat.exceptions.InvalidChatContentException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatExportExcelFailedException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatNotFoundException;
 import com.mli.lookgo.module.stationChat.model.dto.CreateAnnouncementDTO;
@@ -53,6 +55,13 @@ public class StationChatService {
     private static final Logger logger = LoggerFactory.getLogger(StationChatService.class);
     private static final DateTimeFormatter EXCEL_DATE_TIME_FORMATTER = DateTimeFormatter
             .ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /** data URI 前綴（不分大小寫），如 data:image/png;base64,xxxx */
+    private static final Pattern DATA_URI_PATTERN = Pattern.compile("(?i)data:[\\w.+-]+/[\\w.+-]+;base64,");
+    /** 連續 200 字元以上的 base64 字元序列，攔截未帶前綴的裸 base64 */
+    private static final Pattern LONG_BASE64_PATTERN = Pattern.compile("[A-Za-z0-9+/=]{200,}");
+    /** HTML 標籤，如 <img src=...>、<script> */
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("(?i)<\\s*(img|script|iframe|svg|object|embed)\\b");
 
     private final StationChatDAO stationChatDAO;
     private final MetroService metroService;
@@ -245,6 +254,7 @@ public class StationChatService {
             if (sendMessageDTO.getTripPlanId() != null) {
                 throw new IllegalArgumentException("文字訊息類型不可攜帶旅程規劃 id!");
             }
+            validateTextContent(sendMessageDTO.getContent());
         } else {
             if (sendMessageDTO.getTripPlanId() == null) {
                 throw new IllegalArgumentException("旅程分享類型必須輸入旅程規劃 id!");
@@ -339,6 +349,20 @@ public class StationChatService {
      */
     private String getAuthenticatedEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    /**
+     * 驗證文字訊息內容是否僅為純文字，禁止夾帶圖片 data URI、base64 編碼與 HTML 標籤。
+     *
+     * @param content
+     * @throws InvalidChatContentException 內容夾帶非文字資料。
+     */
+    private void validateTextContent(String content) {
+        if (DATA_URI_PATTERN.matcher(content).find()
+                || LONG_BASE64_PATTERN.matcher(content).find()
+                || HTML_TAG_PATTERN.matcher(content).find()) {
+            throw new InvalidChatContentException("聊天室僅接受純文字訊息!");
+        }
     }
 
     /**

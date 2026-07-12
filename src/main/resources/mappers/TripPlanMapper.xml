@@ -24,7 +24,8 @@
         INNER JOIN [dbo].[stations] ts ON ts.id = t.to_station_id
     </sql>
 
-    <!-- 取得指定使用者分頁與模糊搜尋（旅程名稱）後的旅程規劃列表 -->
+    <!-- 取得指定使用者分頁與模糊搜尋（旅程名稱）後的旅程規劃列表，依更新時間排序（方向由參數切換），
+         以 id 作第二排序鍵確保分頁穩定；用 choose 切換整段 ORDER BY，避免 ${} 串接造成 SQL injection -->
     <select id="getAllPaginatedByUserId" resultType="com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO">
         <include refid="tripPlanVOSelectAndJoins" />
         WHERE t.user_id = #{userId, jdbcType=INTEGER}
@@ -32,7 +33,14 @@
         <if test="keyword != null and keyword != ''">
             AND t.name LIKE CONCAT('%', #{keyword}, '%')
         </if>
-        ORDER BY t.created_at DESC, t.id DESC
+        <choose>
+            <when test="sortDirection == 'ASC'">
+                ORDER BY t.updated_at ASC, t.id ASC
+            </when>
+            <otherwise>
+                ORDER BY t.updated_at DESC, t.id DESC
+            </otherwise>
+        </choose>
         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
     </select>
 
@@ -95,6 +103,20 @@
         FROM [dbo].[users] u
         INNER JOIN [dbo].[membership_tiers] mt ON mt.id = u.membership_tier_id
         WHERE u.id = #{userId, jdbcType=INTEGER}
+    </select>
+
+    <!-- 檢查指定使用者是否已有同名的有效（未軟刪除）旅程規劃，可排除指定 id（更新名稱時排除自身） -->
+    <select id="existsActiveByUserIdAndName" resultType="boolean">
+        SELECT CAST(CASE WHEN EXISTS (
+            SELECT 1
+            FROM [dbo].[user_trip_plans]
+            WHERE user_id = #{userId, jdbcType=INTEGER}
+              AND name = #{name}
+              AND deleted_at IS NULL
+            <if test="excludeId != null">
+              AND id != #{excludeId, jdbcType=INTEGER}
+            </if>
+        ) THEN 1 ELSE 0 END AS BIT)
     </select>
 
     <!-- 新增一筆旅程規劃 -->

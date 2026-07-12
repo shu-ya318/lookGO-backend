@@ -7,6 +7,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.mli.lookgo.module.metro.exceptions.SyncInProgressException;
 import com.mli.lookgo.module.metro.service.MetroSyncService;
 
 /**
@@ -54,19 +55,24 @@ public class MetroSyncScheduler {
         long startTime = System.currentTimeMillis();
 
         try {
-            // Layer 1: 無外鍵相依的資料
+            // 無外鍵相依的資料
             metroSyncService.syncAllLine();
             metroSyncService.syncAllStation();
 
-            // Layer 2: 有外鍵相依的資料
+            // 有外鍵相依的資料
             metroSyncService.syncAllLineStation();
 
             metroSyncService.syncAllLineStationCumulativeTime();
             metroSyncService.syncAllLineTransfer();
-            metroSyncService.syncAllStationFare();
+
+            try {
+                metroSyncService.startSyncAllStationFare();
+            } catch (SyncInProgressException exception) {
+                logger.warn("票價同步正在進行中，排程略過本輪票價同步: {}", exception.getMessage());
+            }
 
             long duration = System.currentTimeMillis() - startTime;
-            logger.debug("捷運資料定期同步排程順利完成，總耗時: {} ms", duration);
+            logger.debug("捷運資料定期同步排程（不含背景票價同步）順利完成，總耗時: {} ms", duration);
 
         } catch (Exception exception) {
             logger.error("捷運資料同步排程發生錯誤，終止後續作業", exception);

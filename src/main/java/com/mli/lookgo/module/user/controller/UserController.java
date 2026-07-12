@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
+import com.mli.lookgo.module.user.model.dto.UpdateAvatarDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateCellphoneDTO;
 import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
@@ -182,6 +183,46 @@ public class UserController {
         MessageVO apiResult = userService.updateCellphone(updateCellphoneDTO);
 
         return ResponseEntity.ok(apiResult);
+    }
+
+    /**
+     * 更新當前已驗證使用者的頭像。
+     *
+     * @param updateAvatarDTO
+     * @return ResponseEntity<UserVO>
+     */
+    @Operation(summary = "更新頭像", description = "驗證並更新當前已驗證使用者的頭像（base64 data URI，僅支援 PNG、JPEG、WEBP，解碼後大小上限 1MB）")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "頭像更新成功，回傳含新頭像的使用者資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
+            @ApiResponse(responseCode = "400", description = "請求參數錯誤（格式不支援 / 超過 1MB / 非合法 base64）", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "頭像圖片大小不得超過 1MB!"))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/update-avatar")
+    public ResponseEntity<UserVO> updateAvatar(@Valid @RequestBody UpdateAvatarDTO updateAvatarDTO) {
+        logger.debug("收到更新頭像的請求");
+        UserVO userVO = userService.updateAvatar(updateAvatarDTO);
+
+        return ResponseEntity.ok(userVO);
+    }
+
+    /**
+     * 移除當前已驗證使用者的頭像，恢復為預設頭像。
+     *
+     * @return ResponseEntity<UserVO>
+     */
+    @Operation(summary = "移除頭像", description = "移除當前已驗證使用者的頭像，恢復為預設頭像")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "頭像已恢復為預設，回傳更新後的使用者資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PostMapping("/remove-avatar")
+    public ResponseEntity<UserVO> removeAvatar() {
+        logger.debug("收到移除頭像的請求");
+        UserVO userVO = userService.removeAvatar();
+
+        return ResponseEntity.ok(userVO);
     }
 
     /**

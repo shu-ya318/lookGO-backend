@@ -26,6 +26,7 @@ import com.mli.lookgo.module.tripPlan.dao.TripPlanDAO;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanAccessDeniedException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanExportExcelFailedException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanLimitExceededException;
+import com.mli.lookgo.module.tripPlan.exceptions.TripPlanNameDuplicationException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanNotFoundException;
 import com.mli.lookgo.module.tripPlan.model.dto.CreateTripPlanDTO;
 import com.mli.lookgo.module.tripPlan.model.dto.UpdateTripPlanDTO;
@@ -59,6 +60,9 @@ public class TripPlanService {
     private static final String FARE_TYPE_ROUTING_STRATEGY_HINT = "，有效票種為 1(全票)、4(學生)、5(兒童)、7(愛心)，"
             + "有效路線策略為 1(最少轉乘次數)、2(最短車程時間)";
 
+    /** 有效的排序方向，白名單驗證以避免任意字串進入 SQL。 */
+    private static final Set<String> VALID_SORT_DIRECTIONS = Set.of("ASC", "DESC");
+
     private final TripPlanDAO tripPlanDAO;
     private final MetroService metroService;
     private final UserDAO userDAO;
@@ -81,10 +85,11 @@ public class TripPlanService {
      *
      * @param createTripPlanDTO
      * @return TripPlanVO
-     * @throws UserNotFoundException          找不到當前使用者。
-     * @throws StationNotFoundException       找不到指定起站或訖站。
-     * @throws IllegalArgumentException       票種或路線規劃策略代碼不合法。
-     * @throws TripPlanLimitExceededException 已達會員等級旅程規劃數量上限。
+     * @throws UserNotFoundException            找不到當前使用者。
+     * @throws StationNotFoundException         找不到指定起站或訖站。
+     * @throws IllegalArgumentException         票種或路線規劃策略代碼不合法。
+     * @throws TripPlanNameDuplicationException 已有同名的有效旅程規劃。
+     * @throws TripPlanLimitExceededException   已達會員等級旅程規劃數量上限。
      */
     public TripPlanVO createTripPlan(CreateTripPlanDTO createTripPlanDTO) {
         String email = getAuthenticatedEmail();
@@ -102,6 +107,12 @@ public class TripPlanService {
 
         validateFareTypeAndRoutingStrategy(createTripPlanDTO.getFareType(), createTripPlanDTO.getRoutingStrategy());
 
+        // 名稱一律先 trim 再比對與寫入；SQL Server 預設 collation 不分大小寫
+        String trimmedName = createTripPlanDTO.getName().trim();
+        if (tripPlanDAO.existsActiveByUserIdAndName(user.getId(), trimmedName, null)) {
+            throw new TripPlanNameDuplicationException("已有名稱為「" + trimmedName + "」的旅程規劃，請改用其他名稱!");
+        }
+
         int maxTripPlans = tripPlanDAO.getMaxTripPlansByUserId(user.getId());
         int activeTripPlanCount = tripPlanDAO.countActiveByUserId(user.getId());
 
@@ -115,7 +126,7 @@ public class TripPlanService {
         tripPlan.setUserId(user.getId());
         tripPlan.setFromStationId(createTripPlanDTO.getFromStationId());
         tripPlan.setToStationId(createTripPlanDTO.getToStationId());
-        tripPlan.setName(createTripPlanDTO.getName());
+        tripPlan.setName(trimmedName);
         tripPlan.setFareType(createTripPlanDTO.getFareType());
         tripPlan.setFarePrice(createTripPlanDTO.getFarePrice());
         tripPlan.setTransferCount(createTripPlanDTO.getTransferCount());
@@ -134,23 +145,29 @@ public class TripPlanService {
     }
 
     /**
-     * 取得目前使用者分頁與模糊搜尋（旅程名稱）後的旅程規劃列表。
+     * 取得目前使用者分頁與模糊搜尋（旅程名稱）後的旅程規劃列表，依更新時間排序。
      *
      * @param keyword
      * @param page
      * @param size
+     * @param sortDirection 排序方向，DESC=新到舊（預設）、ASC=舊到新
      * @return PaginatedVO<TripPlanVO>
+     * @throws IllegalArgumentException 排序方向不合法。
      * @throws UserNotFoundException    找不到當前使用者。
      * @throws StationNotFoundException 找不到旅程規劃起站或訖站對應的路線車站代碼。
      */
-    public PaginatedVO<TripPlanVO> getAllTripPlan(String keyword, int page, int size) {
+    public PaginatedVO<TripPlanVO> getAllTripPlan(String keyword, int page, int size, String sortDirection) {
         String email = getAuthenticatedEmail();
-        logger.debug("開始分頁查詢旅程規劃資料，email: {}, keyword: {}, page: {}, size: {}", email, keyword, page, size);
+        logger.debug("開始分頁查詢旅程規劃資料，email: {}, keyword: {}, page: {}, size: {}, sortDirection: {}", email, keyword,
+                page, size, sortDirection);
+
+        String normalizedDirection = normalizeSortDirection(sortDirection);
 
         User user = userDAO.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
-        List<TripPlanVO> tripPlans = tripPlanDAO.getAllPaginatedByUserId(user.getId(), keyword, page * size, size);
+        List<TripPlanVO> tripPlans = tripPlanDAO.getAllPaginatedByUserId(user.getId(), keyword, page * size, size,
+                normalizedDirection);
         tripPlans.forEach(this::enrichTravelTime);
 
         long totalElements = tripPlanDAO.countAllByUserId(user.getId(), keyword);
@@ -229,17 +246,24 @@ public class TripPlanService {
      * @param tripPlanId
      * @param name
      * @return TripPlanVO
-     * @throws UserNotFoundException         找不到當前使用者。
-     * @throws TripPlanNotFoundException     找不到指定旅程規劃，或該旅程規劃已被軟刪除。
-     * @throws TripPlanAccessDeniedException 嘗試操作非本人擁有的旅程規劃。
-     * @throws StationNotFoundException      找不到旅程規劃起站或訖站對應的路線車站代碼。
+     * @throws UserNotFoundException            找不到當前使用者。
+     * @throws TripPlanNotFoundException        找不到指定旅程規劃，或該旅程規劃已被軟刪除。
+     * @throws TripPlanAccessDeniedException    嘗試操作非本人擁有的旅程規劃。
+     * @throws TripPlanNameDuplicationException 已有同名的有效旅程規劃（排除自身，存回原名視為合法）。
+     * @throws StationNotFoundException         找不到旅程規劃起站或訖站對應的路線車站代碼。
      */
     public TripPlanVO updateTripPlanName(Integer tripPlanId, String name) {
         logger.debug("開始呼叫 API 來更新旅程規劃名稱，tripPlanId: {}, name: {}", tripPlanId, name);
 
-        getCurrentUserIdAndCheckOwnership(tripPlanId);
+        Integer userId = getCurrentUserIdAndCheckOwnership(tripPlanId);
 
-        tripPlanDAO.updateNameById(tripPlanId, name, LocalDateTime.now(ZoneOffset.UTC));
+        // 名稱一律先 trim 再比對與寫入；排除自身，讓「存回原名」視為合法（等同未變更）
+        String trimmedName = name.trim();
+        if (tripPlanDAO.existsActiveByUserIdAndName(userId, trimmedName, tripPlanId)) {
+            throw new TripPlanNameDuplicationException("已有名稱為「" + trimmedName + "」的旅程規劃，請改用其他名稱!");
+        }
+
+        tripPlanDAO.updateNameById(tripPlanId, trimmedName, LocalDateTime.now(ZoneOffset.UTC));
 
         TripPlanVO updatedTripPlan = tripPlanDAO.getById(tripPlanId)
                 .orElseThrow(() -> new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!"));
@@ -297,6 +321,21 @@ public class TripPlanService {
                 .orElseThrow(() -> new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!"));
 
         return exportTripPlanToExcel(tripPlan);
+    }
+
+    /**
+     * 將排序方向正規化為大寫，並以白名單驗證是否為合法值（避免任意字串進入 SQL）。
+     *
+     * @param sortDirection 排序方向，null 時視為預設值 DESC
+     * @return 正規化後的排序方向（ASC 或 DESC）
+     * @throws IllegalArgumentException 排序方向不合法。
+     */
+    private String normalizeSortDirection(String sortDirection) {
+        String normalizedDirection = sortDirection == null ? "DESC" : sortDirection.toUpperCase();
+        if (!VALID_SORT_DIRECTIONS.contains(normalizedDirection)) {
+            throw new IllegalArgumentException("不支援的排序方向: " + sortDirection + "，有效值為 ASC、DESC");
+        }
+        return normalizedDirection;
     }
 
     /**

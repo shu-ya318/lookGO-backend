@@ -19,10 +19,12 @@
         INNER JOIN [dbo].[users] u ON u.id = b.user_id
     </sql>
 
-    <!-- 取得分頁與模糊搜尋後的車站書籤列表 -->
+    <!-- 取得指定使用者分頁與模糊搜尋後的車站書籤列表，依收藏時間排序（方向由參數切換），
+         以 id 作第二排序鍵確保分頁穩定；用 choose 切換整段 ORDER BY，避免 ${} 串接造成 SQL injection -->
     <select id="getAllPaginated" resultType="com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO">
         <include refid="bookmarkVOSelectAndJoins" />
-        WHERE b.deleted_at IS NULL
+        WHERE b.user_id = #{userId, jdbcType=INTEGER}
+          AND b.deleted_at IS NULL
         <if test="keyword != null and keyword != ''">
             AND (
                 s.name_zh_tw LIKE CONCAT('%', #{keyword}, '%')
@@ -30,17 +32,25 @@
                 OR u.email LIKE CONCAT('%', #{keyword}, '%')
             )
         </if>
-        ORDER BY b.created_at DESC, b.id DESC
+        <choose>
+            <when test="sortDirection == 'ASC'">
+                ORDER BY b.created_at ASC, b.id ASC
+            </when>
+            <otherwise>
+                ORDER BY b.created_at DESC, b.id DESC
+            </otherwise>
+        </choose>
         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
     </select>
 
-    <!-- 計算符合搜尋條件的車站書籤總筆數 -->
+    <!-- 計算指定使用者符合搜尋條件的車站書籤總筆數 -->
     <select id="countAll" resultType="long">
         SELECT COUNT(1)
         FROM [dbo].[user_station_bookmarks] b
         INNER JOIN [dbo].[stations] s ON s.id = b.station_id
         INNER JOIN [dbo].[users] u ON u.id = b.user_id
-        WHERE b.deleted_at IS NULL
+        WHERE b.user_id = #{userId, jdbcType=INTEGER}
+          AND b.deleted_at IS NULL
         <if test="keyword != null and keyword != ''">
             AND (
                 s.name_zh_tw LIKE CONCAT('%', #{keyword}, '%')
@@ -50,10 +60,11 @@
         </if>
     </select>
 
-    <!-- 取得所有有效（未軟刪除）的車站書籤，供匯出 excel 使用 -->
+    <!-- 取得指定使用者所有有效（未軟刪除）的車站書籤，供匯出 excel 使用 -->
     <select id="getAllActive" resultType="com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO">
         <include refid="bookmarkVOSelectAndJoins" />
-        WHERE b.deleted_at IS NULL
+        WHERE b.user_id = #{userId, jdbcType=INTEGER}
+          AND b.deleted_at IS NULL
         ORDER BY b.created_at DESC, b.id DESC
     </select>
 

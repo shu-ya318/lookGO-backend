@@ -39,6 +39,9 @@ public class UserVO {
     @Schema(description = "臺灣電話號碼（0開頭，9～10碼）", example = "0912345678")
     private String cellphone;
 
+    @Schema(description = "頭像（base64 data URI 或預設頭像相對路徑）", example = "/assets/default-avatar.png")
+    private String avatar;
+
     @Schema(description = "狀態 (DISABLED, ACTIVE)", example = "ACTIVE")
     private UserStatus status;
 
@@ -55,8 +58,8 @@ public class UserVO {
     }
 
     public UserVO(Integer id, String email, String username, MembershipTier membershipTier, UserRole role,
-            LocalDate birthDate, String cellphone, UserStatus status, ZonedDateTime createdAt, ZonedDateTime updatedAt,
-            ZonedDateTime lastLoginAt) {
+            LocalDate birthDate, String cellphone, String avatar, UserStatus status, ZonedDateTime createdAt,
+            ZonedDateTime updatedAt, ZonedDateTime lastLoginAt) {
         this.id = id;
         this.email = email;
         this.username = username;
@@ -64,6 +67,7 @@ public class UserVO {
         this.role = role;
         this.birthDate = birthDate;
         this.cellphone = cellphone;
+        this.avatar = avatar;
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -124,6 +128,14 @@ public class UserVO {
 
     public void setCellphone(String cellphone) {
         this.cellphone = cellphone;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 
     public UserStatus getStatus() {

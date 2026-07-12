@@ -133,4 +133,16 @@ public interface UserDAO {
         int updateStatusById(@Param("id") Integer id,
                         @Param("status") Integer status,
                         @Param("updatedAt") LocalDateTime updatedAt);
+
+        /**
+         * 用 id 更新指定使用者的頭像。
+         *
+         * @param id
+         * @param avatar
+         * @param updatedAt
+         * @return 影響筆數
+         */
+        int updateAvatarById(@Param("id") Integer id,
+                        @Param("avatar") String avatar,
+                        @Param("updatedAt") LocalDateTime updatedAt);
 }

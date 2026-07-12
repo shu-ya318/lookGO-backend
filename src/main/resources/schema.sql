@@ -41,6 +41,8 @@ CREATE TABLE [dbo].[users] (
     [username]           NVARCHAR(100)   NOT NULL,
     [birth_date]         DATE            NULL,
     [cellphone]          NVARCHAR(20)    NOT NULL,
+    -- base64 data URI（1MB 圖檔約 1.4M 字元）遠超過 NVARCHAR(4000) 上限，須用 NVARCHAR(MAX)
+    [avatar]             NVARCHAR(MAX)   NULL CONSTRAINT [DF_users_avatar] DEFAULT N'/assets/default-avatar.png',
     [status]             TINYINT         NOT NULL,
     [created_at]         DATETIME2(0)    NOT NULL,
     [updated_at]         DATETIME2(0)    NOT NULL,
@@ -211,6 +213,16 @@ CREATE TABLE [dbo].[user_trip_plans] (
     CONSTRAINT [FK_user_trip_plans_to_station_id]
         FOREIGN KEY ([to_station_id]) REFERENCES [dbo].[stations] ([id])
 );
+
+-- Create Filtered Index for unique active trip plan names per user (handling soft deletes)
+-- 併發防線：兩個並發請求可能同時通過 service 的名稱重複預檢，由此索引保證最終一致性
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'UQ_user_trip_plans_user_id_name_active' AND object_id = OBJECT_ID('dbo.user_trip_plans')
+)
+CREATE UNIQUE NONCLUSTERED INDEX [UQ_user_trip_plans_user_id_name_active]
+    ON [dbo].[user_trip_plans] ([user_id], [name])
+    WHERE [deleted_at] IS NULL;
 
 
 

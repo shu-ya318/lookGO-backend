@@ -21,18 +21,20 @@ import com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO;
 public interface TripPlanDAO {
 
     /**
-     * 取得指定使用者分頁與模糊搜尋（旅程名稱）後的旅程規劃列表，依建立時間新到舊排序。
+     * 取得指定使用者分頁與模糊搜尋（旅程名稱）後的旅程規劃列表，依更新時間排序。
      *
      * @param userId
      * @param keyword
      * @param offset
      * @param limit
+     * @param sortDirection 排序方向（ASC 或 DESC），須由呼叫端先以白名單驗證
      * @return List<TripPlanVO>
      */
     List<TripPlanVO> getAllPaginatedByUserId(@Param("userId") Integer userId,
             @Param("keyword") String keyword,
             @Param("offset") int offset,
-            @Param("limit") int limit);
+            @Param("limit") int limit,
+            @Param("sortDirection") String sortDirection);
 
     /**
      * 計算指定使用者符合搜尋條件的旅程規劃總筆數。
@@ -92,6 +94,18 @@ public interface TripPlanDAO {
      * @return 旅程規劃數量上限
      */
     int getMaxTripPlansByUserId(@Param("userId") Integer userId);
+
+    /**
+     * 檢查指定使用者是否已有同名的有效（未軟刪除）旅程規劃，可排除指定 id（更新名稱時排除自身）。
+     *
+     * @param userId
+     * @param name
+     * @param excludeId 要排除的旅程規劃 id，新增情境傳 null
+     * @return 是否存在同名旅程
+     */
+    boolean existsActiveByUserIdAndName(@Param("userId") Integer userId,
+            @Param("name") String name,
+            @Param("excludeId") Integer excludeId);
 
     /**
      * 新增一筆旅程規劃。

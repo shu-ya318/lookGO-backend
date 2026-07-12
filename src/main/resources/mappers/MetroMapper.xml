@@ -252,9 +252,10 @@
 
     <!-- 取得所有路線車站的代碼與中文名稱，供前端下拉選單使用 -->
     <select id="getAllStationOption" resultType="com.mli.lookgo.module.metro.model.vo.StationOptionVO">
-        SELECT ls.station_code, s.name_zh_tw
+        SELECT ls.station_code, s.name_zh_tw, l.color AS lineColor
         FROM [dbo].[lines_stations] ls
         INNER JOIN [dbo].[stations] s ON s.id = ls.station_id
+        INNER JOIN [dbo].[lines] l ON l.id = ls.line_id
         ORDER BY ls.line_id ASC, ls.station_sequence ASC
     </select>
 

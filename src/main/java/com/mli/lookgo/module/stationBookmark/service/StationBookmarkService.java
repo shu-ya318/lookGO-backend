@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -45,6 +46,9 @@ public class StationBookmarkService {
     private static final Logger logger = LoggerFactory.getLogger(StationBookmarkService.class);
     private static final DateTimeFormatter EXCEL_DATE_TIME_FORMATTER = DateTimeFormatter
             .ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /** 有效的排序方向，白名單驗證以避免任意字串進入 SQL。 */
+    private static final Set<String> VALID_SORT_DIRECTIONS = Set.of("ASC", "DESC");
 
     private final StationBookmarkDAO stationBookmarkDAO;
     private final MetroService metroService;
@@ -129,21 +133,47 @@ public class StationBookmarkService {
     }
 
     /**
-     * 取得分頁與模糊搜尋後的車站書籤列表。
+     * 取得當前使用者分頁與模糊搜尋後的車站書籤列表，依收藏時間排序。
      *
      * @param keyword
      * @param page
      * @param size
+     * @param sortDirection 排序方向，DESC=新到舊（預設）、ASC=舊到新
      * @return PaginatedVO<StationBookmarkVO>
+     * @throws IllegalArgumentException 排序方向不合法。
+     * @throws UserNotFoundException    找不到當前使用者。
      */
-    public PaginatedVO<StationBookmarkVO> getAllBookmark(String keyword, int page, int size) {
-        logger.debug("開始分頁查詢車站書籤資料，keyword: {}, page: {}, size: {}", keyword, page, size);
+    public PaginatedVO<StationBookmarkVO> getAllBookmark(String keyword, int page, int size, String sortDirection) {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始分頁查詢車站書籤資料，email: {}, keyword: {}, page: {}, size: {}, sortDirection: {}", email, keyword,
+                page, size, sortDirection);
 
-        List<StationBookmarkVO> bookmarks = stationBookmarkDAO.getAllPaginated(keyword, page * size, size);
-        long totalElements = stationBookmarkDAO.countAll(keyword);
+        String normalizedDirection = normalizeSortDirection(sortDirection);
+
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        List<StationBookmarkVO> bookmarks = stationBookmarkDAO.getAllPaginated(user.getId(), keyword, page * size,
+                size, normalizedDirection);
+        long totalElements = stationBookmarkDAO.countAll(user.getId(), keyword);
         int totalPages = (int) Math.ceil((double) totalElements / size);
 
         return new PaginatedVO<>(bookmarks, page, size, totalElements, totalPages);
+    }
+
+    /**
+     * 將排序方向正規化為大寫，並以白名單驗證是否為合法值（避免任意字串進入 SQL）。
+     *
+     * @param sortDirection 排序方向，null 時視為預設值 DESC
+     * @return 正規化後的排序方向（ASC 或 DESC）
+     * @throws IllegalArgumentException 排序方向不合法。
+     */
+    private String normalizeSortDirection(String sortDirection) {
+        String normalizedDirection = sortDirection == null ? "DESC" : sortDirection.toUpperCase();
+        if (!VALID_SORT_DIRECTIONS.contains(normalizedDirection)) {
+            throw new IllegalArgumentException("不支援的排序方向: " + sortDirection + "，有效值為 ASC、DESC");
+        }
+        return normalizedDirection;
     }
 
     /**
@@ -166,15 +196,20 @@ public class StationBookmarkService {
     }
 
     /**
-     * 匯出所有有效（未軟刪除）的車站書籤 excel 檔。
+     * 匯出當前使用者所有有效（未軟刪除）的車站書籤 excel 檔。
      *
      * @return byte[]
-     * @throws StationBookmarkExportExcelFailedException 匯出 excel 檔發生錯誤。
+     * @throws UserNotFoundException                      找不到當前使用者。
+     * @throws StationBookmarkExportExcelFailedException  匯出 excel 檔發生錯誤。
      */
     public byte[] exportBookmarkExcel() {
-        logger.debug("開始呼叫 API 來匯出車站書籤 excel");
+        String email = getAuthenticatedEmail();
+        logger.debug("開始呼叫 API 來匯出車站書籤 excel，email: {}", email);
 
-        List<StationBookmarkVO> bookmarks = stationBookmarkDAO.getAllActive();
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        List<StationBookmarkVO> bookmarks = stationBookmarkDAO.getAllActive(user.getId());
 
         return exportBookmarksToExcel(bookmarks);
     }

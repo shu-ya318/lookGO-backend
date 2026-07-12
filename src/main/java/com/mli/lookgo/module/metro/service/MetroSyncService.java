@@ -26,19 +26,19 @@ import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.module.metro.config.DataTaipeiApiClientConfig;
 import com.mli.lookgo.module.metro.config.TDXApiClientConfig;
 import com.mli.lookgo.module.metro.dao.MetroDAO;
+import com.mli.lookgo.module.metro.exceptions.SyncInProgressException;
 import com.mli.lookgo.module.metro.model.entity.Line;
 import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.entity.LineTransfer;
 import com.mli.lookgo.module.metro.model.entity.Station;
-import com.mli.lookgo.module.metro.model.entity.StationFare;
 import com.mli.lookgo.module.metro.model.vo.LineStationVO;
 import com.mli.lookgo.module.metro.model.vo.LineTransferVO;
 import com.mli.lookgo.module.metro.model.vo.LineVO;
 import com.mli.lookgo.module.metro.model.vo.StationFacilityApiVO;
 import com.mli.lookgo.module.metro.model.vo.StationFacilityVO;
-import com.mli.lookgo.module.metro.model.vo.StationFareVO;
 import com.mli.lookgo.module.metro.model.vo.StationTravelTimeVO;
 import com.mli.lookgo.module.metro.model.vo.StationVO;
+import com.mli.lookgo.module.metro.model.vo.SyncStatusVO;
 
 /**
  * 處理從外部 API 同步捷運資料到資料庫的業務邏輯。
@@ -51,18 +51,13 @@ public class MetroSyncService {
     private final TDXApiClientConfig tdxApiClientConfig;
     private final DataTaipeiApiClientConfig dataTaipeiApiClientConfig;
     private final MetroDAO metroDAO;
+    private final StationFareSyncStateHolder stationFareSyncStateHolder;
+    private final StationFareSyncWorker stationFareSyncWorker;
 
     private static final Logger logger = LoggerFactory.getLogger(MetroSyncService.class);
 
     // 資料來源 DataTaipei: 請求車站設施的資料集 id
     private static final String DATA_TAIPEI_STATION_DATASET_id = "f69dfd66-3d8e-408a-9645-c02384bda5b8";
-
-    /*
-     * 資料來源 TDX: 基礎會員限制請求頻率 5 次/分鐘；頁間 20 秒 → 每分鐘最多 3 頁，任意 60 秒視窗最多 4 次請求
-     * 且票價 API 資料較多，等待 60 秒再開始分頁請求
-     */
-    private static final int PAGE_INTERVAL_MS = 20_000;
-    private static final int STATION_FARE_INITIAL_WAIT_MS = 60_000;
 
     /*
      * 獨立區間車站 (包含新北投 、小碧潭) 必須下車走月台換乘。
@@ -82,12 +77,17 @@ public class MetroSyncService {
      * @param tdxApiClientConfig
      * @param dataTaipeiApiClientConfig
      * @param metroDAO
+     * @param stationFareSyncStateHolder
+     * @param stationFareSyncWorker
      */
     public MetroSyncService(TDXApiClientConfig tdxApiClientConfig, DataTaipeiApiClientConfig dataTaipeiApiClientConfig,
-            MetroDAO metroDAO) {
+            MetroDAO metroDAO, StationFareSyncStateHolder stationFareSyncStateHolder,
+            StationFareSyncWorker stationFareSyncWorker) {
         this.tdxApiClientConfig = tdxApiClientConfig;
         this.dataTaipeiApiClientConfig = dataTaipeiApiClientConfig;
         this.metroDAO = metroDAO;
+        this.stationFareSyncStateHolder = stationFareSyncStateHolder;
+        this.stationFareSyncWorker = stationFareSyncWorker;
     }
 
     /**
@@ -394,67 +394,30 @@ public class MetroSyncService {
     }
 
     /**
-     * 0. 需先同步路線車站資料，以確保 station_code 存在。
-     * 1. 從 TDX 票價 (StationFare) API 取得任意兩站間票價，再同步寫入資料庫。
-     * 2. 暫時跳過 CitizenCode 城市優惠票 (FareClass=3)。
+     * 觸發背景同步票價資料。
+     * 透過 {@link StationFareSyncStateHolder#tryStart()} 確保同時只有一個同步在執行，
+     * 若已有同步進行中則拋出 {@link SyncInProgressException}；否則交由
+     * {@link StationFareSyncWorker} 於獨立執行緒非同步執行，方法本身立即返回。
+     * 手動觸發與排程共用此入口，確保兩者不會並發執行同一份同步。
      *
-     * @return MessageVO
+     * @throws SyncInProgressException 已有票價同步進行中時拋出（由 GlobalExceptionHandler 轉為 409）
      */
-    @Transactional
-    public MessageVO syncAllStationFare() {
-        logger.debug("開始從 TDX 票價 (StationFare) 同步票價資料");
-
-        // 1. 取得資料庫中「車站代碼 -> 車站 id」的對照 Map。例如:{"R28" -> 101, "BL12" -> 105}
-        Map<String, Integer> stationCodeToIdMap = metroDAO.getAllLineStation().stream()
-                .filter(ls -> ls.getStationCode() != null && ls.getStationId() != null)
-                .collect(Collectors.toMap(LineStation::getStationCode, LineStation::getStationId,
-                        (existingValue, newValue) -> existingValue));
-
-        // 2. 從 TDX API 取得所有車站配對的票價資料
-        List<StationFareVO> stationFareVOs = fetchAllStationFare();
-        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
-
-        List<StationFare> stationFares = new ArrayList<>();
-        for (StationFareVO stationFareVO : stationFareVOs) {
-            // 3. 依 API 起迄站代碼查找對應資料庫 id（例如：將起點 "R28" 對應至 101，終點 "BL12" 對應至 105）
-            Integer fromStationId = stationCodeToIdMap.get(stationFareVO.getOriginStationId());
-            Integer toStationId = stationCodeToIdMap.get(stationFareVO.getDestinationStationId());
-
-            // 4. 若起迄站中任意一站找不到資料庫 id，則警告並略過該筆票價資料
-            if (fromStationId == null || toStationId == null) {
-                logger.warn("找不到車站 {} 或 {} 對應的資料表 id，跳過",
-                        stationFareVO.getOriginStationId(), stationFareVO.getDestinationStationId());
-                continue;
-            }
-
-            for (StationFareVO.FareDetail fareDetail : stationFareVO.getFares()) {
-                // 5. 跳過含有 CitizenCode 的市民優惠票種
-                if (fareDetail.getCitizenCode() != null) {
-                    continue;
-                }
-
-                // 6. 將起迄站 id、票種與票價封裝成 StationFare Entity 並加入清單（例如：淡水至台北車站，普通票 50 元）
-                stationFares.add(new StationFare(
-                        fromStationId,
-                        toStationId,
-                        fareDetail.getFareClass(),
-                        fareDetail.getPrice(),
-                        currentTime));
-            }
+    public void startSyncAllStationFare() {
+        if (!stationFareSyncStateHolder.tryStart()) {
+            throw new SyncInProgressException("票價同步正在進行中，請勿重複觸發!");
         }
+        
+        logger.debug("已取得票價同步啟動權，交由背景執行緒執行");
+        stationFareSyncWorker.doSyncAllStationFare();
+    }
 
-        final int batchSize = 400;
-        int totalInserted = 0;
-        for (int i = 0; i < stationFares.size(); i += batchSize) {
-            List<StationFare> batch = stationFares.subList(i, Math.min(i + batchSize, stationFares.size()));
-            metroDAO.upsertAllStationFare(batch);
-            totalInserted += batch.size();
-            logger.debug("票價資料批次寫入進度：{} / {} 筆", totalInserted, stationFares.size());
-        }
-
-        logger.debug("票價資料同步完成，共 {} 筆", stationFares.size());
-
-        return new MessageVO("票價資料同步成功!");
+    /**
+     * 取得票價背景同步的當前狀態快照。
+     *
+     * @return SyncStatusVO
+     */
+    public SyncStatusVO getStationFareSyncStatus() {
+        return stationFareSyncStateHolder.snapshot();
     }
 
     /**
@@ -617,72 +580,6 @@ public class MetroSyncService {
         return tdxApiClientConfig.sendGetRequest("/LineTransfer",
                 new ParameterizedTypeReference<List<LineTransferVO>>() {
                 }, params);
-    }
-
-    /*
-     * 資料量大，使用分頁請求:
-     * 1. 初始等待
-     * 2. 逐頁請求
-     * 3. 結束分頁: 包含遇到空頁、不足一頁、中斷等情形
-     * 4. 累加資料，且每頁請求之間等待固定間隔時間
-     * 
-     */
-    private List<StationFareVO> fetchAllStationFare() {
-        final int pageSize = 1000;
-        int skip = 0;
-        List<StationFareVO> allResult = new ArrayList<>();
-
-        logger.debug("[StationFare] 開始初始等待 {} 秒，清空前幾個 sync 請求的速率限制", STATION_FARE_INITIAL_WAIT_MS / 1000);
-        try {
-            Thread.sleep(STATION_FARE_INITIAL_WAIT_MS);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            logger.warn("[StationFare] 初始等待被中斷，提前結束");
-
-            return allResult;
-        }
-
-        logger.debug("[StationFare] 初始等待完成，開始分頁請求 (pageSize={}, pageIntervalSec={})",
-                pageSize, PAGE_INTERVAL_MS / 1000);
-
-        while (true) {
-            int pageNumber = (skip / pageSize) + 1;
-            logger.debug("[StationFare] 發送第 {} 頁請求 ($skip={}, $top={})", pageNumber, skip, pageSize);
-
-            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.setAll(Map.of("$format", "JSON", "$top", String.valueOf(pageSize), "$skip", String.valueOf(skip)));
-
-            List<StationFareVO> page = tdxApiClientConfig.sendGetRequest("/ODFare",
-                    new ParameterizedTypeReference<List<StationFareVO>>() {
-                    }, params);
-
-            if (page == null || page.isEmpty()) {
-                logger.debug("[StationFare] 第 {} 頁回傳空資料，結束分頁", pageNumber);
-                break;
-            }
-
-            allResult.addAll(page);
-            logger.debug("[StationFare] 第 {} 頁完成，本頁 {} 筆，累計 {} 筆", pageNumber, page.size(), allResult.size());
-
-            if (page.size() < pageSize) {
-                logger.debug("[StationFare] 第 {} 頁筆數 ({}) < pageSize ({})，已是最後一頁", pageNumber, page.size(), pageSize);
-                break;
-            }
-
-            skip += pageSize;
-            logger.debug("[StationFare] 等待 {} 秒後請求第 {} 頁", PAGE_INTERVAL_MS / 1000, pageNumber + 1);
-
-            try {
-                Thread.sleep(PAGE_INTERVAL_MS);
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                logger.warn("[StationFare] 頁間等待被中斷，提前結束，已累計 {} 筆", allResult.size());
-                break;
-            }
-        }
-
-        logger.debug("[StationFare] 分頁請求全部完成，共取得 {} 筆票價資料", allResult.size());
-        return allResult;
     }
 
     // ----- DataTaipei API 請求定義 -----

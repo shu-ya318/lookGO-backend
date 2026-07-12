@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mli.lookgo.core.result.MessageVO;
+import com.mli.lookgo.module.metro.model.vo.SyncStatusVO;
 import com.mli.lookgo.module.metro.service.MetroSyncService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -123,21 +124,46 @@ public class MetroSyncController {
     }
 
     /**
-     * 從 TDX 票價 (StationFare) API 同步票價資料到資料庫，僅限 ADMIN 角色存取。
+     * 觸發背景同步票價資料，立即回 202 Accepted，僅限 ADMIN 角色存取。
+     * 因 TDX 票價 API 資料量大、同步時間可長達數分鐘，改為背景執行；
+     * 前端透過 {@link #getStationFareSyncStatus()} 輪詢追蹤進度。
      *
      * @return ResponseEntity<MessageVO>
      */
-    @Operation(summary = "同步票價資料", description = "從 TDX 票價 (StationFare) API 同步任意兩站間票價到資料庫，需先同步路線車站資料。僅限 ADMIN 角色存取")
+    @Operation(summary = "觸發背景同步票價資料", description = "觸發背景同步票價資料並立即回 202；需先同步路線車站資料，透過狀態查詢 API 追蹤進度。僅限 ADMIN 角色存取")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "票價資料同步成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "202", description = "已開始背景同步票價資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+            @ApiResponse(responseCode = "409", description = "票價同步正在進行中", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class, example = "票價同步正在進行中，請勿重複觸發!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/sync-all-station-fare")
     public ResponseEntity<MessageVO> syncAllStationFare() {
-        logger.debug("收到同步票價資料的請求");
-        MessageVO apiResult = metroSyncService.syncAllStationFare();
+        logger.debug("收到觸發背景同步票價資料的請求");
+        metroSyncService.startSyncAllStationFare();
+
+        return ResponseEntity.accepted()
+                .body(new MessageVO("已開始背景同步票價資料，請透過狀態查詢 API 追蹤進度!"));
+    }
+
+    /**
+     * 查詢票價背景同步的當前狀態與進度，僅限 ADMIN 角色存取。
+     * 註：狀態為 in-memory 儲存，伺服器重啟後回到 IDLE（upsert 冪等，重按一次即可）。
+     *
+     * @return ResponseEntity<SyncStatusVO>
+     */
+    @Operation(summary = "查詢票價同步狀態", description = "查詢票價背景同步的當前狀態、進度百分比與階段訊息，供前端輪詢。狀態為 in-memory 儲存，伺服器重啟後回到 IDLE。僅限 ADMIN 角色存取")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "查詢成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = SyncStatusVO.class))),
+            @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+            @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
+            @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/sync-all-station-fare/status")
+    public ResponseEntity<SyncStatusVO> getStationFareSyncStatus() {
+        logger.debug("收到查詢票價同步狀態的請求");
+        SyncStatusVO apiResult = metroSyncService.getStationFareSyncStatus();
 
         return ResponseEntity.ok(apiResult);
     }

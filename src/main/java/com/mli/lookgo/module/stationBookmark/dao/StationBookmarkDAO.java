@@ -20,31 +20,37 @@ import com.mli.lookgo.module.stationBookmark.model.vo.StationBookmarkVO;
 public interface StationBookmarkDAO {
 
     /**
-     * 取得分頁與模糊搜尋後的車站書籤列表，依收藏時間新到舊排序。
+     * 取得指定使用者分頁與模糊搜尋後的車站書籤列表，依收藏時間排序。
      *
+     * @param userId
      * @param keyword
      * @param offset
      * @param limit
+     * @param sortDirection 排序方向（ASC 或 DESC），須由呼叫端先以白名單驗證
      * @return List<StationBookmarkVO>
      */
-    List<StationBookmarkVO> getAllPaginated(@Param("keyword") String keyword,
+    List<StationBookmarkVO> getAllPaginated(@Param("userId") Integer userId,
+            @Param("keyword") String keyword,
             @Param("offset") int offset,
-            @Param("limit") int limit);
+            @Param("limit") int limit,
+            @Param("sortDirection") String sortDirection);
 
     /**
-     * 計算符合搜尋條件的車站書籤總筆數。
+     * 計算指定使用者符合搜尋條件的車站書籤總筆數。
      *
+     * @param userId
      * @param keyword
      * @return 總筆數
      */
-    long countAll(@Param("keyword") String keyword);
+    long countAll(@Param("userId") Integer userId, @Param("keyword") String keyword);
 
     /**
-     * 取得所有有效（未軟刪除）的車站書籤，依收藏時間新到舊排序，供匯出 excel 使用。
+     * 取得指定使用者所有有效（未軟刪除）的車站書籤，依收藏時間新到舊排序，供匯出 excel 使用。
      *
+     * @param userId
      * @return List<StationBookmarkVO>
      */
-    List<StationBookmarkVO> getAllActive();
+    List<StationBookmarkVO> getAllActive(@Param("userId") Integer userId);
 
     /**
      * 用 id 查詢指定書籤的原始資料。

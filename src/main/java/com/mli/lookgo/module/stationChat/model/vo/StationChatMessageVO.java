@@ -25,6 +25,9 @@ public class StationChatMessageVO {
     @Schema(description = "留言者名稱", example = "小明")
     private String username;
 
+    @Schema(description = "留言者頭像（base64 data URI 或預設頭像相對路徑）", example = "/assets/default-avatar.png")
+    private String avatar;
+
     @Schema(description = "留言類型 (TEXT=文字訊息, TRIP_PLAN=旅程分享)", example = "TEXT")
     private ChatTypeEnum chatType;
 
@@ -90,6 +93,14 @@ public class StationChatMessageVO {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 
     public ChatTypeEnum getChatType() {

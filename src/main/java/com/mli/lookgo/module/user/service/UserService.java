@@ -3,7 +3,9 @@ package com.mli.lookgo.module.user.service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +17,11 @@ import com.mli.lookgo.module.user.dao.UserDAO;
 import com.mli.lookgo.module.user.enums.MembershipTier;
 import com.mli.lookgo.module.user.enums.UserRole;
 import com.mli.lookgo.module.user.enums.UserStatus;
+import com.mli.lookgo.module.user.constants.UserConstants;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
+import com.mli.lookgo.module.user.exceptions.InvalidAvatarException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
+import com.mli.lookgo.module.user.model.dto.UpdateAvatarDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateCellphoneDTO;
 import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
@@ -44,6 +49,15 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final RedisService redisService;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
+    /** 頭像解碼後的大小上限（1MB）。 */
+    private static final long MAX_AVATAR_BYTES = 1L * 1024 * 1024;
+
+    /** 允許的頭像 base64 data URI 前綴，對應宣告的圖片格式。 */
+    private static final Map<String, String> ALLOWED_AVATAR_PREFIXES = Map.of(
+            "data:image/png;base64,", "PNG",
+            "data:image/jpeg;base64,", "JPEG",
+            "data:image/webp;base64,", "WEBP");
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -228,6 +242,111 @@ public class UserService {
     }
 
     /**
+     * 驗證並更新當前已驗證使用者的頭像（base64 data URI）。
+     *
+     * @param updateAvatarDTO
+     * @return 更新後的 UserVO（含新頭像）
+     * @throws UserNotFoundException  找不到對應使用者。
+     * @throws InvalidAvatarException 頭像格式不支援、非合法 base64 或超過大小上限。
+     */
+    @Transactional
+    public UserVO updateAvatar(UpdateAvatarDTO updateAvatarDTO) {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始呼叫 API 來更新使用者頭像，email: {}", email);
+
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        String avatar = updateAvatarDTO.getAvatar();
+        validateAvatar(avatar);
+
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
+        userDAO.updateAvatarById(user.getId(), avatar, currentTime);
+
+        user.setAvatar(avatar);
+        user.setUpdatedAt(currentTime);
+
+        return toVO(user);
+    }
+
+    /**
+     * 移除當前已驗證使用者的頭像，恢復為預設頭像。
+     *
+     * @return 更新後的 UserVO（頭像恢復為預設 URL）
+     * @throws UserNotFoundException 找不到對應使用者。
+     */
+    @Transactional
+    public UserVO removeAvatar() {
+        String email = getAuthenticatedEmail();
+        logger.debug("開始呼叫 API 來移除使用者頭像，email: {}", email);
+
+        User user = userDAO.getByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
+
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
+        userDAO.updateAvatarById(user.getId(), UserConstants.DEFAULT_AVATAR_URL, currentTime);
+
+        user.setAvatar(UserConstants.DEFAULT_AVATAR_URL);
+        user.setUpdatedAt(currentTime);
+
+        return toVO(user);
+    }
+
+    /**
+     * 驗證頭像 base64 data URI 的格式、編碼與大小。
+     *
+     * @param avatar base64 data URI 字串
+     * @throws InvalidAvatarException 前綴不在白名單、非合法 base64、超過大小上限或內容與宣告格式不符。
+     */
+    private void validateAvatar(String avatar) {
+        String matchedPrefix = ALLOWED_AVATAR_PREFIXES.keySet().stream()
+                .filter(avatar::startsWith)
+                .findFirst()
+                .orElseThrow(() -> new InvalidAvatarException("僅支援 PNG、JPEG、WEBP 圖片格式!"));
+
+        byte[] imageBytes;
+        try {
+            imageBytes = Base64.getDecoder().decode(avatar.substring(matchedPrefix.length()));
+        } catch (IllegalArgumentException exception) {
+            throw new InvalidAvatarException("圖片內容不是合法的 base64 編碼!");
+        }
+
+        if (imageBytes.length > MAX_AVATAR_BYTES) {
+            throw new InvalidAvatarException("頭像圖片大小不得超過 1MB!");
+        }
+
+        // 檢查解碼後檔頭 magic number 與宣告的 MIME 是否一致，防止偽造前綴
+        String declaredFormat = ALLOWED_AVATAR_PREFIXES.get(matchedPrefix);
+        if (!matchesMagicNumber(imageBytes, declaredFormat)) {
+            throw new InvalidAvatarException("圖片內容與宣告的格式不符!");
+        }
+    }
+
+    /**
+     * 比對解碼後的位元組檔頭 magic number 是否符合宣告的圖片格式。
+     *
+     * @param bytes  解碼後的圖片位元組
+     * @param format 宣告的格式（PNG、JPEG、WEBP）
+     * @return 是否相符
+     */
+    private boolean matchesMagicNumber(byte[] bytes, String format) {
+        return switch (format) {
+            // PNG: 89 50 4E 47 0D 0A 1A 0A
+            case "PNG" -> bytes.length >= 8
+                    && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+                    && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
+            // JPEG: FF D8 FF
+            case "JPEG" -> bytes.length >= 3
+                    && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF;
+            // WEBP: "RIFF"(0-3) .... "WEBP"(8-11)
+            case "WEBP" -> bytes.length >= 12
+                    && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46
+                    && bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50;
+            default -> false;
+        };
+    }
+
+    /**
      * 從 Spring Security Context 中取得當前已驗證使用者的 email。
      *
      * @return email
@@ -251,6 +370,7 @@ public class UserService {
                 UserRole.fromId(user.getRoleId()),
                 user.getBirthDate(),
                 user.getCellphone(),
+                user.getAvatar(),
                 UserStatus.fromCode(user.getStatus()),
                 toUTC(user.getCreatedAt()),
                 toUTC(user.getUpdatedAt()),

@@ -9,22 +9,27 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.module.metro.exceptions.StationNotFoundException;
+import com.mli.lookgo.module.metro.exceptions.SyncInProgressException;
 import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkDuplicateException;
 import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkLimitExceededException;
 import com.mli.lookgo.module.stationBookmark.exceptions.BookmarkNotFoundException;
 import com.mli.lookgo.module.stationBookmark.exceptions.StationBookmarkExportExcelFailedException;
+import com.mli.lookgo.module.stationChat.exceptions.InvalidChatContentException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatExportExcelFailedException;
 import com.mli.lookgo.module.stationChat.exceptions.StationChatNotFoundException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanAccessDeniedException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanExportExcelFailedException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanLimitExceededException;
+import com.mli.lookgo.module.tripPlan.exceptions.TripPlanNameDuplicationException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanNotFoundException;
 import com.mli.lookgo.module.user.exceptions.AdminStatusModificationException;
+import com.mli.lookgo.module.user.exceptions.InvalidAvatarException;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 
 import org.slf4j.Logger;
@@ -188,6 +193,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 處理上傳頭像格式或大小不合法的例外。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 400 (Bad Request) 給客戶端。
+     */
+    @ExceptionHandler(InvalidAvatarException.class)
+    public ResponseEntity<MessageVO> handleInvalidAvatarException(InvalidAvatarException exception) {
+        logger.error("頭像不合法: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResult);
+    }
+
+    /**
      * 處理帳號或密碼驗證失敗的例外。
      *
      * @param exception
@@ -219,7 +239,40 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiResult);
     }
 
+    /**
+     * 處理票價同步已在進行中、重複觸發的例外。
+     * 註：同步進行中屬「資源狀態衝突」，固定回 409 Conflict。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 409 (Conflict) 給客戶端。
+     */
+    @ExceptionHandler(SyncInProgressException.class)
+    public ResponseEntity<MessageVO> handleSyncInProgressException(SyncInProgressException exception) {
+        logger.error("票價同步進行中，重複觸發: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(apiResult);
+    }
+
     // ----- Station Chat -----
+
+    /**
+     * 處理車站聊天留言夾帶非文字內容（圖片、base64 或 HTML 標籤）的例外。
+     * 註：發送留言走 STOMP，此例外實際由 {@code StationChatStompController} 的 {@code @MessageExceptionHandler}
+     * 送至 {@code /user/queue/errors}；此處 handler 供未來 REST 化與統一風格使用。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 400 (Bad Request) 給客戶端。
+     */
+    @ExceptionHandler(InvalidChatContentException.class)
+    public ResponseEntity<MessageVO> handleInvalidChatContentException(InvalidChatContentException exception) {
+        logger.error("聊天留言內容不合法: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResult);
+    }
 
     /**
      * 處理找不到指定車站聊天公告或留言的例外。
@@ -345,6 +398,52 @@ public class GlobalExceptionHandler {
         MessageVO apiResult = new MessageVO(exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResult);
+    }
+
+    /**
+     * 處理旅程規劃名稱重複的例外。
+     * 註：重複名稱屬「資源狀態衝突」，本例外固定回 409 Conflict（不沿用重複建立類例外的 400）。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體，並回傳 HTTP status code 409 (Conflict) 給客戶端。
+     */
+    @ExceptionHandler(TripPlanNameDuplicationException.class)
+    public ResponseEntity<MessageVO> handleTripPlanNameDuplicationException(
+            TripPlanNameDuplicationException exception) {
+        logger.error("旅程規劃名稱重複: {}", exception.getMessage());
+
+        MessageVO apiResult = new MessageVO(exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(apiResult);
+    }
+
+    /**
+     * 處理資料庫完整性約束違反的例外。
+     * 併發請求可能同時通過 service 的名稱重複預檢，最終由 filtered unique index
+     * {@code UQ_user_trip_plans_user_id_name_active} 擋下，此處轉譯為與預檢一致的 409 訊息。
+     *
+     * @param exception
+     * @return 包含具體錯誤訊息的回應實體；旅程規劃名稱唯一索引違反時回傳 HTTP status code 409 (Conflict)，
+     *         其餘完整性違反回傳 500 (Internal Server Error) 給客戶端。
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<MessageVO> handleDataIntegrityViolationException(
+            DataIntegrityViolationException exception) {
+        String rootCauseMessage = exception.getMostSpecificCause().getMessage();
+
+        if (rootCauseMessage != null && rootCauseMessage.contains("UQ_user_trip_plans_user_id_name_active")) {
+            logger.error("旅程規劃名稱重複（唯一索引擋下併發寫入）: {}", rootCauseMessage);
+
+            MessageVO apiResult = new MessageVO("已有相同名稱的旅程規劃，請改用其他名稱!");
+
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(apiResult);
+        }
+
+        logger.error("發生資料庫完整性約束違反的錯誤: {}", rootCauseMessage);
+
+        MessageVO apiResult = new MessageVO("資料寫入失敗，請稍後再試!");
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(apiResult);
     }
 
     /**

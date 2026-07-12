@@ -99,26 +99,31 @@ public class StationBookmarkController {
         }
 
         /**
-         * 取得分頁與模糊搜尋後的車站書籤列表。
+         * 取得當前使用者分頁與模糊搜尋後的車站書籤列表。
          *
          * @param keyword
          * @param page
          * @param size
+         * @param sortDirection
          * @return ResponseEntity<PaginatedVO<StationBookmarkVO>>
          */
-        @Operation(summary = "取得所有車站書籤資料", description = "取得所有車站書籤資料，支援分頁與模糊搜尋（比對車站名稱、使用者名稱、email）")
+        @Operation(summary = "取得所有車站書籤資料", description = "取得當前使用者收藏的所有車站書籤資料，支援分頁與模糊搜尋（比對車站名稱、使用者名稱、email），並可依收藏時間排序")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "成功取得所有車站書籤資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = PaginatedVO.class))),
+                        @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "不支援的排序方向: XXX，有效值為 ASC、DESC"))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
                         @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
         @PostMapping("/get-all-bookmark-paginated")
         public ResponseEntity<PaginatedVO<StationBookmarkVO>> getAllBookmark(
                         @Parameter(description = "搜尋關鍵字") @RequestParam(name = "keyword", required = false) String keyword,
                         @Parameter(description = "頁碼 (從 0 起算)") @RequestParam(defaultValue = "0") int page,
-                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "8") int size) {
-                logger.debug("收到分頁查詢車站書籤資料的請求，keyword: {}, page: {}, size: {}", keyword, page, size);
+                        @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "8") int size,
+                        @Parameter(description = "排序方向（排序鍵為收藏時間）：DESC=新到舊（預設）、ASC=舊到新") @RequestParam(defaultValue = "DESC") String sortDirection) {
+                logger.debug("收到分頁查詢車站書籤資料的請求，keyword: {}, page: {}, size: {}, sortDirection: {}", keyword, page, size,
+                                sortDirection);
                 PaginatedVO<StationBookmarkVO> paginatedBookmarks = stationBookmarkService.getAllBookmark(keyword, page,
-                                size);
+                                size, sortDirection);
 
                 return ResponseEntity.ok(paginatedBookmarks);
         }
@@ -146,14 +151,15 @@ public class StationBookmarkController {
         }
 
         /**
-         * 匯出所有有效（未軟刪除）的車站書籤 excel 檔。
+         * 匯出當前使用者所有有效（未軟刪除）的車站書籤 excel 檔。
          *
          * @return ResponseEntity<byte[]>
          */
-        @Operation(summary = "匯出所有車站書籤 excel", description = "取得所有有效（未軟刪除）的車站書籤並匯出 excel 檔，不受列表分頁與關鍵字篩選影響")
+        @Operation(summary = "匯出所有車站書籤 excel", description = "取得當前使用者所有有效（未軟刪除）的車站書籤並匯出 excel 檔，不受列表分頁與關鍵字篩選影響")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "成功匯出車站書籤 excel", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
+                        @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
                         @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
         @PostMapping("/get-excel")
         public ResponseEntity<byte[]> getExcel() {

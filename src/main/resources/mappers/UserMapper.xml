@@ -4,14 +4,14 @@
 <mapper namespace="com.mli.lookgo.module.user.dao.UserDAO">
 
     <select id="getByEmail" resultType="com.mli.lookgo.module.user.model.entity.User">
-        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, cellphone, status,
+        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, cellphone, avatar, status,
                created_at, updated_at, last_login_at
         FROM [dbo].[users]
         WHERE email = #{email}
     </select>
 
     <select id="getAllPaginated" resultType="com.mli.lookgo.module.user.model.entity.User">
-        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, cellphone, status,
+        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, cellphone, avatar, status,
                created_at, updated_at, last_login_at
         FROM [dbo].[users]
         <where>
@@ -67,7 +67,7 @@
     </update>
 
     <select id="getById" resultType="com.mli.lookgo.module.user.model.entity.User">
-        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, cellphone, status,
+        SELECT id, membership_tier_id, role_id, email, password, username, birth_date, cellphone, avatar, status,
                created_at, updated_at, last_login_at
         FROM [dbo].[users]
         WHERE id = #{id}
@@ -76,6 +76,12 @@
     <update id="updateStatusById">
         UPDATE [dbo].[users]
         SET status = #{status}, updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateAvatarById">
+        UPDATE [dbo].[users]
+        SET avatar = #{avatar}, updated_at = #{updatedAt}
         WHERE id = #{id}
     </update>
 

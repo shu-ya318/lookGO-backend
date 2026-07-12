@@ -69,25 +69,22 @@ sequenceDiagram
 
 ## 2. 重點解釋
 
-- 整個系統採 JWT + Redis 黑名單實現無狀態身分驗證，並依照角色進行授權
-  - `SecurityConfig`
-    - 關閉 CSRF 與 Session
-    - 把 `JwtFilter` 插在 `UsernamePasswordAuthenticationFilter` 之前
-    - 每個請求依「公開路徑跳過 → 簽章驗證 → Redis jti 黑名單 → 載入 UserDetails → 寫入 SecurityContext」六步鏈完成身分識別。
-  - 授權分三層：
-    - 公開白名單集中在 `SecurityConstants.API_PUBLIC_ALL` 供 `permitAll` 與 `shouldNotFilter` 共用（單一資料來源、改一處全域生效）
-    - 會員層靠 `anyRequest().authenticated()`
-    - 管理層延後到方法層由 16 個 `@PreAuthorize("hasRole('ADMIN')")` 把關
-  - 所有驗證失敗集中處理
-    - 都不在 Filter 內回錯
-    - 而是清掉 SecurityContext 放行
-    - 由 `authenticationEntryPoint` 統一輸出 401 JSON
-  - 初始化時建立管理員帳號
-    - 由 `AdminInitializer`（ApplicationRunner）
-    - 啟動時以設定檔注入的帳密自動建立
-    - 先查重再以 BCrypt 落庫
-    - 避免硬編碼與重複建立
+本機制為全系統的安全性基礎，採用 JWT 結合 Redis 黑名單實現無狀態身分驗證與三層式授權架構。
 
+- **啟動階段**：
+  - 容器就緒後由 `AdminInitializer` (ApplicationRunner) 自動執行一次性初始化。
+  - 呼叫 `existsByEmail` 檢查管理員帳號是否存在，若不存在則使用 BCrypt 加密密碼並調用 `createUser(ROLE_ADMIN)` 落庫，若已存在則略過以防重複建立。
+- **請求驗證流程 (JwtFilter 核心六步鏈)**：
+  - **步驟一**：`JwtFilter` 攔截 HTTP 請求，若為 `SecurityConstants.API_PUBLIC_ALL` 白名單路徑，則 `shouldNotFilter` 回傳 true 直接跳過驗證。
+  - **步驟二**：若為受保護路徑，檢查 HTTP 標頭 `Authorization: Bearer token` 是否存在與其簽章有效性。
+  - **步驟三**：解析 JWT 中的 `jti` 宣告，並向 Redis 查詢 `isAccessTokenJtiInBlacklist(jti)`。
+  - **步驟四**：若 Token 有效且不在黑名單中，調用 `UserDetailsServiceImpl.loadUserByUsername(email)` 從資料庫載入最新狀態。
+  - **步驟五**：如驗證無誤，將使用者資訊封裝為 `UsernamePasswordAuthenticationToken` 寫入 `SecurityContext`。
+  - **步驟六**：若上述任一步驟驗證失敗或拋出例外，均調用 `SecurityContext.clearContext()` 清除身分後照常放行。
+- **授權判定流程**：
+  - **白名單路徑**：由 `FilterSecurityInterceptor` 透過 `permitAll()` 直接放行。
+  - **無身分請求**：若 `SecurityContext` 為空且請求非白名單，由 `authenticationEntryPoint` 攔截並統一輸出 401 JSON 錯誤。
+  - **受保護路徑 (會員/管理員)**：通過基本驗證者進入方法層 (Method Security)，AOP 攔截並比對 `@PreAuthorize("hasRole('ADMIN')")`，具備 `ADMIN` 角色者放行至 Controller，否則返回 403 Forbidden。
 
 # 1. 帳號認證
 
@@ -168,10 +165,26 @@ sequenceDiagram
 
 ## 2. 重點解釋
 
-註冊或登入成功「當下」即核發雙 token：存取 token 放回應本體、刷新 token 由 `CookieUtil` 寫入 HttpOnly + Secure + SameSite=None 的 Cookie（防 XSS 竊取），同時把刷新 token 的 jti 以 userId 為 key 存入 Redis 白名單。`/refresh-tokens` 採 rotation 設計，連過三關才換發——簽章有效性、DB 帳號 ACTIVE 狀態、Redis 白名單 jti 比對——換發後覆寫白名單使舊刷新 token 立即失效，被竊取的舊 token 無法重放。忘記密碼先驗 email 與手機一致（兩種失敗回同一句錯誤訊息、避免帳號探測），以 SecureRandom 生成 15 分鐘限時的一次性 token 存 Redis，重設成功即刪除。登出時 Controller 只是 Swagger 空殼，實際由 `LogoutResultHandler` 把存取 token 的 jti 依剩餘壽命寫入 Redis 黑名單並清除 Cookie，達成無狀態架構下的「登出即撤銷」。審查發現一處串接缺陷：登出刪白名單時傳的是 email、但儲存時 key 是 userId（`LogoutResultHandler:62` vs `AuthService:233`），導致刷新 token 白名單實際未被刪除、登出後 TTL 內仍可換發新 token，需修正 key 一致性。
+本模組提供使用者登入、登出、權杖刷新與密碼重設的完整生命週期管理，並透過雙 Token 機制與 Token Rotation 設計維護連線安全。
 
+- **註冊與登入流程**：
+  - 客戶端發送註冊或登入請求，若是註冊則檢查 Email 是否重複，並使用 BCrypt 加密密碼後寫入資料庫取得自增 id。
+  - 成功後核發雙 Token，將 Access Token 放入回應本體，並將 Refresh Token 的 `jti` 以 `userId` 為鍵值存入 Redis 白名單。
+  - 呼叫 `CookieUtil` 將 Refresh Token 寫入瀏覽器的 HttpOnly、Secure 且 SameSite=None 的 Cookie 中以防範 XSS 攻擊。
+- **權杖刷新流程 (Token Rotation)**：
+  - 客戶端調用 `/refresh-tokens` 請求，由瀏覽器自動帶上 Refresh Token Cookie。
+  - 依序進行三關驗證：確認權杖簽章有效性、檢查資料庫中帳號狀態是否為 `ACTIVE`、比對 Redis 白名單中該 `userId` 對應的 `jti` 是否一致。
+  - 驗證通過後重新核發雙 Token，並以新 `jti` 覆寫 Redis 白名單以完成 rotation，使得舊的 Refresh Token 立即失效。
+- **忘記與重設密碼流程**：
+  - 客戶端發送忘記密碼請求，後端同時驗證 Email 與手機號碼一致性（兩者任一失敗皆回傳相同錯誤文案以防帳號探測）。
+  - 通過後使用 `SecureRandom` 生成 32 位元組的 URL-Safe Token，並以 Email 為值存入 Redis 設定 15 分鐘 TTL。
+  - 用戶帶上重設 Token 與新密碼提交，後端驗證 Redis 中的 Token 有效後以 BCrypt 加密更新至資料庫，並立即刪除該重設 Token。
+- **登出流程**：
+  - 客戶端發送登出請求，由 Spring Security `LogoutFilter` 攔截，交由 `LogoutResultHandler` 處理（Controller 僅為 Swagger 文件空殼）。
+  - 解析當前 Access Token，將其 `jti` 與剩餘 TTL 寫入 Redis 黑名單以封鎖該存取權杖，並刪除 Redis 白名單中的 Refresh Token。
+  - 調用 `CookieUtil` 清除客戶端的 Refresh Token Cookie，實現無狀態架構下的「即時登出撤銷」。
 
-# 2. 臺北捷運資訊
+# 2. ✨ 臺北捷運資訊
 
 ## 1. 時序圖
 
@@ -264,8 +277,20 @@ sequenceDiagram
 
 ## 2. 重點解釋
 
-本模組拆成「查詢」與「同步」兩條互不干擾的路徑：8 個公開查詢端點集中宣告在 `SecurityConstants.API_PUBLIC_ALL`（`SecurityConfig` 的 permitAll 與 `JwtFilter` 的 shouldNotFilter 共用同一份白名單，改一處全域生效），管理與同步端點則全數掛 `@PreAuthorize("hasRole('ADMIN')")` 作為登入後的第二道防線。查詢側的亮點是路徑演算法：`MetroRouteGraphService` 以多起點多終點 Dijkstra 處理「換乘站在不同路線有多個代碼」的等價起訖問題，策略 1（最少轉乘）用 1,000,000 的巨大權重常數讓轉乘次數成為主要比較依據、實際車程秒數作次要依據；無法用 station_sequence 線性推導的 Y 字分岔（中和新蘆線、新北投、小碧潭）則由 `MetroForkBranchRouteGraphService` 以人工維護的支線站序覆蓋建邊。同步側是雙來源合併——TDX 給路線、車站、票價、行駛時間，DataTaipei 給車站設施，以 `original_name_zh_tw` 作為同步比對鍵（而非顯示名稱），確保管理員改站名後不會在下次同步被誤判為新站；6 個同步方法皆 `@Transactional` 加批次 MERGE，整批成功才提交。外部 API 防禦包含：TDX OAuth2 token 快取於 Redis（效期提前 60 秒失效）、401 清快取重發、429 退避 90 秒重試、票價 API 分頁請求並以固定間隔節流，符合 TDX 基礎會員每分鐘 5 次的速率限制。
-
+- **公開捷運路徑查詢流程**：
+  - 客戶端發起起訖站查詢，`JwtFilter` 識別路徑在白名單內直接跳過驗證，Controller 調用 `MetroService` 進行參數驗證（如票種與路線策略合法性）。
+  - `MetroRouteGraphService` 自資料庫加載全量路網關聯，以多起點多終點**Dijkstra 演算法**解決換乘站在不同路線具多代碼的等價站點尋路問題。
+  - 策略 1（最少轉乘）引入巨大的轉乘權重常數（1,000,000）使轉乘次數成為最優先比較標的，車程秒數為次要；Y 字分岔支線由 `MetroForkBranchRouteGraphService` 以人工站序進行輔助建邊。
+  - 尋路結束後計算累計時間與換乘時間，並由 DAO 撈取對應票價組裝為 `OriginDestinationDetailVO` 返回。
+- **管理員資料同步流程**：
+  - 管理員透過同步端點發送請求，經 `JwtFilter` 與方法層 `@PreAuthorize("hasRole('ADMIN')")` 雙重認證後進入 `MetroSyncService`。
+  - 從 Redis 讀取 TDX 的 OAuth2 Access Token，若無則由 `TDXApiClientConfig` 向外部 TDX API 請求並快取（提早 60 秒失效以防邊界時間過期）。
+  - 同步服務併發調用 TDX（獲取站點與時間）與 DataTaipei（獲取車站設施），並以 `original_name_zh_tw` 作為資料合併對照鍵以保護管理端的手動站名修改。
+  - 在 `@Transactional` 管理下以 150 筆為一批次執行 MERGE 寫入 SQL Server，避免單次寫入超過資料庫 2100 個參數的上限，整批成功始提交。
+  - 外部 API 連線設有防禦機制
+    - 遇到 401 狀態碼則清空快取重試
+    - 429 則自動退避等待 90 秒
+    - 票價 API 分頁請求間進行節流控制以防流量超限
 
 # 3. 會員
 
@@ -281,7 +306,6 @@ sequenceDiagram
 - **UC_C → UC_D——資料依賴**：`update-status` 的輸入 `userId` 實務上來自 `get-all-user` 回傳的 `UserVO.id`，管理員必然「先查名單、再停權」。這是操作上的前置條件而非同一次執行內的行為相依，正好呼應 use case 圖「前置條件不畫 include/extend」的記法取捨。
 - **UC_D → 終結目標會員的所有後續用例——跨用例副作用**：停權寫入 DB 並刪除 Redis 刷新 token 白名單後，被停權者下一次任何請求（含 UC_A／UC_B）會在 `JwtFilter` → `UserDetailsServiceImpl:44-47` 的每請求 DB 重載被擋（拋例外 → SecurityContext 清空 → 統一 401），`/refresh-tokens` 也因白名單已刪而無法換發。UC_D 是四者中唯一會改變其他用例可達性的操作。
 - **UC_A 內部順序——升級副作用不可對調**：`updateBirthDate` 先寫出生日期、再於同一交易內嘗試升級 PREMIUM（`UserService:162-164`），順序固定——升級 SQL 的 `WHERE birth_date IS NOT NULL` 依賴前一步已落庫。
-
 
 ### 1.3 Coding style 一致性判定
 
@@ -433,19 +457,49 @@ sequenceDiagram
 
 ### UC_A 修改個人資料
 
-修改個資拆成名稱、出生日期、電話三支獨立端點，全部走同一套防越權骨架——身分一律從 SecurityContextHolder 取 email、完全不收前端傳的 userId，從設計上杜絕水平越權。Jakarta Validation 在 Controller 入口先擋格式（電話 regex、生日不得為未來日），Service 再做存在檢查，查無回 404，三支方法皆 `@Transactional`。亮點是出生日期的升級副作用：填了生日且原等級為 BASIC，就在同一交易內自動升級 PREMIUM，且升級條件下沉到 SQL 的 WHERE 子句，「檢查＋更新」在資料庫層原子化、防併發重複升級。回應依 DAO 影響筆數區分「有升級／無升級」兩種文案，前端不需再查一次。
+本功能透過獨立的個人資訊修改端點（名稱、生日、電話）提供一般會員變更個資的管道，並在後端實施水平越權防護與等級自動升級機制。
+
+- **執行流程**：
+  - 會員調用更新端點，在 Controller 入口由 Jakarta Validation 驗證輸入格式（如電話 regex、生日是否為未來日期，不符拋 400）。
+  - `UserService` 在 `@Transactional` 交易中，呼叫 `getAuthenticatedEmail()` 從 `SecurityContextHolder` 取得當前使用者 Email，並至資料庫撈取使用者（防範傳入他人 userId 之越權行為，查無拋 404）。
+  - 若為更新姓名或電話，呼叫 DAO 進行欄位更新並將修改時間設為 UTC 當前時間。
+  - 若為更新生日，呼叫 DAO 更新出生日期的同時，在資料庫層執行 `updateMembershipTierByEmail` 嘗試將 Basic 等級升級至 Premium。
+  - 升級 SQL 設定 `WHERE birth_date IS NOT NULL AND membership_tier_id != PREMIUM` 條件，於資料庫層原子化完成判定與升級以防重複升級。
+  - 根據 SQL 影響列數判斷是否升級成功，返回對應之提示文案給前端。
 
 ### UC_B 變更密碼
 
-變更密碼採「先驗舊密碼、再 BCrypt 加密落庫」的兩段式，舊密碼比對失敗丟 `InvalidCredentialsException` 回 401，與參數格式錯誤的 400 明確分流。身分同樣取自 SecurityContext，整個方法掛 `@Transactional`，新密碼長度 8–20 由入口 `@Size` 把關。已知盲點：改密碼成功後既有的存取與刷新 token 都未撤銷，其他裝置的 session 不會被踢下線——系統已有現成的 `deleteRefreshTokenJti` 機制（停權流程就有串接），這裡補一行呼叫即可，是低成本高價值的補強點。
+本功能提供會員變更登入密碼的雙重校驗邏輯，並透過單向雜湊確保密碼落庫的安全性。
+
+- **執行流程**：
+  - 會員輸入舊密碼與新密碼，Controller 層校驗欄位非空且新密碼長度為 8-20 字元（不符拋 400）。
+  - Service 層從 SecurityContext 取得 Email，自資料庫加載使用者 Entity，若無則拋 404。
+  - 調用 `BCryptPasswordEncoder.matches` 比對輸入之舊密碼與資料庫密碼，若不相符則拋出 `InvalidCredentialsException` 返回 401。
+  - 比對正確後，調用 `encode` 將新密碼進行單向雜湊，並呼叫 DAO 更新密碼至資料庫，回傳成功訊息。
 
 ### UC_C 查詢會員名單
 
-查詢會員名單是純讀取操作，安全完全靠方法層 `@PreAuthorize("hasRole('ADMIN')")` AOP 把關，且角色每請求從 DB 重載、不信 token claim。支援 username／email 模糊搜尋與分頁，SQL Server 用 OFFSET/FETCH 實作，列表查詢與總數計算共用同一組動態 `<where>` 條件，保證分頁資訊一致。回傳統一封裝為 `PaginatedVO<UserVO>`，Entity 轉 VO 時不帶密碼欄位、時間補上 UTC 時區。待補缺口是 page／size 未驗證，size=0 會觸發除零與 SQL 語法錯誤而回 500。
+本功能為後台管理端專用之會員資料分頁查詢功能，完全採用角色型方法授權把關。
+
+- **執行流程**：
+  - 管理員發送查詢參數（關鍵字、分頁頁碼與尺寸），由 AOP 切面攔截 `@PreAuthorize("hasRole('ADMIN')")`，非 ADMIN 角色直接返回 403。
+  - 成功進入 Service 後，呼叫 `UserDAO.getAllPaginated`，在 SQL 內以 `username` 或 `email` 進行 LIKE 模糊比對。
+  - 使用 SQL Server 專有的 `OFFSET/FETCH` 執行分頁查詢，排序依 `id` 遞增。
+  - 呼叫 `countAll` 撈取符合條件之會員總數，該查詢與分頁列表共用同一組 Mybatis 動態 `<where>` 條件以防數據不一致。
+  - 將 Entity 轉化為 `UserVO`（隱蔽密碼欄位、時間補上 UTC 時區），最終封裝為 `PaginatedVO` 返回 200 OK。
 
 ### UC_D 啟用停用會員帳號
 
-停權流程有四道業務防線依序把關：目標存在（404）、目標非管理員（403，防止管理員互相鎖帳號）、狀態未重複（冪等短路、不落 DB）、enum 反序列化擋非法狀態值（400）。停權時在同一交易內刪除該使用者的 Redis 刷新 token 白名單，且 key 用 userId、與儲存端一致（登出流程誤傳 email 的 bug 在這裡沒有重演）。存取 token 雖然不進黑名單——系統也無從得知對方手上的 jti——但 `JwtFilter` 每請求都經 `UserDetailsServiceImpl` 重載 DB 狀態，停權者下一次請求即被擋回 401。因此「停權即時生效」靠的是每請求 DB 重載而非黑名單，換發與續用兩條路徑都已封死，講稿的開放問題可以正面回答。
+本功能允許管理員變更會員的啟用狀態（ACTIVE/DISABLED），並在後端執行狀態變更後的即時階段性撤銷。
+
+- **執行流程**：
+  - 管理員傳入 `userId` 與目標 `status`，經過 Controller 欄位非空校驗（若目標狀態值非法則在反序列化時即拋 400 攔截）。
+  - AOP 攔截角色為 `ADMIN` 後放行至 Service，Service 於 `@Transactional` 交易中調用 `getById` 撈取目標用戶（查無拋 404）。
+  - 檢查目標用戶是否為管理員，若目標為管理員則拋出 `AdminStatusModificationException` 返回 403，防範管理員互相停權。
+  - 檢查目標狀態與目前狀態是否相同，若一致則觸發冪等短路直接返回成功，不落資料庫寫入。
+  - 呼叫 DAO 更新狀態為 `DISABLED`。
+  - 若更新狀態為停權，同步呼叫 Redis 刪除該使用者的 `refreshTokenJti`（key 與儲存端統一採用 `userId` 格式）。
+  - 後續受停權之會員若發起請求，`JwtFilter` 於 `UserDetailsServiceImpl` 從資料庫加載該帳號時，因讀取到 `DISABLED` 直接拋出例外，使存取與刷新雙路徑立即封死。
 
 # 4. 車站書籤
 
@@ -461,7 +515,6 @@ sequenceDiagram
 - **收藏內部——四步 fail-fast 檢查鏈，順序固定**：當前使用者存在（404）→ 車站存在（404，跨模組問 `MetroService`）→ 未重複收藏（400，只看有效書籤）→ 未達會員等級上限（400，上限 JOIN `membership_tiers` 查表、非硬編碼，與旅程規劃同一套款式）。全部通過才 insert，再以自增 id 回查 JOIN 後的顯示資料組回應。
 - **移除 ↔ 收藏——合法循環**：軟刪除只更新 `deleted_at`，所有查詢與匯出立即看不到；重複檢查只認有效書籤，因此「刪除 → 對同站再收藏」是合法路徑，舊列軟刪除、新列另起。
 - **匯出——當下快照**：範圍固定為全部有效書籤，不受列表分頁與關鍵字影響；本模組資料無生命週期排程（對比聊天室每日清空），匯出與其他用例無時序耦合。
-
 
 ### 1.3 Coding style 一致性判定
 
@@ -602,21 +655,47 @@ sequenceDiagram
 
 ### 收藏車站書籤
 
-新增書籤走「使用者存在 → 車站存在 → 未重複收藏 → 未達等級上限」四步 fail-fast 檢查鏈，順序固定、前兩步 404 後兩步 400。數量上限不是硬編碼常數，而是 JOIN `membership_tiers` 依會員等級查表，與旅程規劃共用同一套查表款式，調整上限只動資料不動程式。車站存在性跨模組委派給 `MetroService` 判斷，維持模組邊界。寫入後以自增 id 回查 JOIN 後的完整顯示資料組回應，前端一次拿到車站與使用者資訊。已知縫隙：全程無交易且檢查與寫入分離，併發下可繞過重複與上限檢查，建議補 filtered unique index 由 DB 收底。
+本功能提供一般會員收藏捷運車站的服務，並依會員等級限制收藏總上限。
+
+- **執行流程**：
+  - 會員提交 `stationId`，Controller 進行基本非空驗證後調用 `createBookmark`。
+  - Service 藉由 Email 向 `UserDAO` 獲取當前 `userId`，若用戶不存在拋 404。
+  - 跨模組調用 `MetroService.existsStationById(stationId)`，若車站不存在則拋 404 攔截。
+  - 調用 `StationBookmarkDAO` 檢查該用戶是否已收藏該站（即取得有效之書籤 id），若已收藏則拋出重複異常 (400)。
+  - 呼叫 DAO 撈取對應等級上限（JOIN `membership_tiers` 查表），並查詢該用戶當前已有效收藏數，若超過上限則拋出超限異常 (400)。
+  - 全部檢查通過後，呼叫 DAO 執行 insert，並利用 `useGeneratedKeys` 獲取自增 id。
+  - 依自增 id 再次呼叫 `getVOById` 執行 JOIN 查詢，組裝完整的 `StationBookmarkVO` 返回客戶端。
 
 ### 查詢車站書籤
 
-查詢分兩支：單筆查詢依站名模糊比對且 SQL 綁定 `user_id = 自己`，多筆命中時取收藏時間最新一筆，查無回 404；分頁列表支援站名／使用者名／email 三欄關鍵字搜尋，列表與總數共用同一組過濾條件。所有查詢 SQL 一律帶 `deleted_at IS NULL`，軟刪除資料徹底隱形，這是本模組 Mapper 的必查點且全數通過。要注意的反差是：單筆有綁使用者、列表卻回傳全站所有會員的書籤與 email，一般會員即可翻頁撈個資，資料範圍的決策需要重審。
+本功能包含會員對個人特定書籤的單筆模糊查詢，以及全站書籤的分頁列表查詢。
+
+- **執行流程**：
+  - **單筆模糊查詢**：傳入站名，Service 驗證用戶身分後，調用 DAO 限制 `user_id = 當前用戶` 與 `deleted_at IS NULL`，執行站名 LIKE 模糊比對。當有多筆符合時按收藏時間倒序取第一筆，查無則拋 404。
+  - **分頁列表查詢**：管理端或前台發送關鍵字、分頁參數，DAO 在 SQL 中對車站名、使用者名與 email 進行模糊比對，並限制 `deleted_at IS NULL`。
+  - 利用 `OFFSET/FETCH` 依建立時間倒序回傳列表，並同步呼叫 `countAll` 取得總數，組裝為 `PaginatedVO` 返回。
 
 ### 移除車站書籤
 
-移除採軟刪除設計——只把 `deleted_at` 蓋上 UTC 時間戳，不做物理刪除，資料可回溯且立即從所有查詢與匯出消失；同站「刪了再收」是合法循環，因為重複檢查只認有效書籤。存在性檢查刻意用不濾軟刪除的 `getById` 取原始資料、在 Service 層判斷已刪與否，已刪與不存在同樣回 404、不洩漏資料痕跡。**本模組最重要的審查發現在這裡：整條流程沒有比對書籤擁有者與當前登入者，任何會員可列舉連號 id 刪光他人書籤**——Swagger 標了 403 但程式沒有對應檢查，屬於漏實作而非設計，必須比照旅程規劃的擁有權檢查單一入口補上。
+本功能藉由軟刪除機制提供會員取消收藏特定車站書籤的管道。
+
+- **執行流程**：
+  - 會員傳入 `bookmarkId`，Controller 校驗後發起刪除。
+  - Service 層調用 `getById` 撈取原始書籤資料（該查詢刻意不排除軟刪除資料）。
+  - 在 Service 層過濾已刪除資料（確認 `deletedAt` 為空），若不存在或已刪除則統一拋 404 以防隱私洩漏。
+  - 通過有效性判斷後，調用 DAO 更新 `deleted_at` 欄位為當前 UTC 時間以執行軟刪除，並釋放該收藏配額。
 
 ### 匯出書籤 Excel
 
-匯出用 Apache POI 產出 xlsx，範圍固定是「全部有效書籤」的當下快照，不受列表分頁與關鍵字影響，末列附總計筆數。回應以 RFC 5987 的 `filename*=utf-8''` 編碼處理中文檔名，避免跨瀏覽器亂碼。失敗時包成專屬例外走統一 500 分流，但目前未帶原始 `IOException` 作 cause，除錯時會遺失根因。與聊天室匯出不同，本模組資料沒有每日清理排程，匯出純屬便利功能、無時序耦合；但它同樣輸出全站會員 email，個資範圍問題與列表查詢一體適用。
+本功能支援將全站所有有效書籤匯出為 Excel 工作表，以提供資料快照備份。
 
-# 5. 車站聊天室
+- **執行流程**：
+  - 會員提交匯出請求，Service 呼叫 DAO 取得當前資料庫中所有有效書籤列表（排除軟刪除，不受分頁限制）。
+  - 利用 Apache POI 建立 `XSSFWorkbook`，寫入欄位表頭（書籤 ID、用戶名稱、Email、車站名稱、收藏時間 UTC）。
+  - 遍歷書籤列表寫入對應資料列，並於最後一列寫入總計筆數。
+  - 將 Workbook 寫入位元組流，以 RFC 5987 規範編碼中文檔名並放入 Attachment 回應，若發生 `IOException` 則拋出自定義異常以 500 處理。
+
+# 5. ✨ 車站聊天室
 
 > 對應檔案：`WebSocketConfig.java`、`StompAuthChannelInterceptor.java`、`StationChatController.java`、`StationChatStompController.java`、`StationChatService.java`、`StationChatDAO.java`、`StationChatMapper.xml`、`StationChatMessageCleanupScheduler.java`
 
@@ -636,7 +715,6 @@ sequenceDiagram
 **刪言的雙軌授權**（`StationChatService:300-319`）：取原始留言 → 過濾已軟刪 → **驗證留言歸屬於 URL 上的車站**（`:308`，防止跨站亂刪與錯誤廣播）→ `isOwner || isAdmin` 雙軌判定（`:311-315`）。這是與車站書籤 `deleteBookmark` 最鮮明的對比——同樣是刪除資源，聊天室做對了擁有權檢查，書籤漏了。
 
 **資料生命週期的時序耦合**：留言只活一天——`StationChatMessageCleanupScheduler` 每日 03:00 **物理清空**全站留言（cron `0 0 3 * * *`，整段 try-catch 記 log，單次失敗不擋下次）；管理員匯出 Excel 是「指定車站、不分頁的完整紀錄」，實質是資料歸檔的最後機會，兩功能存在硬性的先後依賴：**匯出必須發生在下一次 03:00 之前，否則資料永久消失**。公告則走軟刪除、長期存活，與留言的生命週期完全不同。
-
 
 ### 1.3 Coding style 一致性判定
 
@@ -824,19 +902,48 @@ sequenceDiagram
 
 ### 查詢車站訊息與公告
 
-查詢走 HTTP、驗證照常由 `JwtFilter` 把關，會員即可使用。留言查詢的亮點在 Mapper 的共用 `<sql>` 片段：一次 JOIN 使用者、旅程規劃與起訖車站，已被刪除的旅程分享以 `CASE WHEN` 優雅降級為「該旅程分享已被移除」而非破圖；旅程分享的車程時間不是資料庫欄位，由 Service 呼叫捷運模組即時計算，算不出來只記警告、不拖垮整頁回傳，容錯設計得當。公告查詢同構但簡單得多。已知縫隙是 page／size 沿用全專案的未驗證問題，`size=0` 會直接 500。
+- **執行流程**：
+  - 客戶端發送查詢請求，經 `JwtFilter` 完成權杖識別後進入 Controller。
+  - Service 呼叫 DAO 執行撈取，留言查詢在 XML 內使用共用 `<sql>` 片段，一次性 JOIN 使用者、旅程規劃與起訖車站資料。
+  - 於 SQL 內利用 `CASE WHEN` 進行防禦，當分享之旅程已被軟刪除時將名稱優雅降級為「該旅程分享已被移除」而非破圖；
+  - 讀取列表時，對含有旅程分享的留言，Service 即時調用 `MetroService.getTravelTimeSecondsByStationIds` 進行圖演算法車程計算。
+  - 計算外包於 try-catch 中，若計算失敗僅記 warn log，確保單筆計算出錯不拖垮整頁歷史留言的返回。
 
 ### 即時聊天（發言與刪言）
 
-這是全系統唯一的 STOMP 路徑，也是第二條驗證路徑：`/ws` handshake 公開，JWT 驗證濃縮在 CONNECT 一個指令、比照 `JwtFilter` 含 Redis 黑名單檢查，通過後 Principal 綁定整條連線。發言有完整檢查鏈——chatType 互斥驗證、分享他人旅程擋 403、每日配額按會員等級查表；刪言做了 `isOwner || isAdmin` 雙軌授權加留言歸站驗證，正是書籤模組刪除所缺的擁有權檢查。**但「只驗 CONNECT 一次」是本模組最重要的審查發現：停權、登出、token 過期都無法終止已建立的連線，被停權的會員只要不斷線就能繼續發言**——`sendMessage` 每次都重載 User 卻不檢查 status，補一行即可堵住。另外通用 STOMP 例外處理直接回傳 `exception.getMessage()`，非預期錯誤會洩漏內部訊息給前端。
+本功能採用 **STOMP 協定**，提供前台用戶在指定車站聊天室內進行發送與刪除留言的雙向即時通訊。
+
+- **執行流程**：
+  - 客戶端與後台 `/ws` 端點完成 handshake，該握手列於公開白名單不進行 Filter 攔截。
+  - 身分驗證
+    - 用戶發送 `CONNECT` 訊號，由 `StompAuthChannelInterceptor` 攔截進行簽章、過期與 Redis 黑名單校驗。通過後將 Principal 身分綁入該 WebSocket 會話，後續 `SEND/SUBSCRIBE` 不再重驗。
+  - **發送留言**
+    - 調用 `sendMessage`，Service 校驗用戶與車站存在性。
+    - 比對 `chatType`（若為 `TEXT` 則不能傳入 `tripPlanId`；`TRIP_PLAN` 則必須傳入且該旅程必須存在、未刪、且屬於本人，否則拋 403/404）。
+    - 依會員等級查表獲取每日配額，確認未超限後寫入資料庫，並調用 `SimpMessagingTemplate` 向該訂閱通道廣播新留言事件。
+  - **刪除留言**：
+    - 調用 `deleteMessage`，校驗留言有效性及所屬車站相符性。
+    - 比對留言擁有者與當前登入者身分是否一致，或當前登入者是否具備 `ADMIN` 角色（雙軌授權）。
+    - 通過後執行軟刪除，並廣播刪除事件以通知所有連線用戶即時移除該訊息。
 
 ### 管理公告
 
-公告管理是管理層 16 個 `@PreAuthorize` 端點中的 4 個（新增、編輯、刪除加匯出），AOP 在方法呼叫前驗角色，是 JWT 之後的第二道防線。新增時 `created_by` 取自 SecurityContext 的當前管理員、不信任前端；編輯與刪除沿用「不濾軟刪的原始查詢＋Service 層判斷已刪」的款式，已刪與不存在同回 404、不洩漏資料痕跡，與書籤模組完全一致。公告走軟刪除、長期存活，和留言的一日生命週期形成同模組內兩種截然不同的資料策略，設計上是刻意為之。
+本功能供管理員針對車站公告進行新增、修改與軟刪除的生命週期控制。
+
+- **執行流程**：
+  - 管理員提交變更請求，經方法層 `@PreAuthorize("hasRole('ADMIN')")` 進行身分覆驗。
+  - **新增公告**：後端自 SecurityContext 獲取當前管理員 Email 並解析出 `userId` 作為 `created_by` 寫入欄位，不信任前端傳入值。
+  - **修改與刪除公告**：調用 DAO 撈取公告（包含已軟刪），於 Service 判斷是否已被刪除，查無或已刪均拋出 404 以防資訊探測。
+  - 通過後呼叫 DAO 更新公告內容，或更新 `deleted_at` 欄位為 UTC 時間戳（軟刪除），使其在公開查詢中隱蔽。
 
 ### 匯出當日聊天紀錄 Excel
 
-匯出限 ADMIN，範圍是指定車站不分頁的完整紀錄，POI 組表尾附總計、RFC 5987 處理中文檔名，款式與書籤匯出一致。關鍵在時序耦合：留言每日 03:00 被排程**物理清空**（非軟刪除，含已軟刪資料一併消失），匯出因此是資料歸檔的最後機會，錯過就永久遺失。要注意匯出 SQL 其實沒有日期過濾，「當日」語意完全靠清理排程昨日成功執行來保證——排程失敗的隔天會匯出多日資料；且配額窗按 UTC 午夜、清理按伺服器本地時區 03:00，兩個「一天」並不對齊，自刪留言還能回充每日配額，這三個時間縫建議一併收斂。
+本功能支援管理員將指定車站的當日即時聊天留言物理歸檔並導出為 Excel。
+
+- **執行流程**：
+  - 管理員調用匯出端點，經權限校驗後進入 `StationChatService`。
+  - 呼叫 DAO 撈取指定車站之全部留言（實務上因每日 03:00 會由 `StationChatMessageCleanupScheduler` 物理清空昨日前留言，故撈出為當日快照）。
+  - 調用 Apache POI 建立工作表，遍歷寫入資料，以 RFC 5987 規範對檔名進行 UTF-8 編碼放入 Attachment 後回傳二進位流。
 
 # 6. 旅程規劃
 
@@ -851,7 +958,6 @@ sequenceDiagram
 **車程時間是讀取時即時計算、不是資料庫欄位。** 每個回傳 VO 的路徑（新增、列表、單筆、更新後回查）都會呼叫 `enrichTravelTime` → `MetroService.getTravelTimeSecondsByStationIds`，跑一次捷運模組的圖演算法。這帶出本模組的跨模組依賴面：Service 注入 `MetroService` 與 `UserDAO`，DAO 直接查 `membership_tiers` 表（與書籤、聊天室同款式）。
 
 **跨模組生命週期協作（回扣聊天室）**：本模組軟刪除一筆旅程，聊天室的旅程分享 JOIN 條件 `utp.deleted_at IS NULL` 立即失配，歷史訊息即時降級顯示「該旅程分享已被移除」。刪除操作的影響面跨出本模組，但因為聊天室早已做了 `CASE WHEN` 優雅降級，這個耦合是安全的——這是兩模組設計互相成全的正面案例。
-
 
 ### 1.3 亮點與程式風格
 
@@ -1018,16 +1124,48 @@ sequenceDiagram
 
 ### 新增旅程規劃
 
-新增鏈六步依序把關：使用者存在、起訖站各自存在、票種與路線策略白名單、會員等級配額查表，全部通過才寫入。配額上限存在 `membership_tiers.max_trip_plans`、DAO 查表而非硬編碼，與書籤模組同一套款式；軟刪除會釋放額度，錯誤訊息也明示「請先刪除部分旅程規劃」，這是設計內行為、不是聊天室那種配額回充漏洞。已知縫隙是配額檢查與寫入之間無交易（TOCTOU 並發可超額），且本 Service 全類無 `@Transactional`，對照會員模組五個更新方法都有，值得補齊。
+本功能提供會員依據起訖站、票種及乘車策略建立個人專屬的捷運規劃，並受會員等級之數量限制。
+
+- **執行流程**：
+  - 會員提交旅程參數，後端於 Controller 層做基本非空驗證後調用 `createTripPlan`。
+  - Service 依當前身分向 `UserDAO` 獲取 `userId`，若無則拋出 404。
+  - 呼叫 `MetroService.existsStationById` 驗證起站與訖站皆存在於資料庫，否則拋出 404。
+  - 檢查輸入之票種代碼與策略代碼是否落在白名單內（`{1,4,5,7}` 與 `{1,2}`），否則拋出 `IllegalArgumentException` (400)。
+  - 調用 DAO JOIN `membership_tiers` 表撈取當前用戶等級之最大規劃數上限，並統計當前有效規劃數，若已達上限則拋出配額已滿異常 (400)。
+  - 驗證均通過後，呼叫 DAO 執行 insert 寫入資料庫並取得自增 id。
+  - 依自增 id 重新呼叫 `getById` 撈取 Entity，並進行 VO 轉換與即時車程時間計算後返回。
 
 ### 查詢旅程規劃
 
-三個查詢端點（分頁列表、名稱列表、名稱模糊搜尋單筆）的 SQL 一律 `WHERE user_id` 綁定當前使用者，資料範圍天生隔離、無越權面。要注意車程時間不是資料庫欄位，而是每筆 VO 讀取時即時呼叫捷運模組跑一次圖演算法——**且這裡的 `enrichTravelTime` 與聊天室的同名方法行為相反，不容錯**：列表中任何一筆旅程的起訖站失配就拋 404 拖垮整頁，加上每頁 8 筆就是 8 次 Dijkstra，建議統一成聊天室的容錯版並評估快取。page/size 未驗證是專案通病第四次出現，`size=0` 直接 500，適合做一次全域收斂。
+本功能包含會員對個人所有旅程的分頁列表、簡要列表及特定旅程的名稱模糊檢索。
+
+- **執行流程**：
+  - 會員發送查詢參數（分頁或關鍵字），後端自 SecurityContext 取得 Email 並反查 `userId`。
+  - 呼叫 DAO 執行查詢，SQL 一律強制加上 `t.user_id = #{userId}` 與 `t.deleted_at IS NULL`，從底層資料範圍實現天然的水平越權防護。
+  - 載入結果列表時，對每筆旅程，Service 調用 `MetroService.getTravelTimeSecondsByStationIds` 即時以圖演算法計算車程時間，並將秒數塞入 VO。
+  - 若其中任何一站代碼失配，此處之 `enrichTravelTime` 不會進行 try-catch 攔截，而是直接拋出 `StationNotFoundException` (404) 導致整頁查詢失敗。
+  - 分頁列表將總筆數與內容組裝為 `PaginatedVO` 返回客戶端。
 
 ### 修改與刪除旅程規劃
 
-這是本模組最值得講的設計：刪除、改名、更新資訊、匯出四個指定 id 的操作，第一步全部收斂到同一私有方法 `getCurrentUserIdAndCheckOwnership()`——當前使用者一律取自 SecurityContext、完全不信任前端傳的 id，查無或已軟刪回 404、非本人回 403，錯誤三類分流乾淨且訊息含具體 id。把擁有權檢查做成強制路徑而非各方法自律，正是書籤模組 `deleteBookmark` 缺洞的解法範本，可作為簡報中的正面對照。軟刪除的影響跨出本模組：聊天室的旅程分享會即時降級為「該旅程分享已被移除」，因對方早有 `CASE WHEN` 優雅降級，這個耦合是安全的。
+本功能支援會員對既有旅程規劃進行編輯（改名、更新資訊）與軟刪除。
+
+- **執行流程**：
+  - 會員針對特定 `tripPlanId` 發起修改或刪除請求。
+  - 服務層收斂至單一入口私有方法 `getCurrentUserIdAndCheckOwnership(tripPlanId)`。
+  - 該私有方法自 SecurityContext 提取 Email 查得當前 `userId`，呼叫 DAO `getActiveOwnerId(tripPlanId)` 查詢該旅程的 `user_id`（限定 `deleted_at IS NULL`）。
+  - 若旅程不存在或已被刪除，拋出 404；若該旅程之擁有人與當前 `userId` 不符，則拋出 403 Forbidden 進行越權防護。
+  - 通過擁有權查核後，修改方法呼叫 DAO 更新名稱或相關欄位。
+  - 刪除方法呼叫 DAO 將 `deleted_at` 寫入為當前 UTC 時間戳完成軟刪除，並釋放用戶的旅程配額。
+  - 刪除成功後，該旅程若曾被分享至聊天室，聊天室撈取歷史訊息時因 JOIN `deleted_at IS NULL` 失配，會自動以 `CASE WHEN` 降級顯示該分享已移除。
 
 ### 匯出旅程規劃 Excel
 
-匯出是會員自助功能（僅限本人），與書籤（全站、無日期壓力）、聊天室（ADMIN、與清理排程時序耦合）形成三種匯出款式的對照組：單筆、有擁有權檢查、無時序耦合。POI 組表把票種與策略代碼轉成中文說明、RFC 5987 處理中文檔名，工整。兩個小縫隙：`catch (IOException)` 未把 cause 記進 log，匯出失敗時查不到原因；以及票價與轉乘次數是前端傳值、後端只驗非負不驗算一致性，Excel 把它們呈現為事實——後端其實有現成的票價計算能力，補一步驗算即可讓匯出資料可信。
+本功能提供會員將個人規劃的特定旅程匯出為 Excel 工作表。
+
+- **執行流程**：
+  - 會員發送匯出請求，經 `getCurrentUserIdAndCheckOwnership` 驗證該旅程為本人所有。
+  - 呼叫 DAO 查詢旅程詳細資料（包含起訖站及轉乘點站序）。
+  - 調用 Apache POI 建立 Excel 檔，將票種代碼與策略代碼在 Java 層轉譯為對應之中文名稱（例如「單程票」、「最少轉乘」）以利閱讀。
+  - 調用 `MetroService` 獲取即時 Dijkstra 算出的車程時間並填入試算表中，將檔案寫入位元組流。
+  - 設定 Response Header 進行 RFC 5987 中文檔名編碼處理，返回 `.xlsx` 檔案下載流給會員。

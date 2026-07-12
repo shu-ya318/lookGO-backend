@@ -38,6 +38,9 @@ public class User {
     @Schema(description = "臺灣電話號碼（0開頭，9～10碼）", example = "0912345678")
     private String cellphone;
 
+    @Schema(description = "頭像（base64 data URI 或預設頭像相對路徑）", example = "/assets/default-avatar.png")
+    private String avatar;
+
     @Schema(description = "狀態 (0=停用(軟刪除), 1=正常使用)", example = "1")
     private Integer status;
 
@@ -54,8 +57,8 @@ public class User {
     }
 
     public User(Integer id, Integer membershipTierId, Integer roleId, String email, String password, String username,
-            LocalDate birthDate, String cellphone, Integer status, LocalDateTime createdAt, LocalDateTime updatedAt,
-            LocalDateTime lastLoginAt) {
+            LocalDate birthDate, String cellphone, String avatar, Integer status, LocalDateTime createdAt,
+            LocalDateTime updatedAt, LocalDateTime lastLoginAt) {
         this.id = id;
         this.membershipTierId = membershipTierId;
         this.roleId = roleId;
@@ -64,6 +67,7 @@ public class User {
         this.username = username;
         this.birthDate = birthDate;
         this.cellphone = cellphone;
+        this.avatar = avatar;
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -134,6 +138,14 @@ public class User {
         this.cellphone = cellphone;
     }
 
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
     public Integer getStatus() {
         return status;
     }
@@ -176,10 +188,27 @@ public class User {
                 ", username='" + username + '\'' +
                 ", birthDate=" + birthDate +
                 ", cellphone=" + cellphone +
+                ", avatar=" + truncateAvatar(avatar) +
                 ", status=" + status +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 ", lastLoginAt=" + lastLoginAt +
                 '}';
+    }
+
+    /**
+     * 將 avatar 截斷為前 30 字元＋總長度，避免 log 夾帶 1.4M 字元的 base64 全文。
+     *
+     * @param avatar 頭像字串，可能為 null
+     * @return 截斷後的字串
+     */
+    private static String truncateAvatar(String avatar) {
+        if (avatar == null) {
+            return null;
+        }
+        if (avatar.length() <= 30) {
+            return avatar;
+        }
+        return avatar.substring(0, 30) + "...(length=" + avatar.length() + ")";
     }
 }

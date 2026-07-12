@@ -1,6 +1,10 @@
 # 0. 全域機制
 
-## 1. 時序圖
+本機制為全系統的安全性基礎，採用 JWT 結合 Redis 黑名單實現無狀態身分驗證，並依照角色授權。
+
+- **Client**（訪客或持 token 的使用者）送出 HTTP 請求後，依序經 `JwtFilter` 每請求識別身分、`FilterSecurityInterceptor` 判斷是否放行、`MethodSecurity` 對 ADMIN 端點覆核，最終才抵達 `Controller`；另有 `AdminInitializer` 於容器啟動時一次性建立預設管理員。以下依時序圖中各組件實際執行的職責分節說明。
+
+## 時序圖
 
 ```mermaid
 sequenceDiagram
@@ -67,28 +71,66 @@ sequenceDiagram
     end
 ```
 
-## 2. 重點解釋
+## AdminInitializer（ApplicationRunner）
 
-本機制為全系統的安全性基礎，採用 JWT 結合 Redis 黑名單實現無狀態身分驗證與三層式授權架構。
+啟動時一次性執行，與每請求流程無關。容器就緒後：
 
-- **啟動階段**：
-  - 容器就緒後由 `AdminInitializer` (ApplicationRunner) 自動執行一次性初始化。
-  - 呼叫 `existsByEmail` 檢查管理員帳號是否存在，若不存在則使用 BCrypt 加密密碼並調用 `createUser(ROLE_ADMIN)` 落庫，若已存在則略過以防重複建立。
-- **請求驗證流程 (JwtFilter 核心六步鏈)**：
-  - **步驟一**：`JwtFilter` 攔截 HTTP 請求，若為 `SecurityConstants.API_PUBLIC_ALL` 白名單路徑，則 `shouldNotFilter` 回傳 true 直接跳過驗證。
-  - **步驟二**：若為受保護路徑，檢查 HTTP 標頭 `Authorization: Bearer token` 是否存在與其簽章有效性。
-  - **步驟三**：解析 JWT 中的 `jti` 宣告，並向 Redis 查詢 `isAccessTokenJtiInBlacklist(jti)`。
-  - **步驟四**：若 Token 有效且不在黑名單中，調用 `UserDetailsServiceImpl.loadUserByUsername(email)` 從資料庫載入最新狀態。
-  - **步驟五**：如驗證無誤，將使用者資訊封裝為 `UsernamePasswordAuthenticationToken` 寫入 `SecurityContext`。
-  - **步驟六**：若上述任一步驟驗證失敗或拋出例外，均調用 `SecurityContext.clearContext()` 清除身分後照常放行。
-- **授權判定流程**：
-  - **白名單路徑**：由 `FilterSecurityInterceptor` 透過 `permitAll()` 直接放行。
-  - **無身分請求**：若 `SecurityContext` 為空且請求非白名單，由 `authenticationEntryPoint` 攔截並統一輸出 401 JSON 錯誤。
-  - **受保護路徑 (會員/管理員)**：通過基本驗證者進入方法層 (Method Security)，AOP 攔截並比對 `@PreAuthorize("hasRole('ADMIN')")`，具備 `ADMIN` 角色者放行至 Controller，否則返回 403 Forbidden。
+- 呼叫 `existsByEmail(app.admin.email)` 檢查預設管理員帳號是否已存在。
+- 不存在 → 以 BCrypt 加密密碼後 `createUser(ROLE_ADMIN)` 落庫；已存在 → 略過，防止容器重啟時重複建立。
+
+## JwtFilter（OncePerRequestFilter）
+
+每次 HTTP 請求的第一道關卡，職責是「識別身分」而非「決定放行」——核心六步鏈：
+
+1. **白名單判斷**：路徑落在 `SecurityConstants.API_PUBLIC_ALL` → `shouldNotFilter` 回傳 `true`，整個跳過 JWT 驗證。
+2. **Token 檢查**：受保護路徑則檢查 `Authorization: Bearer token` 的存在性與簽章有效性。
+3. **黑名單查詢**：解析 JWT 中的 `jti` 宣告，向 `Redis` 查詢 `isAccessTokenJtiInBlacklist(jti)`。
+4. **載入使用者**：Token 有效且不在黑名單 → 呼叫 `UserDetailsServiceImpl.loadUserByUsername(email)` 載入最新狀態。
+5. **寫入身分**：驗證無誤 → 封裝為 `UsernamePasswordAuthenticationToken` 寫入 `SecurityContext`。
+6. **失敗放行**：上述任一步驗證失敗、黑名單命中或拋例外 → 呼叫 `SecurityContext.clearContext()` 清除身分後**照常放行**（不直接回錯），把「是否回 401」的決定權交給後續授權層。
+
+最後一律 `filterChain.doFilter()` 讓請求繼續往下游。
+
+## Redis（jti 黑名單）
+
+供 `JwtFilter` 於步驟三查詢 `isAccessTokenJtiInBlacklist(jti)`，判斷該存取 token 的 `jti` 是否已因登出而被撤銷。命中黑名單即視同驗證失敗，回到 `JwtFilter` 步驟六清除身分。
+
+## UserDetailsServiceImpl（SQL Server）
+
+被 `JwtFilter` 於**每一次請求**呼叫 `loadUserByUsername(email)`，自 SQL Server 載入該帳號的最新狀態與角色，回傳含 `ROLE_*` 的 `UserDetails`。若帳號為停用狀態則直接拋例外——這正是「停權即時生效」的關鍵：不依賴 token 內既有內容、而靠每請求 DB 重載，使被停權者下一次請求即被擋下。
+
+## SecurityContext
+
+存放當次請求的驗證結果，是授權層判斷放行與否的唯一依據：
+
+- 驗證成功 → 由 `JwtFilter` `setAuthentication(...)` 寫入身分。
+- 驗證失敗／黑名單命中／例外 → `clearContext()` 清空。
+- 之後由授權層依「是否含身分」決定放行或回 401。
+
+## FilterSecurityInterceptor（授權層 / AuthorizationFilter）
+
+第一層授權，依 `SecurityContext` 狀態分流：
+
+- **白名單路徑**：以 `permitAll()` 直接放行至 `Controller`。
+- **無身分請求**（`SecurityContext` 為空且非白名單）：由 `authenticationEntryPoint` 攔截，統一輸出 **401 JSON** 錯誤。
+- **有身分請求**（通過 `anyRequest().authenticated()`）：放行進入方法層授權。
+
+## MethodSecurity（@PreAuthorize AOP）
+
+第二層授權，以 AOP 切面對方法逐一覆核：
+
+- 標註 `@PreAuthorize("hasRole('ADMIN')")` 的端點：AOP 驗證 `ROLE_ADMIN`，具備則放行 `Controller`，非 ADMIN → **403 Forbidden**。
+- 一般會員端點：無此標註，直接執行 `Controller` 方法。
+
+## Controller
+
+三層驗證（`JwtFilter` 識別 → `FilterSecurityInterceptor` 放行 → `MethodSecurity` 覆核）全數通過後的終點，執行實際業務邏輯並回傳 `200`。白名單、會員層、ADMIN 層三種路徑最終都收斂於此。
 
 # 1. 帳號認證
 
-## 1. 時序圖
+本模組管理使用者帳號的完整生命週期——註冊／登入核發雙 token、忘記與重設密碼、刷新 token（rotation）、登出即時撤銷。**Client**（訪客或持 token 的使用者）送出請求後，由 `AuthController` 接收並轉呼 `AuthService` 執行商業邏輯；`AuthService` 透過 `AuthDAO / UserDAO` 存取 SQL Server、以 `JwtUtil` 產生與驗證權杖、並以 `Redis` 維護 refresh token 白名單與 access token 黑名單；`CookieUtil` 負責 refresh token 的 HttpOnly Cookie 讀寫；登出則由 Spring Security 的 `LogoutResultHandler` 攔截處理（`AuthController` 僅為 Swagger 文件空殼）。以下依時序圖中各組件實際執行的職責分節說明。
+
+## 時序圖
 
 ```mermaid
 sequenceDiagram
@@ -163,26 +205,59 @@ sequenceDiagram
     end
 ```
 
-## 2. 重點解釋
+## AuthController
 
-本模組提供使用者登入、登出、權杖刷新與密碼重設的完整生命週期管理，並透過雙 Token 機制與 Token Rotation 設計維護連線安全。
+面向 Client 的入口，接收請求、轉呼 `AuthService`，並負責 Cookie 與回應本體的組裝。
 
-- **註冊與登入流程**：
-  - 客戶端發送註冊或登入請求，若是註冊則檢查 Email 是否重複，並使用 BCrypt 加密密碼後寫入資料庫取得自增 id。
-  - 成功後核發雙 Token，將 Access Token 放入回應本體，並將 Refresh Token 的 `jti` 以 `userId` 為鍵值存入 Redis 白名單。
-  - 呼叫 `CookieUtil` 將 Refresh Token 寫入瀏覽器的 HttpOnly、Secure 且 SameSite=None 的 Cookie 中以防範 XSS 攻擊。
-- **權杖刷新流程 (Token Rotation)**：
-  - 客戶端調用 `/refresh-tokens` 請求，由瀏覽器自動帶上 Refresh Token Cookie。
-  - 依序進行三關驗證：確認權杖簽章有效性、檢查資料庫中帳號狀態是否為 `ACTIVE`、比對 Redis 白名單中該 `userId` 對應的 `jti` 是否一致。
-  - 驗證通過後重新核發雙 Token，並以新 `jti` 覆寫 Redis 白名單以完成 rotation，使得舊的 Refresh Token 立即失效。
-- **忘記與重設密碼流程**：
-  - 客戶端發送忘記密碼請求，後端同時驗證 Email 與手機號碼一致性（兩者任一失敗皆回傳相同錯誤文案以防帳號探測）。
-  - 通過後使用 `SecureRandom` 生成 32 位元組的 URL-Safe Token，並以 Email 為值存入 Redis 設定 15 分鐘 TTL。
-  - 用戶帶上重設 Token 與新密碼提交，後端驗證 Redis 中的 Token 有效後以 BCrypt 加密更新至資料庫，並立即刪除該重設 Token。
-- **登出流程**：
-  - 客戶端發送登出請求，由 Spring Security `LogoutFilter` 攔截，交由 `LogoutResultHandler` 處理（Controller 僅為 Swagger 文件空殼）。
-  - 解析當前 Access Token，將其 `jti` 與剩餘 TTL 寫入 Redis 黑名單以封鎖該存取權杖，並刪除 Redis 白名單中的 Refresh Token。
-  - 調用 `CookieUtil` 清除客戶端的 Refresh Token Cookie，實現無狀態架構下的「即時登出撤銷」。
+- **註冊／登入**（`POST /sign-up`、`/log-in`，`@Valid` DTO）：轉呼 `signup()` / `login()` 取回 `AuthVO`（雙 token）後，呼叫 `CookieUtil` 將 refresh token 寫入 Cookie，並將 access token 置於回應本體，回傳 200。
+- **忘記／重設密碼**（`POST /forget-password`、`/reset-password`）：轉呼 `forgetPassword()` / `resetPassword()`，分別回傳重設 token 與重設成功訊息。
+- **刷新 token**（`POST /refresh-tokens`）：先自行呼叫 `CookieUtil.getRefreshTokenFromCookie` 取出 Cookie、`JwtUtil.validateRefreshToken` 完成第一關簽章驗證，再轉呼 `refreshTokens()`；成功後換發新的 refresh token Cookie。
+- 登出不經此 Controller（見 `LogoutResultHandler`），此處僅保留 Swagger 文件空殼。
+
+## AuthService
+
+集中所有帳號商業邏輯，並拋出對應的 Domain 例外（400 / 401）。
+
+- **註冊**（`@Transactional`）：`existsByEmail` 防重複（重複 → 400）→ BCrypt 加密密碼 → `createUser`（`useGeneratedKeys` 取回自增 id）。
+- **登入**：`getByEmail`（查無 → 401）→ 檢查 `ACTIVE` 狀態 → BCrypt `matches`（錯誤 → 401）。
+- **核發雙 token**（註冊／登入成功後）：呼叫 `JwtUtil` 產生 access + refresh token，並以 `saveRefreshTokenJti(userId, jti, TTL)` 寫入 Redis 白名單。
+- **忘記密碼**：`getByEmail` + 比對 cellphone（兩種失敗回同一句錯誤訊息以防帳號探測 → 401）→ `SecureRandom` 生成 32-byte URL-safe token → 存 Redis 設 15 分鐘 TTL。
+- **重設密碼**（`@Transactional`）：`getEmailByResetPasswordToken`（null → 401）→ `updatePasswordByEmail`（BCrypt 加密後更新）→ `deleteResetPasswordToken`（用過即失效）。
+- **刷新 token**：第二關 `getByEmail` + `ACTIVE` 檢查、第三關比對 Redis 白名單 `jti`（不符 → 401）→ 重新核發雙 token → 覆寫 `refreshTokenJti` 完成 rotation（舊刷新 token 即刻失效）。
+
+## AuthDAO / UserDAO（SQL Server）
+
+MyBatis Mapper，承接 `AuthService` 的所有帳號資料存取。
+
+- `existsByEmail`（註冊防重複）、`getByEmail`（登入／忘記密碼／刷新查驗）、`createUser`（新增並取回自增 id）、`updatePasswordByEmail`（重設密碼寫入）。
+
+## JwtUtil
+
+負責 JWT 的產生、簽章驗證與解析。
+
+- `generateAccessToken` / `generateRefreshToken`：註冊、登入、刷新成功時核發雙 token。
+- `validateRefreshToken`：刷新流程的第一關（簽章驗證，無效 → 401）。
+- 登出時解析 access token，取出 `jti` 與剩餘 TTL 供黑名單使用。
+
+## Redis
+
+以三組鍵維護權杖狀態，是「即時撤銷」與 rotation 的核心。
+
+- **Refresh token 白名單**：`saveRefreshTokenJti`（核發時）、`getRefreshTokenJti`（刷新第三關比對）、rotation 覆寫、`deleteRefreshTokenJti`（登出撤銷）。
+- **重設密碼 token**：`saveResetPasswordToken`（15 分鐘 TTL）、`getEmailByResetPasswordToken`、`deleteResetPasswordToken`。
+- **Access token 黑名單**：`saveAccessTokenJtiToBlacklist(jti, 剩餘 TTL)`（登出時封鎖仍未過期的 access token）。
+
+## CookieUtil
+
+專責 refresh token 的 HttpOnly Cookie 讀寫，避免前端 JavaScript 觸及權杖以防範 XSS。
+
+- `addRefreshTokenCookie`（HttpOnly + Secure + SameSite=None）、`getRefreshTokenFromCookie`（刷新時取出）、`clearRefreshTokenCookie`（登出清除）。
+
+## LogoutResultHandler（LogoutSuccessHandler）
+
+登出流程的實際處理者，由 Spring Security `LogoutFilter` 攔截 `POST /log-out`，繞過 `AuthController`。
+
+- 驗證當前 access token，取出 `jti` 與剩餘 TTL → `saveAccessTokenJtiToBlacklist` 封鎖該存取權杖 → `deleteRefreshTokenJti` 撤銷刷新 token 白名單 → `clearRefreshTokenCookie` 清除 Cookie → 回傳 200（JSON），實現無狀態架構下的即時登出撤銷。
 
 # 2. ✨ 臺北捷運資訊
 
@@ -216,7 +291,7 @@ sequenceDiagram
     MS->>MS: 驗證票種(1/4/5/7)與路線策略(1/2)，不合法丟 IllegalArgumentException
     MS->>DAO: getAllLine / getAllStation / getAllLineStation / getAllLineTransfer
     DAO->>DB: SELECT 全量路網基礎資料
-    DB-->>MS: 路線、車站、關聯、換乘資料
+    DB-->>MS: 路線、車站、關聯、轉乘資料
     alt 起訖為同一實體車站（以 stationId 比對，非代碼字串）
         MS->>RG: buildSameStationResult()
         RG-->>MS: 單站結果（票價固定 20 元）
@@ -270,7 +345,7 @@ sequenceDiagram
     else 已有資料（一般重啟）
         SCH->>SCH: 跳過，等待 cron 0 0 23 * * SUN
     end
-    SCH->>SS: 依外鍵相依順序執行：Line、Station → LineStation → 累計時間、換乘、票價
+    SCH->>SS: 依外鍵相依順序執行：Line、Station → LineStation → 累計時間、轉乘、票價
     Note right of SS: 整段 try-catch 記 log，單次失敗不影響下次排程
     end
 ```
@@ -279,9 +354,9 @@ sequenceDiagram
 
 - **公開捷運路徑查詢流程**：
   - 客戶端發起起訖站查詢，`JwtFilter` 識別路徑在白名單內直接跳過驗證，Controller 調用 `MetroService` 進行參數驗證（如票種與路線策略合法性）。
-  - `MetroRouteGraphService` 自資料庫加載全量路網關聯，以多起點多終點**Dijkstra 演算法**解決換乘站在不同路線具多代碼的等價站點尋路問題。
+  - `MetroRouteGraphService` 自資料庫加載全量路網關聯，以多起點多終點**Dijkstra 演算法**解決轉乘站在不同路線具多代碼的等價站點尋路問題。
   - 策略 1（最少轉乘）引入巨大的轉乘權重常數（1,000,000）使轉乘次數成為最優先比較標的，車程秒數為次要；Y 字分岔支線由 `MetroForkBranchRouteGraphService` 以人工站序進行輔助建邊。
-  - 尋路結束後計算累計時間與換乘時間，並由 DAO 撈取對應票價組裝為 `OriginDestinationDetailVO` 返回。
+  - 尋路結束後計算累計時間與轉乘時間，並由 DAO 撈取對應票價組裝為 `OriginDestinationDetailVO` 返回。
 - **管理員資料同步流程**：
   - 管理員透過同步端點發送請求，經 `JwtFilter` 與方法層 `@PreAuthorize("hasRole('ADMIN')")` 雙重認證後進入 `MetroSyncService`。
   - 從 Redis 讀取 TDX 的 OAuth2 Access Token，若無則由 `TDXApiClientConfig` 向外部 TDX API 請求並快取（提早 60 秒失效以防邊界時間過期）。

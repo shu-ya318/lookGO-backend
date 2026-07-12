@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
- * 處理從外部 API 同步捷運資料的 HTTP 請求的介面層。負責觸發同步作業，最後封裝結果為 HTTP 回應回傳給客戶端。
+ * 處理從外部 API 同步捷運資料的 HTTP 請求的介面層。負責觸發同步操作，最後封裝結果為 HTTP 回應回傳給客戶端。
  *
  * @author D5042101
  * @since 2026.06.24
@@ -149,7 +149,6 @@ public class MetroSyncController {
 
     /**
      * 查詢票價背景同步的當前狀態與進度，僅限 ADMIN 角色存取。
-     * 註：狀態為 in-memory 儲存，伺服器重啟後回到 IDLE（upsert 冪等，重按一次即可）。
      *
      * @return ResponseEntity<SyncStatusVO>
      */
@@ -169,20 +168,20 @@ public class MetroSyncController {
     }
 
     /**
-     * 從 TDX LineTransfer API 同步路線換乘資料到資料庫，僅限 ADMIN 角色存取。
+     * 從 TDX LineTransfer API 同步路線轉乘資料到資料庫，僅限 ADMIN 角色存取。
      *
      * @return ResponseEntity<MessageVO>
      */
-    @Operation(summary = "同步路線換乘資料", description = "從 TDX LineTransfer API 同步各路線間換乘車站與換乘時間到資料庫，需先同步路線車站資料。僅限 ADMIN 角色存取")
+    @Operation(summary = "同步路線轉乘資料", description = "從 TDX LineTransfer API 同步各路線間轉乘車站與轉乘時間到資料庫，需先同步路線車站資料。僅限 ADMIN 角色存取")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "路線換乘資料同步成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "200", description = "路線轉乘資料同步成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/sync-all-line-transfer")
     public ResponseEntity<MessageVO> syncAllLineTransfer() {
-        logger.debug("收到同步路線換乘資料的請求");
+        logger.debug("收到同步路線轉乘資料的請求");
         MessageVO apiResult = metroSyncService.syncAllLineTransfer();
 
         return ResponseEntity.ok(apiResult);

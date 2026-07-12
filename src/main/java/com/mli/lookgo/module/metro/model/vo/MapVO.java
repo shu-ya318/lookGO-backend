@@ -5,7 +5,7 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * 捷運路網地圖的複合回應資料，整合路線、車站與換乘資訊供前端 D3.js 繪圖使用。
+ * 路網圖的複合回應資料。整合路線、車站與轉乘資訊供前端 D3.js 繪圖使用。
  *
  * @author D5042101
  * @since 2026.06.26
@@ -16,7 +16,7 @@ public class MapVO {
     @Schema(description = "所有路線及其車站清單")
     private List<LineVO> lines;
 
-    @Schema(description = "所有換乘連結清單")
+    @Schema(description = "所有轉乘連結清單")
     private List<TransferVO> transfers;
 
     public MapVO(List<LineVO> lines, List<TransferVO> transfers) {
@@ -132,18 +132,18 @@ public class MapVO {
         }
     }
 
-    // ----- 換乘 -----
+    // ----- 轉乘 -----
 
-    @Schema(description = "兩路線間的換乘連結")
+    @Schema(description = "兩路線間的轉乘連結")
     public static class TransferVO {
 
-        @Schema(description = "換乘起始站代碼", example = "BL01")
+        @Schema(description = "轉乘起始站代碼", example = "BL01")
         private String fromStationCode;
 
-        @Schema(description = "換乘目標站代碼", example = "R10")
+        @Schema(description = "轉乘目標站代碼", example = "R10")
         private String toStationCode;
 
-        @Schema(description = "換乘所需時間 (分鐘)", example = "5")
+        @Schema(description = "轉乘所需時間 (分鐘)", example = "5")
         private Short transferTime;
 
         public TransferVO(String fromStationCode, String toStationCode, Short transferTime) {

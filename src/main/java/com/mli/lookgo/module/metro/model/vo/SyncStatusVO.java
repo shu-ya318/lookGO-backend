@@ -7,14 +7,14 @@ import com.mli.lookgo.module.metro.enums.SyncStatusEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * 票價背景同步作業的狀態回應物件，供前端每 30 秒輪詢追蹤進度。
- * 狀態為 in-memory 儲存，伺服器重啟後遺失並回到 {@link SyncStatusEnum#IDLE}
- * （upsert 冪等，重按一次即可），單機部署下屬可接受行為。
- *
+ * 用於票價背景同步處理的狀態回應物件，供前端每 30 秒輪詢追蹤進度。
+ * 同步狀態儲存於伺服器記憶體（In-Memory），沒寫入 DB 進行持久化。
+ * 若中斷，應用重啟後會自動回復初始狀態（IDLE），需手動重新執行同步。
+ * 
  * @author D5042101
  * @since 2026.07.12
  */
-@Schema(description = "票價背景同步作業的狀態")
+@Schema(description = "票價背景同步操作的狀態")
 public class SyncStatusVO {
 
     @Schema(description = "同步狀態", example = "RUNNING")

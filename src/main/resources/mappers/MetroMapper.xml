@@ -62,8 +62,8 @@
             ) AS source
             ON target.original_name_zh_tw = source.name_zh_tw
             WHEN MATCHED THEN
-                <!-- original_name_zh_tw 為同步比對鍵，僅於下方 WHEN NOT MATCHED 建站時寫入一次，此處絕不可更新，
-                     否則管理端對 name_zh_tw 的手動修改會在下次同步時被視為比對不到而誤插入重複車站 -->
+                <!-- original_name_zh_tw 為同步比對鍵，僅於下方 WHEN NOT MATCHED 建立時寫入一次。
+                     後續禁止更新，避免 name_zh_tw 手動修改後，下次同步時被視為比對不到而誤插入重複車站 -->
                 UPDATE SET
                     name_en          = ISNULL(source.name_en, target.name_en),
                     atm              = ISNULL(source.atm, target.atm),
@@ -316,9 +316,9 @@
           AND sf.fare_type         = #{fareType,         jdbcType=TINYINT}
     </select>
 
-    <!-- 換乘 -->
+    <!-- 轉乘 -->
 
-    <!-- 組裝成單一長條 SQL，新增或更新路線換乘資料 (以 from_line_station_id + to_line_station_id 定位) -->
+    <!-- 組裝成單一長條 SQL，新增或更新路線轉乘資料 (以 from_line_station_id + to_line_station_id 定位) -->
     <insert id="upsertAllLineTransfer">
         <foreach collection="lineTransfers" item="lineTransfer" separator=";">
             MERGE [dbo].[lines_transfers] AS target
@@ -342,7 +342,7 @@
         </foreach>
     </insert>
 
-    <!-- 取得所有路線換乘資料 -->
+    <!-- 取得所有路線轉乘資料 -->
     <select id="getAllLineTransfer" resultType="com.mli.lookgo.module.metro.model.entity.LineTransfer">
         SELECT id, from_line_station_id, to_line_station_id, transfer_time, updated_at
         FROM [dbo].[lines_transfers]

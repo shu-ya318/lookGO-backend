@@ -12,7 +12,7 @@ import com.mli.lookgo.module.metro.model.vo.SyncStatusVO;
 
 /**
  * 執行緒安全的票價背景同步進度狀態容器（單例）。
- * 以 in-memory 方式保存單一票價同步作業的狀態、進度與時間戳；
+ * 以 in-memory 方式保存單一票價同步操作的狀態、進度與時間戳；
  * 單機部署下即足夠，若未來多實例部署需改存 Redis（專案已有 RedisService，預留即可）。
  *
  * @author D5042101
@@ -31,7 +31,7 @@ public class StationFareSyncStateHolder {
     /**
      * 嘗試啟動一次同步。
      * 以 synchronized 保證「檢查目前非 RUNNING → 設為 RUNNING」的複合動作為原子操作，
-     * 確保同時只有一個票價同步作業能啟動。
+     * 確保同時只有一個票價同步操作能啟動。
      *
      * @return 是否成功取得啟動權（false 表示已有同步在進行中）
      */
@@ -39,6 +39,7 @@ public class StationFareSyncStateHolder {
         if (status.get() == SyncStatusEnum.RUNNING) {
             return false;
         }
+        
         status.set(SyncStatusEnum.RUNNING);
         progressPercentage.set(0);
         message = "已開始背景同步票價資料...";

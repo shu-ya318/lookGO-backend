@@ -23,7 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 
 /**
- * 設定使用第三方服務需要的資訊。
+ * 設定請求第三方服務時需要的資訊。
  *
  * @author D5042101
  * @since 2026.06.24
@@ -62,7 +62,7 @@ public class RailClientConfig {
     }
 
     /**
-     * 透過產生直接信任全部憑證的安全通訊協定上下文，繞過 SSL 憑證的驗證。需避免在生產環境使用，避免重大的資安風險。
+     * 透過產生直接信任全部憑證的安全通訊協定上下文，繞過 SSL 憑證的驗證。
      * 
      * @return SSLContext
      * @throws RuntimeException

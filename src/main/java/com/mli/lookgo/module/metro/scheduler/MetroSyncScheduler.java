@@ -20,6 +20,7 @@ import com.mli.lookgo.module.metro.service.MetroSyncService;
 public class MetroSyncScheduler {
 
     private final MetroSyncService metroSyncService;
+
     private static final Logger logger = LoggerFactory.getLogger(MetroSyncScheduler.class);
 
     /**
@@ -42,6 +43,7 @@ public class MetroSyncScheduler {
             syncAllDataPipeline();
             return;
         }
+
         logger.debug("資料庫已有捷運資料，跳過初始化同步，等待排程時間執行");
     }
 
@@ -65,6 +67,7 @@ public class MetroSyncScheduler {
             metroSyncService.syncAllLineStationCumulativeTime();
             metroSyncService.syncAllLineTransfer();
 
+            // 票價同步正在進行，就不再請求票價
             try {
                 metroSyncService.startSyncAllStationFare();
             } catch (SyncInProgressException exception) {

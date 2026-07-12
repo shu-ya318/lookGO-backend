@@ -1,7 +1,7 @@
 package com.mli.lookgo.module.metro.enums;
 
 /**
- * 票價背景同步作業的狀態列舉。
+ * 票價背景同步操作的狀態列舉。
  * 序列化時以常數名稱（如 "RUNNING"）輸出，供前端輪詢比對。
  *
  * @author D5042101

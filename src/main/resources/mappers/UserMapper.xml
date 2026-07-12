@@ -57,7 +57,7 @@
         WHERE email = #{email}
     </update>
 
-    <!-- WHERE 條件再次守住升級規則，確保「檢查 + 更新」在資料庫層原子化，避免併發下重複升級 -->
+    <!-- WHERE 條件檢查符合升級規則，確保「檢查 + 更新」在資料庫層原子化，避免併發下重複升級 -->
     <update id="updateMembershipTierByEmail">
         UPDATE [dbo].[users]
         SET membership_tier_id = #{membershipTierId}, updated_at = #{updatedAt}

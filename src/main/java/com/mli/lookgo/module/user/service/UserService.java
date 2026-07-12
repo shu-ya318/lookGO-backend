@@ -158,7 +158,8 @@ public class UserService {
     }
 
     /**
-     * 更新當前已驗證使用者的出生日期。填寫出生日期即滿足升級條件，若目前會員等級為 BASIC，會在同一交易內自動升級為 PREMIUM。
+     * 更新當前已驗證使用者的出生日期。
+     * 填寫出生日期即滿足升級條件，若目前會員等級為 BASIC，會在同一交易內自動升級為 PREMIUM。
      *
      * @param updateBirthDateDTO
      * @return MessageVO
@@ -206,7 +207,8 @@ public class UserService {
     }
 
     /**
-     * 更新指定使用者的帳號狀態。若狀態被修改為 DISABLED，會強制將其 Redis 中的 refresh token 移除。
+     * 更新指定使用者的帳號狀態。
+     * 若狀態被修改為 DISABLED，會強制將其 Redis 中的 refresh token 移除。
      *
      * @param updateUserStatusDTO
      * @return MessageVO

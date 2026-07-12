@@ -22,14 +22,7 @@ import com.mli.lookgo.module.metro.model.entity.StationFare;
 import com.mli.lookgo.module.metro.model.vo.StationFareVO;
 
 /**
- * 於獨立執行緒背景執行票價同步作業，並將進度回報至 {@link StationFareSyncStateHolder}。
- * <p>
- * 抽出為獨立 {@code @Component} 是因為 Spring 的 {@code @Async} 代理對「同類別內部呼叫」無效
- * （self-invocation 不經代理，註解會失效）；由 {@link MetroSyncService} 跨 bean 呼叫，代理必然生效。
- * <p>
- * 刻意「不」加方法級 {@code @Transactional}：原本整段交易會讓數十萬筆票價落在單一長交易中；
- * 移除後每批 {@code upsertAllStationFare} 各自自動提交，進度真實反映已提交資料，
- * 失敗時已完成批次不回滾（upsert 冪等、可重跑）。
+ * 於獨立執行緒背景執行票價同步操作，並將進度回報至 {@link StationFareSyncStateHolder}。
  *
  * @author D5042101
  * @since 2026.07.12
@@ -75,7 +68,7 @@ public class StationFareSyncWorker {
 
     /**
      * 於 {@code metroSyncExecutor} 執行緒池非同步執行票價同步。
-     * 背景執行緒的例外不會傳遞到任何 HTTP 回應，故此處全數捕捉並回報狀態：
+     * 背景執行緒的例外不會傳遞到任何 HTTP 回應，全數捕捉並回報狀態：
      * 成功呼叫 {@link StationFareSyncStateHolder#markSuccess()}，任何例外則 {@code markFailed} 並記錄 log。
      */
     @Async("metroSyncExecutor")
@@ -94,29 +87,28 @@ public class StationFareSyncWorker {
     /**
      * 0. 需先同步路線車站資料，以確保 station_code 存在。
      * 1. 從 TDX 票價 (StationFare) API 取得任意兩站間票價，再同步寫入資料庫。
-     * 2. 暫時跳過 CitizenCode 城市優惠票 (FareClass=3)。
      */
     private void runSync() {
         logger.debug("開始從 TDX 票價 (StationFare) 同步票價資料");
-        stateHolder.updateProgress(0, "正在準備票價同步作業...");
+        stateHolder.updateProgress(0, "正在準備票價同步操作...");
 
-        // 1. 取得資料庫中「車站代碼 -> 車站 id」的對照 Map。例如:{"R28" -> 101, "BL12" -> 105}
+        //  取得資料庫中「車站代碼 -> 車站 id」的對照 Map。例如:{"R28" -> 101, "BL12" -> 105}
         Map<String, Integer> stationCodeToIdMap = metroDAO.getAllLineStation().stream()
                 .filter(ls -> ls.getStationCode() != null && ls.getStationId() != null)
                 .collect(Collectors.toMap(LineStation::getStationCode, LineStation::getStationId,
                         (existingValue, newValue) -> existingValue));
 
-        // 2. 從 TDX API 取得所有車站配對的票價資料（階段一：0–70%）
+        //  從 TDX API 取得所有車站配對的票價資料（階段一：0–70%）
         List<StationFareVO> stationFareVOs = fetchAllStationFare();
         LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
 
         List<StationFare> stationFares = new ArrayList<>();
         for (StationFareVO stationFareVO : stationFareVOs) {
-            // 3. 依 API 起迄站代碼查找對應資料庫 id（例如：將起點 "R28" 對應至 101，終點 "BL12" 對應至 105）
+            //  依 API 起迄站代碼查找對應資料庫 id（例如：將起點 "R28" 對應至 101，終點 "BL12" 對應至 105）
             Integer fromStationId = stationCodeToIdMap.get(stationFareVO.getOriginStationId());
             Integer toStationId = stationCodeToIdMap.get(stationFareVO.getDestinationStationId());
 
-            // 4. 若起迄站中任意一站找不到資料庫 id，則警告並略過該筆票價資料
+            // 若起迄站中任意一站找不到資料庫 id，則警告並略過該筆票價資料
             if (fromStationId == null || toStationId == null) {
                 logger.warn("找不到車站 {} 或 {} 對應的資料表 id，跳過",
                         stationFareVO.getOriginStationId(), stationFareVO.getDestinationStationId());
@@ -124,12 +116,9 @@ public class StationFareSyncWorker {
             }
 
             for (StationFareVO.FareDetail fareDetail : stationFareVO.getFares()) {
-                // 5. 跳過含有 CitizenCode 的市民優惠票種
-                if (fareDetail.getCitizenCode() != null) {
-                    continue;
-                }
 
-                // 6. 將起迄站 id、票種與票價封裝成 StationFare Entity 並加入清單（例如：淡水至台北車站，普通票 50 元）
+
+                // 將起迄站 id、票種與票價封裝成 StationFare Entity 並加入清單（例如：淡水至台北車站，普通票 50 元）
                 stationFares.add(new StationFare(
                         fromStationId,
                         toStationId,
@@ -139,7 +128,7 @@ public class StationFareSyncWorker {
             }
         }
 
-        // 7. 批次寫入資料庫（階段二：70–100%）
+        // 批次寫入資料庫（階段二：70–100%）
         stateHolder.updateProgress(FETCH_PHASE_MAX, "票價資料取得完成，開始批次寫入資料庫...");
         if (stationFares.isEmpty()) {
             logger.warn("[StationFare] 未取得任何票價資料，略過寫入");

@@ -137,18 +137,18 @@ public class MetroController {
         }
 
         /**
-         * 取得所有路線換乘資料。
+         * 取得所有路線轉乘資料。
          *
          * @return ResponseEntity<List<LineTransfer>>
          */
-        @Operation(summary = "取得所有路線換乘資料", description = "從資料庫取得所有路線換乘車站與換乘時間資料")
+        @Operation(summary = "取得所有路線轉乘資料", description = "從資料庫取得所有路線轉乘車站與轉乘時間資料")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "成功取得所有路線換乘資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LineTransfer.class))),
+                        @ApiResponse(responseCode = "200", description = "成功取得所有路線轉乘資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LineTransfer.class))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
                         @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
         @PostMapping("/get-all-line-transfer")
         public ResponseEntity<List<LineTransfer>> getAllLineTransfer() {
-                logger.debug("收到查詢所有路線換乘資料的請求");
+                logger.debug("收到查詢所有路線轉乘資料的請求");
                 List<LineTransfer> lineTransfers = metroService.getAllLineTransfer();
 
                 return ResponseEntity.ok(lineTransfers);
@@ -272,7 +272,7 @@ public class MetroController {
          *
          * @return ResponseEntity<MapVO>
          */
-        @Operation(summary = "取得捷運路網地圖資料", description = "整合路線顏色、各路線有序車站清單與換乘連結，一次回傳供前端 D3.js 繪圖使用")
+        @Operation(summary = "取得捷運路網地圖資料", description = "整合路線顏色、各路線有序車站清單與轉乘連結，一次回傳供前端 D3.js 繪圖使用")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "成功取得捷運路網地圖資料", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MapVO.class))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),

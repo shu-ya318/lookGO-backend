@@ -5,15 +5,15 @@ import java.time.LocalDateTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * 處理捷運路線換乘相關的資料。
+ * 處理捷運路線轉乘相關的資料。
  *
  * @author D5042101
  * @since 2026.06.26
  */
-@Schema(description = "處理捷運路線換乘相關的資料")
+@Schema(description = "處理捷運路線轉乘相關的資料")
 public class LineTransfer {
 
-    @Schema(description = "換乘 id", example = "1")
+    @Schema(description = "轉乘 id", example = "1")
     private Integer id;
 
     @Schema(description = "起始路線車站 id (lines_stations.id)", example = "7")
@@ -22,7 +22,7 @@ public class LineTransfer {
     @Schema(description = "目標路線車站 id (lines_stations.id)", example = "100")
     private Integer toLineStationId;
 
-    @Schema(description = "換乘所需時間 (分鐘)", example = "11")
+    @Schema(description = "轉乘所需時間 (分鐘)", example = "11")
     private Short transferTime;
 
     @Schema(description = "更新時間 (UTC, ISO 8601)", example = "2026-06-26T12:00:00Z")

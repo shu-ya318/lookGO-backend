@@ -27,7 +27,7 @@ import com.mli.lookgo.core.security.JwtFilter;
 import com.mli.lookgo.core.security.LogoutResultHandler;
 
 /**
- * 處理 Spring Security 的客製化配置，包含 CORS、JWT Filter、授權規則與登出機制。
+ * 處理 Spring Security 的客製化配置。
  *
  * @author D5042101
  * @since 2026.06.06
@@ -40,7 +40,7 @@ public class SecurityConfig {
     private final LogoutResultHandler logoutResultHandler;
     private final List<String> allowedOrigins;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECTMAPPER = new ObjectMapper();
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -57,7 +57,12 @@ public class SecurityConfig {
     }
 
     /**
-     * 設定 HTTP 安全性過濾鏈，定義授權規則、JWT 過濾器與登出行為。
+     * 設定 HTTP 安全過濾鏈，執行時期請求依序經過：
+     * 1. CORS 跨域驗證（同時關閉 CSRF）
+     * 2. 攔截登出 URL，符合條件則執行登出
+     * 3. 設定為 無狀態 Session，透過 JWT Token 解析與身分驗證
+     * 4. 依照規則判斷是否需要授權（公開路由直接放行，其餘需驗證）
+     * 若驗證或授權失敗，統一回傳 401 錯誤。
      *
      * @param httpSecurity
      * @return SecurityFilterChain
@@ -72,8 +77,8 @@ public class SecurityConfig {
                             response.setContentType("application/json;charset=UTF-8");
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-                            String json = MAPPER
-                                    .writeValueAsString(Map.of("message", "未授權錯誤，token無效或已過期"));
+                            String json = OBJECTMAPPER
+                                    .writeValueAsString(Map.of("message", "未授權錯誤，token無效或已過期!"));
                             response.getWriter().write(json);
                         }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
@@ -85,38 +90,41 @@ public class SecurityConfig {
     }
 
     /**
-     * 設定 CORS 跨來源資源共享的規則，允許前端指定來源存取 API。
+     * 設定 CORS 跨來源資源共享的規則。
+     * 當 securityFilterChain 中呼叫 .cors(Customizer.withDefaults()) 時被注入使用。
      *
      * @return CorsConfigurationSource
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
+        CorsConfiguration corsConfiguration = new CorsConfiguration();
 
-        config.setAllowedOriginPatterns(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
+        corsConfiguration.setAllowedOriginPatterns(allowedOrigins); // patterns，支援萬用字元比對
+        corsConfiguration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        corsConfiguration.setAllowedHeaders(List.of("*"));
+        corsConfiguration.setAllowCredentials(true); // 讓跨域請求可附加 Cookie / Authorization Header
+        corsConfiguration.setMaxAge(3600L); // OPTIONS 預檢請求的結果快取 3600 秒（1小時）
 
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource = new UrlBasedCorsConfigurationSource();
-        urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", config);
+        urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration); // 讓所有路徑套用統一的 CORS 設定
 
         return urlBasedCorsConfigurationSource;
     }
 
     /**
-     * 防止 JWT 過濾器被 Spring Boot 自動注冊為 Servlet Filter，避免重複執行。
+     * 防止 客製化配置的 JwtFilter 被自動註冊到 Servlet 容器（Tomcat）的原生 Filter Chain。
+     * 避免每個請求執行兩次 JwtFilter。
      *
      * @param jwtFilter
      * @return FilterRegistrationBean
      */
     @Bean
     FilterRegistrationBean<JwtFilter> jwtFilterRegistration(JwtFilter jwtFilter) {
-        FilterRegistrationBean<JwtFilter> registration = new FilterRegistrationBean<>(jwtFilter);
-        registration.setEnabled(false);
+        FilterRegistrationBean<JwtFilter> filterRegistrationBean = new FilterRegistrationBean<>(jwtFilter);
 
-        return registration;
+        filterRegistrationBean.setEnabled(false);
+
+        return filterRegistrationBean;
     }
 
     /**

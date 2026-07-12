@@ -13,10 +13,9 @@ import com.mli.lookgo.module.metro.model.entity.LineStation;
 import com.mli.lookgo.module.metro.model.graph.Edge;
 
 /**
- * 處理捷運分岔路線的業務邏輯。lines_stations 資料表以 (line_id, station_sequence) 唯一遞增排序，
- * 無法表達 Y 字分岔路線車站，{@link MetroRouteGraphService#buildAdjacencyList} 依
- * stationSequence 線性推導同線邊時，
- * 會在分岔口產生錯誤連接（例如把兩條支線硬串成一直線）。此類別改以人工維護的分岔站序覆蓋該區段，取代線性推導邏輯。
+ * 處理捷運分岔路線的業務邏輯。改以人工維護的分岔站序覆蓋該區段，取代線性推導邏輯。
+ * 避免因為 lines_stations 表以 (line_id, station_sequence) 唯一遞增排序，
+ * 因此 {@link MetroRouteGraphService#buildAdjacencyList} 依 stationSequence 線性推導同線邊時，在分岔口錯誤連接（例如把兩條支線硬串成一直線）。
  * 目前涵蓋：
  * - 中和新蘆線（橘線 O）：大橋頭(O12) 分岔，蘆洲(O54)／迴龍(O21) 兩條支線
  * - 淡水信義線（紅線 R）：北投(R22) 單站支線，往新北投(R22A)

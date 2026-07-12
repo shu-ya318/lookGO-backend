@@ -11,10 +11,10 @@ public class Edge {
     // 目的車站代碼
     private final String toCode;
 
-    // 邊的權重（依路線策略為 0、換乘時間或行駛時間秒數）
+    // 邊的權重（依路線策略為 0、轉乘時間或行駛時間秒數）
     private final int weight;
 
-    // 是否為換乘邊
+    // 是否為轉乘邊
     private final boolean isTransfer;
 
     public Edge(String toCode, int weight, boolean isTransfer) {

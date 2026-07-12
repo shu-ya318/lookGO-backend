@@ -36,7 +36,7 @@ public class OriginDestinationDetailVO {
     @Schema(description = "總行駛時間 (秒，含轉乘時間)", example = "1800")
     private Integer totalTravelTimeSeconds;
 
-    @Schema(description = "轉乘時間 (秒，換乘站步行時間加總，已包含於總行駛時間內)", example = "180")
+    @Schema(description = "轉乘時間 (秒，轉乘站步行時間加總，已包含於總行駛時間內)", example = "180")
     private Integer transferTimeSeconds;
 
     @Schema(description = "票價 (元；未指定票種時為 null)", example = "45.00")

@@ -22,9 +22,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.mli.lookgo.core.service.RedisService;
 import com.mli.lookgo.module.metro.enums.RailSystem;
 
-// 考量: 建立獨立於 Dao 和 Service 層之外的 Client 層，專門負責呼叫第三方服務。
+// 建立獨立於 Dao 和 Service 層之外的 Client 層，專門負責呼叫第三方服務。
+
 /**
- * 負責呼叫 TDX (運輸資料流通服務) API 的客戶端。不需要驗證即可呼叫。
+ * 負責呼叫 TDX (運輸資料流通服務) API 的客戶端。需要通過身分驗證才能呼叫。
  *
  * @author D5042101
  * @since 2026.06.25
@@ -32,22 +33,22 @@ import com.mli.lookgo.module.metro.enums.RailSystem;
 @Component
 public class TDXApiClientConfig {
 
-    private static final String BASE_URL = "https://tdx.transportdata.tw/api/basic";
-    private static final String TOKEN_URL = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token";
-    private static final RailSystem RAIL_SYSTEM = RailSystem.TRTC;
-
     @Value("${rail.api.tdx.client.id}")
     private String clientId;
 
     @Value("${rail.api.tdx.client.secret}")
     private String clientSecret;
 
-    private static final Logger logger = LoggerFactory.getLogger(TDXApiClientConfig.class);
-    // 等待 90 秒，避免 HTTP status code 429 超出請求速率上限
-    private static final int RATE_LIMIT_WAIT_MS = 90_000;
-
     private final RestTemplate railRestTemplate;
     private final RedisService redisService;
+
+    private static final Logger logger = LoggerFactory.getLogger(TDXApiClientConfig.class);
+
+    private static final String BASE_URL = "https://tdx.transportdata.tw/api/basic";
+    private static final String TOKEN_URL = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token";
+    private static final RailSystem RAIL_SYSTEM = RailSystem.TRTC;
+    // 等待 90 秒，避免 HTTP status code 429 超出請求速率上限
+    private static final int RATE_LIMIT_WAIT_MS = 90_000;
 
     public TDXApiClientConfig(RestTemplate railRestTemplate, RedisService redisService) {
         this.railRestTemplate = railRestTemplate;
@@ -113,13 +114,13 @@ public class TDXApiClientConfig {
 
     // 使用 OIDC Client Credentials 進行身分驗證，取得 access token (省去手動輸入帳密的操作)
     private synchronized String getOrRefreshToken() {
-        // 1.先檢查 Redis ，有存快取就直接返回
+        // 先檢查 Redis ，有存快取就直接返回
         String cachedToken = redisService.getTdxAccessToken();
         if (cachedToken != null) {
             return cachedToken;
         }
 
-        // 2.沒快取時，實際發送請求
+        // 沒快取時，實際發送請求
 
         // Form 表單參數 (RestTemplate 傳入 MultiValueMap 時，自動將 Content-Type 設為 Form 表單)
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();

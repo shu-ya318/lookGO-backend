@@ -98,7 +98,7 @@ public class MetroService {
 
         /**
          * 依車站 id 取得任一隸屬路線車站代碼，供其他模組以車站 id（而非路線車站代碼）查詢路線資料時轉換使用。
-         * 換乘站雖對應多筆不同路線代碼（例如民權西路同時是 "R13"、"O11"），但路徑演算法已將同站不同代碼視為等價起訖點，任取一筆代碼即可。
+         * 轉乘站雖對應多筆不同路線代碼（例如民權西路同時是 "R13"、"O11"），但路徑演算法已將同站不同代碼視為等價起訖點，任取一筆代碼即可。
          *
          * @param stationId
          * @return Optional<String>
@@ -135,6 +135,7 @@ public class MetroService {
                                                 "找不到 id:" + toStationId + " 車站對應的路線資料!"));
 
                 StationRouteDTO stationRouteDTO = new StationRouteDTO();
+
                 stationRouteDTO.setFromStationCode(fromCode);
                 stationRouteDTO.setToStationCode(toCode);
                 stationRouteDTO.setRoutingStrategy(routingStrategy);
@@ -184,12 +185,12 @@ public class MetroService {
         }
 
         /**
-         * 取得所有路線換乘資料。
+         * 取得所有路線轉乘資料。
          *
          * @return List<LineTransfer>
          */
         public List<LineTransfer> getAllLineTransfer() {
-                logger.debug("開始查詢所有路線換乘資料");
+                logger.debug("開始查詢所有路線轉乘資料");
                 return metroDAO.getAllLineTransfer();
         }
 
@@ -268,6 +269,7 @@ public class MetroService {
                 if (!metroDAO.existsById(updateStationDTO.getId())) {
                         throw new StationNotFoundException("找不到id:" + updateStationDTO.getId() + "的車站!");
                 }
+
                 if (updateStationDTO.hasNoUpdatableField()) {
                         throw new IllegalArgumentException("請至少提供一個要修改的欄位!");
                 }
@@ -279,7 +281,7 @@ public class MetroService {
         }
 
         /**
-         * 整合路線、車站與換乘資料，組成供前端繪製路網地圖的資料。
+         * 整合路線、車站與轉乘資料，組成供前端繪製路網地圖的資料。
          *
          * @return MapVO
          */
@@ -354,7 +356,7 @@ public class MetroService {
                                                 && transferVO.getToStationCode() != null)
                                 .collect(Collectors.toList());
 
-                logger.debug("捷運路網地圖資料組合完成，共 {} 條路線、{} 個換乘連結",
+                logger.debug("捷運路網地圖資料組合完成，共 {} 條路線、{} 個轉乘連結",
                                 lineVOs.size(), transferVOs.size());
 
                 return new MapVO(lineVOs, transferVOs);
@@ -362,9 +364,9 @@ public class MetroService {
 
         /**
          * 依起始、終點車站代碼取得兩站間詳細資料，並可選擇性指定票種與路線策略。
-         * 因捷運路網為多線交織、車站間存在多條可能路徑的圖狀結構，使用 Dijkstra 演算法搜尋兩站間的最短路徑。
-         * 路線策略 1（最少轉乘次數）：轉乘邊權重為 1、同線邊權重為 0，搜尋結果為轉乘次數最少的路徑。
-         * 路線策略 2（最短車程時間）：各邊權重為實際秒數，搜尋結果為車程時間最短的路徑。
+         * 因捷運路網為多路線多車站交織的圖狀結構，使用 Dijkstra (戴克斯特拉)演算法搜尋兩站間的最短路徑。
+         * (1) 路線策略 1（最少轉乘次數）：轉乘邊權重為 1、同線邊權重為 0，搜尋結果為轉乘次數最少的路徑。
+         * (2) 路線策略 2（最短車程時間）：各邊權重為實際秒數，搜尋結果為車程時間最短的路徑。
          *
          * @param stationRouteDTO
          * @return OriginDestinationDetailVO
@@ -372,11 +374,13 @@ public class MetroService {
         public OriginDestinationDetailVO getOriginDestinationDetail(StationRouteDTO stationRouteDTO) {
                 String fromCode = stationRouteDTO.getFromStationCode();
                 String toCode = stationRouteDTO.getToStationCode();
+
                 Integer fareType = stationRouteDTO.getFareType();
                 Integer routingStrategy = stationRouteDTO.getRoutingStrategy();
+
                 List<StationFacilities> stationFacilities = stationRouteDTO.getStationFacilities();
 
-                // 1. 驗證傳入的票種與路線規劃策略是否合法，不合法則拋出異常
+                // 1. 驗證參數合法性: 傳入的票種與路線規劃策略是否合法，不合法則拋出異常
                 if (fareType != null && !VALID_FARE_TYPES.contains(fareType)) {
                         throw new IllegalArgumentException(
                                         "不支援的票種: " + fareType + "，有效值為 1(全票)、4(學生)、5(兒童)、7(愛心)");
@@ -391,7 +395,7 @@ public class MetroService {
                 logger.debug("開始查詢起終點站詳細資料，fromStationCode: {}，toStationCode: {}，strategy: {}",
                                 fromCode, toCode, strategy);
 
-                // 2. 自資料庫取得捷運路線、車站、關聯及轉乘等基本資料，並建立對應的快速查找 Map（例如：將 "R28" 代碼映射到淡水站實體）
+                // 2. 取得資料並建立快速查找 Map 映射表: （例如：將 "R28" 代碼映射到淡水站實體）
                 List<Line> lines = metroDAO.getAllLine();
                 List<Station> stations = metroDAO.getAllStation();
                 List<LineStation> lineStations = metroDAO.getAllLineStation();
@@ -413,7 +417,7 @@ public class MetroService {
                                 .filter(lineStation -> lineStation.getId() != null)
                                 .collect(Collectors.toMap(LineStation::getId, lineStation -> lineStation));
 
-                // 3. 確認起點與終點代碼在捷運路網中是否存在，不存在則拋出車站找不到異常
+                // 3. 檢查起訖站代碼是否存在於路網 : 確認起點與終點代碼在捷運路網中是否存在，不存在則拋出車站找不到異常
                 if (!lineStationByCode.containsKey(fromCode)) {
                         throw new StationNotFoundException("找不到代碼:" + fromCode + "的車站!");
                 }
@@ -424,8 +428,9 @@ public class MetroService {
                 LineStation fromLineStation = lineStationByCode.get(fromCode);
                 LineStation toLineStation = lineStationByCode.get(toCode);
 
-                // 4. 換乘站在不同路線下各有一筆 LineStation 資料（例如民權西路同時是 "R13"、"O11"），
-                // 須以實體車站 id 比對是否同站，而非直接比對代碼字串，否則會誤判為不同站而多跑一次路徑搜尋
+                // 4. 判斷起迄站是否為同一車站 (實體車站 id 比對)：
+                // 轉乘站在不同路線下各有一筆 LineStation 資料（例如民權西路同時是 "R13"、"O11"），
+                // 須以實體車站 id 比對是否同站，而非直接比對代碼字串，否則誤判為不同站而多跑一次路徑搜尋
                 if (fromLineStation.getStationId().equals(toLineStation.getStationId())) {
                         return metroRouteGraphService.buildSameStationResult(fromCode, fareType, strategy,
                                         lineStationByCode,
@@ -433,25 +438,30 @@ public class MetroService {
                                         stationFacilities);
                 }
 
-                // 5. 根據規劃策略（最少轉乘或最短車程）建立鄰接權重表，並執行 Dijkstra 演算法尋找最短路徑（例如：規劃從 "R28" 淡水到 "BL12"
-                // 台北車站的路徑）
+                // 5. 建立轉乘時間雙向查找 Map (Key: "fromCode:toCode", Value: 轉乘分鐘數)
                 Map<String, Short> transferTimeMap = metroRouteGraphService.buildTransferTimeMap(lineTransfers,
                                 lineStationById);
+                // 建立圖的鄰接權重表 (Build Adjacency List)
                 Map<String, List<Edge>> adjacencyList = metroRouteGraphService.buildAdjacencyList(lineStations,
                                 lineTransfers,
                                 lineStationById, lineStationByCode,
                                 strategy);
 
-                // 5a. 起迄站若為換乘站，同一實體站在各路線下的代碼皆視為等價起訖點，
-                // 避免使用者選到換乘站的特定線別代碼（如 "O11"）時，被迫多算一段轉乘到該代碼才算抵達
+                // 5a.收集起訖站的等價車站代碼，若起迄點是轉乘站，則收集其在所有路線下的代碼。
+                //     再 執行 Dijkstra 演算法，尋找最短路徑
+                // 避免使用者選到轉乘站的特定線別代碼（如 "O11"）時，被迫多算一段轉乘到該代碼才算抵達
                 Set<String> fromCodes = metroRouteGraphService.collectStationCodesByStationId(
                                 lineStationByCode, fromLineStation.getStationId());
                 Set<String> toCodes = metroRouteGraphService.collectStationCodesByStationId(
                                 lineStationByCode, toLineStation.getStationId());
                 DijkstraResult dijkstraResult = metroRouteGraphService.findRoute(adjacencyList, fromCodes, toCodes);
 
-                // 6. 將 Dijkstra 搜尋結果重組為前端所需的路線分段、計算轉乘次數、累加總乘車時間，並至資料庫撈取兩站間對應票價（例如：計算淡水至台北車站的票價為
-                // 50 元）
+                // 6.完整組裝要回傳資訊 
+                // 切分路線段 (RouteSegmentVO)：依轉乘標記將連續同線車站分段。
+                // 計算段車程：以段內相鄰站累計時間差逐一相加 (避免分岔站累計基準不同)。
+                // 計算總時間與轉乘時間：加總各段車程與轉乘時間的實際秒數。
+                // 計算轉乘次數：統計路徑中經過的轉乘邊數量。
+                // 查詢票價：依起訖站代碼與指定票種向資料庫查詢對應票價。
                 List<OriginDestinationDetailVO.RouteSegmentVO> route = metroRouteGraphService.buildRouteSegments(
                                 dijkstraResult.getPath(), dijkstraResult.getPrevIsTransfer(), lineStationByCode,
                                 lineById, stationById,

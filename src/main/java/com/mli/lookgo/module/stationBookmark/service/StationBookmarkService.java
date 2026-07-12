@@ -114,7 +114,8 @@ public class StationBookmarkService {
     }
 
     /**
-     * 依車站中文名稱模糊搜尋，取得當前使用者單一有效（未軟刪除）的車站書籤，若比對到多筆則取收藏時間最新的一筆。
+     * 依車站中文名稱模糊搜尋，取得當前使用者單一有效（未軟刪除）的車站書籤。
+     * 若比對到多筆則取收藏時間最新的一筆。
      *
      * @param stationName
      * @return StationBookmarkVO
@@ -170,9 +171,11 @@ public class StationBookmarkService {
      */
     private String normalizeSortDirection(String sortDirection) {
         String normalizedDirection = sortDirection == null ? "DESC" : sortDirection.toUpperCase();
+
         if (!VALID_SORT_DIRECTIONS.contains(normalizedDirection)) {
             throw new IllegalArgumentException("不支援的排序方向: " + sortDirection + "，有效值為 ASC、DESC");
         }
+
         return normalizedDirection;
     }
 

@@ -35,7 +35,7 @@ public class MetroRouteGraphService {
 
     public static final BigDecimal SAME_STATION_FARE = BigDecimal.valueOf(20);
 
-    // 策略 1（最少轉乘）換乘邊權重的主要成分，遠大於任何實際車程秒數，確保轉乘次數為主要比較依據，
+    // 策略 1（最少轉乘）轉乘邊權重的主要成分，遠大於任何實際車程秒數，確保轉乘次數為主要比較依據，
     // 實際秒數只在轉乘次數相同時作為次要比較依據（見 buildAdjacencyList）
     private static final int TRANSFER_COUNT_DOMINANT_WEIGHT = 1_000_000;
 
@@ -83,7 +83,7 @@ public class MetroRouteGraphService {
     }
 
     /**
-     * 建立換乘時間查找表，key 格式為 "fromCode:toCode"，value 為換乘時間（分鐘）。
+     * 建立轉乘時間查找表，key 格式為 "fromCode:toCode"，value 為轉乘時間（分鐘）。
      * 雙向皆建立，確保正反向路線皆可查詢。
      */
     public Map<String, Short> buildTransferTimeMap(
@@ -105,17 +105,17 @@ public class MetroRouteGraphService {
 
     /**
      * 依路線策略建立鄰接表。
-     * 策略 1：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為一個遠大於任何實際秒數的常數
-     * 加上換乘時間秒數（最小化轉乘次數；轉乘次數相同時，以實際秒數作為次要比較依據，
+     * 策略 1：同線邊權重為相鄰站累計時間秒數差、轉乘邊權重為一個遠大於任何實際秒數的常數
+     * 加上轉乘時間秒數（最小化轉乘次數；轉乘次數相同時，以實際秒數作為次要比較依據，
      * 避免任意選到轉乘次數相同但多繞路的路徑）。
      * 
-     * 策略 2：同線邊權重為相鄰站累計時間秒數差、換乘邊權重為換乘時間秒數（最短車程時間）。
+     * 策略 2：同線邊權重為相鄰站累計時間秒數差、轉乘邊權重為轉乘時間秒數（最短車程時間）。
      * 具 Y 字分岔的路線（見 {@link MetroForkBranchRouteGraphService}）無法單純依 stationSequence
      * 排序推導同線邊，分岔口相鄰站對會略過線性推導，改由
      * {@link MetroForkBranchRouteGraphService#addBranchEdges} 建立正確邊。
      *
      * @param lineStations      所有路線車站關聯資料
-     * @param lineTransfers     所有路線換乘資料
+     * @param lineTransfers     所有路線轉乘資料
      * @param lineStationById   路線車站關聯 id 對應路線車站資料的 Map
      * @param lineStationByCode 車站代碼對應路線車站資料的 Map
      * @param strategy          路線策略（1：最少轉乘次數，2：最短車程時間）
@@ -153,7 +153,7 @@ public class MetroRouteGraphService {
                 }
 
                 // 策略 1 亦採用實際秒數（而非固定 0），使轉乘次數相同的多條路徑之間，
-                // 以實際車程時間作為次要比較依據，避免任意選到多坐好幾站才轉乘的路徑（見換乘邊權重註解）
+                // 以實際車程時間作為次要比較依據，避免任意選到多坐好幾站才轉乘的路徑（見轉乘邊權重註解）
                 int currentTime = currentStation.getCumulativeTime() != null
                         ? currentStation.getCumulativeTime().intValue()
                         : 0;
@@ -172,7 +172,7 @@ public class MetroRouteGraphService {
         // 分岔路線同線邊（覆蓋依 stationSequence 線性推導無法表達的 Y 字拓樸）
         metroForkBranchRouteGraphService.addBranchEdges(adjacencyList, lineStationByCode);
 
-        // 換乘邊
+        // 轉乘邊
         for (LineTransfer lineTransfer : lineTransfers) {
             LineStation from = lineStationById.get(lineTransfer.getFromLineStationId());
             LineStation to = lineStationById.get(lineTransfer.getToLineStationId());
@@ -194,8 +194,8 @@ public class MetroRouteGraphService {
     }
 
     /**
-     * 依實體車站 id，收集該站在各路線下對應的所有車站代碼（換乘站會有多筆，例如民權西路的 "R13"、"O11"）。
-     * 供 {@link #findRoute} 將換乘站的多個線別代碼視為等價起訖點使用。
+     * 依實體車站 id，收集該站在各路線下對應的所有車站代碼（轉乘站會有多筆，例如民權西路的 "R13"、"O11"）。
+     * 供 {@link #findRoute} 將轉乘站的多個線別代碼視為等價起訖點使用。
      *
      * @param lineStationByCode 車站代碼對應路線車站資料的 Map
      * @param stationId         實體車站 id
@@ -210,8 +210,8 @@ public class MetroRouteGraphService {
 
     /**
      * 以 Dijkstra 演算法搜尋最短路徑，並找出完整的車站代碼路徑。
-     * fromCodes/toCodes 為同一實體車站在不同路線下的所有代碼（換乘站有多筆），只要抵達其中任一代碼即視為到達，
-     * 避免使用者選到換乘站的特定線別代碼（如 "O11"）時，被迫多算一段轉乘到該代碼才算抵達終點。
+     * fromCodes/toCodes 為同一實體車站在不同路線下的所有代碼（轉乘站有多筆），只要抵達其中任一代碼即視為到達，
+     * 避免使用者選到轉乘站的特定線別代碼（如 "O11"）時，被迫多算一段轉乘到該代碼才算抵達終點。
      * 找不到可達路徑時拋出 {@link IllegalArgumentException}。
      *
      * @param adjacencyList 鄰接表
@@ -227,7 +227,7 @@ public class MetroRouteGraphService {
         Map<String, Boolean> prevIsTransfer = new HashMap<>();
 
         PriorityQueue<Object[]> priorityQueue = new PriorityQueue<>(Comparator.comparingInt(entry -> (int) entry[0]));
-        for (String fromCode : fromCodes) { // 換乘站的每個線別代碼都以距離 0 同時入隊，等同多起點 Dijkstra
+        for (String fromCode : fromCodes) { // 轉乘站的每個線別代碼都以距離 0 同時入隊，等同多起點 Dijkstra
             distanceByCode.put(fromCode, 0);
             priorityQueue.add(new Object[] { 0, fromCode });
         }
@@ -274,7 +274,7 @@ public class MetroRouteGraphService {
     }
 
     /**
-     * 依路徑與換乘標記，將連續同線車站切分並組成各路線段清單。
+     * 依路徑與轉乘標記，將連續同線車站切分並組成各路線段清單。
      */
     public List<OriginDestinationDetailVO.RouteSegmentVO> buildRouteSegments(
             List<String> path,
@@ -302,7 +302,7 @@ public class MetroRouteGraphService {
     }
 
     /**
-     * 計算全程總行駛時間（秒）。換乘段以換乘時間計，行駛段以相鄰站累計時間差計。
+     * 計算全程總行駛時間（秒）。轉乘段以轉乘時間計，行駛段以相鄰站累計時間差計。
      */
     // 回傳加總後的原始總秒數，讓前端對總時間進位一次，而非各段分別進位後再相加
     public int calculateTotalTime(
@@ -334,7 +334,7 @@ public class MetroRouteGraphService {
     }
 
     /**
-     * 計算全程轉乘時間加總（秒），僅加總換乘邊的時間，已包含於 {@link #calculateTotalTime} 的結果內。
+     * 計算全程轉乘時間加總（秒），僅加總轉乘邊的時間，已包含於 {@link #calculateTotalTime} 的結果內。
      */
     public int calculateTransferTime(
             List<String> path,

@@ -31,7 +31,7 @@ public class DataTaipeiApiClientConfig {
 
     public <T> T sendGetRequest(String datasetId, Class<T> responseType,
             MultiValueMap<String, String> queryParams) {
-        // 考量: 傳入 queryParams 時建立新的 Map ，避免改變原始 Map 的值
+        // 傳入 queryParams 時建立新的 Map ，避免改變原始 Map 的值
         MultiValueMap<String, String> params;
         if (queryParams != null) {
             params = new LinkedMultiValueMap<>(queryParams);

@@ -193,17 +193,17 @@ public interface MetroDAO {
                         @Param("toStationCode") String toStationCode,
                         @Param("fareType") Integer fareType);
 
-        // ----- 路線換乘 -----
+        // ----- 路線轉乘 -----
 
         /**
-         * 批次新增或更新路線換乘資料。
+         * 批次新增或更新路線轉乘資料。
          *
          * @param lineTransfers
          */
         void upsertAllLineTransfer(@Param("lineTransfers") List<LineTransfer> lineTransfers);
 
         /**
-         * 取得所有路線換乘資料。
+         * 取得所有路線轉乘資料。
          *
          * @return List<LineTransfer>
          */

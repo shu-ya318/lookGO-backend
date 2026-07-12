@@ -45,15 +45,21 @@ import com.mli.lookgo.module.user.model.entity.User;
 @Service
 public class TripPlanService {
 
+    private final TripPlanDAO tripPlanDAO;
+    private final MetroService metroService;
+    private final UserDAO userDAO;
+
+
     private static final Logger logger = LoggerFactory.getLogger(TripPlanService.class);
+
     private static final DateTimeFormatter EXCEL_DATE_TIME_FORMATTER = DateTimeFormatter
             .ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /** 有效票種代碼，比照 {@code MetroService.VALID_FARE_TYPES}：1=全票, 4=學生, 5=兒童, 7=愛心。 */
     private static final Set<Integer> VALID_FARE_TYPES = Set.of(1, 4, 5, 7);
     /**
-     * 有效路線規劃策略代碼，比照 {@code MetroService.VALID_ROUTING_STRATEGIES}：1=最少轉乘次數,
-     * 2=最短車程時間。
+     * 有效路線規劃策略代碼。
+     * 比照 {@code MetroService.VALID_ROUTING_STRATEGIES}：1=最少轉乘次數, 2=最短車程時間。
      */
     private static final Set<Integer> VALID_ROUTING_STRATEGIES = Set.of(1, 2);
 
@@ -62,10 +68,6 @@ public class TripPlanService {
 
     /** 有效的排序方向，白名單驗證以避免任意字串進入 SQL。 */
     private static final Set<String> VALID_SORT_DIRECTIONS = Set.of("ASC", "DESC");
-
-    private final TripPlanDAO tripPlanDAO;
-    private final MetroService metroService;
-    private final UserDAO userDAO;
 
     /**
      * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -322,6 +324,8 @@ public class TripPlanService {
 
         return exportTripPlanToExcel(tripPlan);
     }
+
+    // ----- Private Helpers -----
 
     /**
      * 將排序方向正規化為大寫，並以白名單驗證是否為合法值（避免任意字串進入 SQL）。

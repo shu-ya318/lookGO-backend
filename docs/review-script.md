@@ -101,7 +101,7 @@
   - 查無車站丟 `StationNotFoundException` → 404。
 - **同步外部資料（管理員／本分類深潛點）**
   - 唯一不服務使用者請求的功能，觸發來源有二——ADMIN 手動（6 端點皆 `@PreAuthorize`，AOP 在方法呼叫前驗角色，是登入後的第二道防線）＋ 每週日 23:00 排程（`MetroSyncScheduler`，cron `0 0 23 * * SUN`）。
-  - 有依賴順序（先路線車站，才能同步票價/換乘/行駛時間，Swagger 有註明）。
+  - 有依賴順序（先路線車站，才能同步票價/轉乘/行駛時間，Swagger 有註明）。
   - 每個同步方法掛 `@Transactional`（共 6 處）整批成功才提交、失敗整批回滾；批次寫入 `batchSize=150`（每筆 13 參數，避開 SQL Server 單次 2100 參數上限，`MetroSyncService:152` 註解）。
 - **外部 API 防禦與雙來源合併**
   - TDX 走 OAuth2 client credentials，token 快取於 Redis、miss 才換發，收 429 退避 90 秒（`TDXApiClientConfig:46` 註解）。

@@ -23,12 +23,13 @@ public class JacksonConfig {
     @Bean
     Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer() {
         return builder -> {
+            // 避免 LocalDate、LocalDateTime 被轉為時間戳
             builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            // LocalDate 輸出格式固定為 yyyy-MM-dd
             builder.serializerByType(LocalDate.class,
                     new LocalDateSerializer(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-            // 列舉欄位若收到數字，預設會被解讀成「ordinal（宣告順序索引）」而非業務自訂的 code，
-            // 容易誤判（例如 ChatTypeEnum.TEXT 的 code=1 但 ordinal=0）。開啟後改成直接拒絕數字輸入，
-            // 強制前端一律以列舉常數名稱字串（如 "TEXT"）傳遞，避免靜默誤判。
+            // 1. 效果：反序列化時，列舉欄位若收到數字直接拋出例外，強制前端以名稱字串（如 "TEXT"）傳遞
+            // 2. 避免的錯誤：數字被靜默解讀為 ordinal (enum 的預設索引)，而非業務自訂的 code，造成誤判（如 TEXT 的 code=1 但 ordinal=0）
             builder.featuresToEnable(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS);
         };
     }

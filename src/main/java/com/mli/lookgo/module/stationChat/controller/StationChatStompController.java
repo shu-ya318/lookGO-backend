@@ -36,11 +36,12 @@ import jakarta.validation.Valid;
 @Controller
 public class StationChatStompController {
 
-        private static final Logger logger = LoggerFactory.getLogger(StationChatStompController.class);
-        private static final String TOPIC_PREFIX = "/topic/station-chat/";
-
         private final StationChatService stationChatService;
         private final SimpMessagingTemplate simpMessagingTemplate;
+
+        private static final Logger logger = LoggerFactory.getLogger(StationChatStompController.class);
+
+        private static final String TOPIC_PREFIX = "/topic/station-chat/";
 
         /**
          * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。
@@ -112,8 +113,8 @@ public class StationChatStompController {
         }
 
         /**
-         * 處理 STOMP payload JSON 轉換失敗的例外（如欄位型別錯誤、列舉值不合法），回傳統一的繁中錯誤訊息給發送者本人，
-         * 避免把 Jackson 內部的技術性錯誤訊息（含套件、類別路徑）直接暴露給前端。
+         * 處理 STOMP payload JSON 轉換失敗的例外（如欄位型別錯誤、列舉值不合法），回傳錯誤訊息給發送者本人，
+         * 避免把 Jackson 底層的錯誤訊息直接暴露給前端。
          *
          * @param exception
          * @return MessageVO

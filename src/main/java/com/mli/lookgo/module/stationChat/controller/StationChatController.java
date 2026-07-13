@@ -36,7 +36,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 /**
- * 處理車站聊天留言與公告相關 HTTP 請求的控制器。
+ * 處理車站聊天留言與公告相關 HTTP 請求。
  *
  * @author D5042101
  * @since 2026.07.03
@@ -46,9 +46,9 @@ import jakarta.validation.Valid;
 @Tag(name = "Station Chat", description = "車站聊天室相關操作的 API")
 public class StationChatController {
 
-        private static final Logger logger = LoggerFactory.getLogger(StationChatController.class);
-
         private final StationChatService stationChatService;
+
+        private static final Logger logger = LoggerFactory.getLogger(StationChatController.class);
 
         /**
          * 讓 Spring 容器能在應用程式啟動時，自動注入所需的依賴。

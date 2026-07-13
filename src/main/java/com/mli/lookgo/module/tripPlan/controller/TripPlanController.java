@@ -36,7 +36,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 /**
- * 處理使用者旅程規劃管理相關 HTTP 請求的介面層，僅限已登入使用者存取自己建立的旅程規劃。負責把資料傳給業務層處理，最後封裝結果為 HTTP
+ * 處理使用者旅程規劃管理相關 HTTP 請求，僅限已登入使用者存取自己建立的旅程規劃。負責把資料傳給業務層處理，最後封裝結果為 HTTP
  * 回應回傳給客戶端。
  *
  * @author D5042101

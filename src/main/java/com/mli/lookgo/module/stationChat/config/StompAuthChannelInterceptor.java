@@ -1,14 +1,7 @@
 package com.mli.lookgo.module.stationChat.config;
 
-import com.mli.lookgo.core.security.JwtUtil;
-import com.mli.lookgo.core.security.UserDetailsServiceImpl;
-import com.mli.lookgo.core.security.JwtFilter;
-import com.mli.lookgo.core.service.RedisService;
-import com.mli.lookgo.module.stationChat.exceptions.StompAuthException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -19,9 +12,15 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import com.mli.lookgo.core.security.JwtFilter;
+import com.mli.lookgo.core.security.JwtUtil;
+import com.mli.lookgo.core.security.UserDetailsServiceImpl;
+import com.mli.lookgo.core.service.RedisService;
+import com.mli.lookgo.module.stationChat.exceptions.StompAuthException;
+
 /**
- * 處理 STOMP CONNECT 階段的 JWT 驗證攔截器。
- * 比照 {@link JwtFilter} 的驗證流程，但只需 CONNECT 階段執行一次，驗證通過後綁定 Principal 供整個連線生命週期使用。
+ * 2. STOMP CONNECT (安全認證)階段: 處理 JWT 驗證攔截器。
+ * 比照 {@link JwtFilter} 的驗證流程，但只需 CONNECT 階段執行一次，驗證通過後供整個連線生命週期使用。
  * 
  * @author D5042101
  * @since 2026.07.03
@@ -29,13 +28,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
-    private static final Logger logger = LoggerFactory.getLogger(StompAuthChannelInterceptor.class);
-    private static final String AUTH_HEADER = "Authorization";
-    private static final String BEARER_PREFIX = "Bearer ";
-
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
     private final RedisService redisService;
+
+    private static final Logger logger = LoggerFactory.getLogger(StompAuthChannelInterceptor.class);
+
+    private static final String AUTH_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
 
     public StompAuthChannelInterceptor(JwtUtil jwtUtil, UserDetailsServiceImpl userDetailsService,
             RedisService redisService) {
@@ -45,18 +45,18 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     }
 
     /**
-     * 於訊息送入 Channel 前執行；僅針對 CONNECT 指令做驗證，其餘指令直接放行
-     * （SEND／SUBSCRIBE 階段的授權交由 Spring Security 既有機制或 Service 層業務邏輯處理）。
+     * 在 Websocket 連線建立後、訊息送入 Channel 前，針對 CONNECT 指令做驗證。
+     * 執行完成後，將 {@link UsernamePasswordAuthenticationToken} 注入 {@link StompHeaderAccessor}，供整個 STOMP 連線生命週期使用。
      *
-     * @param message
-     * @param channel
+     * 要求 Client 端在連線建立後發送 STOMP 的 CONNECT 指令，並在 header 中帶上 token。
+     * 負責驗證 token 有效性、Redis 黑名單，和對應的使用者資訊。
+     * 
+     * @param message STOMP 訊息
+     * @param channel STOMP 訊息管道
      * @return 原始或處理過的訊息
      */
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        // 必須用 getAccessor 取回「原始」accessor 實例，setUser() 才能觸發 StompSubProtocolHandler
-        // 內部的 userChangeCallback，把 Principal 綁定到整個 STOMP session（供後續 SEND 等指令使用）。
-        // 若改用 StompHeaderAccessor.wrap(message) 只會取得一次性的包裝物件，setUser() 的結果不會被保留。
         StompHeaderAccessor stompHeaderAccessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
         if (stompHeaderAccessor == null) {
@@ -98,6 +98,8 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
+
+                // 將認證資訊注入 StompHeaderAccessor，供後續 STOMP 訊息使用
                 stompHeaderAccessor.setUser(authentication);
 
                 logger.debug("STOMP CONNECT 驗證成功，使用者: {}", email);
@@ -111,6 +113,8 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
         return message;
     }
+
+    // ----- Private Helpers -----
 
     /**
      * 從 STOMP CONNECT frame 的自訂 header 取出 Bearer token。

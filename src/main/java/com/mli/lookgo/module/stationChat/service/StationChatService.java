@@ -281,6 +281,7 @@ public class StationChatService {
         }
 
         StationChatMessage message = new StationChatMessage();
+
         message.setStationId(stationId);
         message.setUserId(user.getId());
         message.setTripPlanId(sendMessageDTO.getTripPlanId());

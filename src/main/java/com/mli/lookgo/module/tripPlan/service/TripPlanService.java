@@ -32,6 +32,8 @@ import com.mli.lookgo.module.tripPlan.model.dto.CreateTripPlanDTO;
 import com.mli.lookgo.module.tripPlan.model.dto.UpdateTripPlanDTO;
 import com.mli.lookgo.module.tripPlan.model.entity.UserTripPlan;
 import com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO;
+import com.mli.lookgo.module.tripPlan.model.vo.UpdateTripPlanInfoVO;
+import com.mli.lookgo.module.tripPlan.model.vo.UpdateTripPlanNameVO;
 import com.mli.lookgo.module.user.dao.UserDAO;
 import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.user.model.entity.User;
@@ -247,14 +249,13 @@ public class TripPlanService {
      *
      * @param tripPlanId
      * @param name
-     * @return TripPlanVO
+     * @return UpdateTripPlanNameVO
      * @throws UserNotFoundException            找不到當前使用者。
-     * @throws TripPlanNotFoundException        找不到指定旅程規劃，或該旅程規劃已被軟刪除。
+     * @throws TripPlanNotFoundException        找不到指定旅程規劃，或該旅程規劃已被軟刪除，或更新時已被併發刪除。
      * @throws TripPlanAccessDeniedException    嘗試操作非本人擁有的旅程規劃。
      * @throws TripPlanNameDuplicationException 已有同名的有效旅程規劃（排除自身，存回原名視為合法）。
-     * @throws StationNotFoundException         找不到旅程規劃起站或訖站對應的路線車站代碼。
      */
-    public TripPlanVO updateTripPlanName(Integer tripPlanId, String name) {
+    public UpdateTripPlanNameVO updateTripPlanName(Integer tripPlanId, String name) {
         logger.debug("開始呼叫 API 來更新旅程規劃名稱，tripPlanId: {}, name: {}", tripPlanId, name);
 
         Integer userId = getCurrentUserIdAndCheckOwnership(tripPlanId);
@@ -265,27 +266,26 @@ public class TripPlanService {
             throw new TripPlanNameDuplicationException("已有名稱為「" + trimmedName + "」的旅程規劃，請改用其他名稱!");
         }
 
-        tripPlanDAO.updateNameById(tripPlanId, trimmedName, LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = tripPlanDAO.updateNameById(tripPlanId, trimmedName, updatedAt);
+        if (affectedRows == 0) {
+            throw new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!");
+        }
 
-        TripPlanVO updatedTripPlan = tripPlanDAO.getById(tripPlanId)
-                .orElseThrow(() -> new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!"));
-        enrichTravelTime(updatedTripPlan);
-
-        return updatedTripPlan;
+        return new UpdateTripPlanNameVO(tripPlanId, trimmedName, updatedAt);
     }
 
     /**
      * 更新指定旅程規劃的資訊（起訖站以外）。
      *
      * @param updateTripPlanDTO
-     * @return TripPlanVO
+     * @return UpdateTripPlanInfoVO
      * @throws UserNotFoundException         找不到當前使用者。
-     * @throws TripPlanNotFoundException     找不到指定旅程規劃，或該旅程規劃已被軟刪除。
+     * @throws TripPlanNotFoundException     找不到指定旅程規劃，或該旅程規劃已被軟刪除，或更新時已被併發刪除。
      * @throws TripPlanAccessDeniedException 嘗試操作非本人擁有的旅程規劃。
      * @throws IllegalArgumentException      票種或路線規劃策略代碼不合法。
-     * @throws StationNotFoundException      找不到旅程規劃起站或訖站對應的路線車站代碼。
      */
-    public TripPlanVO updateTripPlanInfo(UpdateTripPlanDTO updateTripPlanDTO) {
+    public UpdateTripPlanInfoVO updateTripPlanInfo(UpdateTripPlanDTO updateTripPlanDTO) {
         logger.debug("開始呼叫 API 來更新旅程規劃資訊，updateTripPlanDTO: {}", updateTripPlanDTO);
 
         Integer tripPlanId = updateTripPlanDTO.getTripPlanId();
@@ -293,15 +293,17 @@ public class TripPlanService {
 
         validateFareTypeAndRoutingStrategy(updateTripPlanDTO.getFareType(), updateTripPlanDTO.getRoutingStrategy());
 
-        tripPlanDAO.updateInfoById(tripPlanId, updateTripPlanDTO.getFareType(), updateTripPlanDTO.getFarePrice(),
+        LocalDateTime updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = tripPlanDAO.updateInfoById(tripPlanId, updateTripPlanDTO.getFareType(),
+                updateTripPlanDTO.getFarePrice(), updateTripPlanDTO.getTransferCount(),
+                updateTripPlanDTO.getRoutingStrategy(), updateTripPlanDTO.getNotes(), updatedAt);
+        if (affectedRows == 0) {
+            throw new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!");
+        }
+
+        return new UpdateTripPlanInfoVO(tripPlanId, updateTripPlanDTO.getFareType(), updateTripPlanDTO.getFarePrice(),
                 updateTripPlanDTO.getTransferCount(), updateTripPlanDTO.getRoutingStrategy(),
-                updateTripPlanDTO.getNotes(), LocalDateTime.now(ZoneOffset.UTC));
-
-        TripPlanVO updatedTripPlan = tripPlanDAO.getById(tripPlanId)
-                .orElseThrow(() -> new TripPlanNotFoundException("找不到 id:" + tripPlanId + " 的旅程規劃!"));
-        enrichTravelTime(updatedTripPlan);
-
-        return updatedTripPlan;
+                updateTripPlanDTO.getNotes(), updatedAt);
     }
 
     /**

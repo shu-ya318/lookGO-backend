@@ -23,6 +23,8 @@ import com.mli.lookgo.module.tripPlan.model.dto.TripPlanIdDTO;
 import com.mli.lookgo.module.tripPlan.model.dto.UpdateTripPlanDTO;
 import com.mli.lookgo.module.tripPlan.model.dto.UpdateTripPlanNameDTO;
 import com.mli.lookgo.module.tripPlan.model.vo.TripPlanVO;
+import com.mli.lookgo.module.tripPlan.model.vo.UpdateTripPlanInfoVO;
+import com.mli.lookgo.module.tripPlan.model.vo.UpdateTripPlanNameVO;
 import com.mli.lookgo.module.tripPlan.service.TripPlanService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -174,45 +176,46 @@ public class TripPlanController {
          * 更新指定旅程規劃的名稱。
          *
          * @param updateTripPlanNameDTO
-         * @return ResponseEntity<TripPlanVO>
+         * @return ResponseEntity<UpdateTripPlanNameVO>
          */
         @Operation(summary = "更新旅程規劃名稱", description = "更新指定 id 旅程規劃的名稱，僅本人可操作。名稱不得與本人既有的有效旅程規劃重複（先 trim 再比對、不分大小寫；存回原名視為合法）")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "旅程規劃名稱更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TripPlanVO.class))),
+                        @ApiResponse(responseCode = "200", description = "旅程規劃名稱更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateTripPlanNameVO.class))),
                         @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入旅程名稱!"))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
                         @ApiResponse(responseCode = "403", description = "非本人的旅程規劃", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "不得操作非本人的旅程規劃!"))),
                         @ApiResponse(responseCode = "404", description = "找不到指定旅程規劃", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的旅程規劃!"))),
                         @ApiResponse(responseCode = "409", description = "旅程規劃名稱重複", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "已有名稱為「淡水一日遊」的旅程規劃，請改用其他名稱!"))) })
         @PostMapping("/update-plan-name")
-        public ResponseEntity<TripPlanVO> updateTripPlanName(
+        public ResponseEntity<UpdateTripPlanNameVO> updateTripPlanName(
                         @Valid @RequestBody UpdateTripPlanNameDTO updateTripPlanNameDTO) {
                 logger.debug("收到更新旅程規劃名稱的請求，updateTripPlanNameDTO: {}", updateTripPlanNameDTO);
-                TripPlanVO tripPlan = tripPlanService.updateTripPlanName(updateTripPlanNameDTO.getTripPlanId(),
+                UpdateTripPlanNameVO apiResult = tripPlanService.updateTripPlanName(updateTripPlanNameDTO.getTripPlanId(),
                                 updateTripPlanNameDTO.getName());
 
-                return ResponseEntity.ok(tripPlan);
+                return ResponseEntity.ok(apiResult);
         }
 
         /**
          * 更新指定旅程規劃的資訊（起訖站以外）。
          *
          * @param updateTripPlanDTO
-         * @return ResponseEntity<TripPlanVO>
+         * @return ResponseEntity<UpdateTripPlanInfoVO>
          */
         @Operation(summary = "更新旅程規劃資訊", description = "更新指定 id 旅程規劃的票種、票價、轉乘次數、路線策略與備註（不含起訖站），僅本人可操作")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "旅程規劃資訊更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TripPlanVO.class))),
+                        @ApiResponse(responseCode = "200", description = "旅程規劃資訊更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateTripPlanInfoVO.class))),
                         @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "不支援的票種: 2，有效票種為 1(全票)、4(學生)、5(兒童)、7(愛心)"))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
                         @ApiResponse(responseCode = "403", description = "非本人的旅程規劃", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "不得操作非本人的旅程規劃!"))),
                         @ApiResponse(responseCode = "404", description = "找不到指定旅程規劃", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的旅程規劃!"))) })
         @PostMapping("/update-plan")
-        public ResponseEntity<TripPlanVO> updateTripPlanInfo(@Valid @RequestBody UpdateTripPlanDTO updateTripPlanDTO) {
+        public ResponseEntity<UpdateTripPlanInfoVO> updateTripPlanInfo(
+                        @Valid @RequestBody UpdateTripPlanDTO updateTripPlanDTO) {
                 logger.debug("收到更新旅程規劃資訊的請求，updateTripPlanDTO: {}", updateTripPlanDTO);
-                TripPlanVO tripPlan = tripPlanService.updateTripPlanInfo(updateTripPlanDTO);
+                UpdateTripPlanInfoVO apiResult = tripPlanService.updateTripPlanInfo(updateTripPlanDTO);
 
-                return ResponseEntity.ok(tripPlan);
+                return ResponseEntity.ok(apiResult);
         }
 
         /**

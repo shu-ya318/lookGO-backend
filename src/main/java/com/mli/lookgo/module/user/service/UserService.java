@@ -28,10 +28,15 @@ import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUsernameDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUserStatusDTO;
 import com.mli.lookgo.module.user.model.entity.User;
+import com.mli.lookgo.module.user.model.vo.UpdateAvatarVO;
+import com.mli.lookgo.module.user.model.vo.UpdateBirthDateVO;
+import com.mli.lookgo.module.user.model.vo.UpdateCellphoneVO;
+import com.mli.lookgo.module.user.model.vo.UpdateUserStatusVO;
+import com.mli.lookgo.module.user.model.vo.UpdateUsernameVO;
 import com.mli.lookgo.module.user.model.vo.UserVO;
 import com.mli.lookgo.core.exceptions.InvalidCredentialsException;
-import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
+import com.mli.lookgo.core.result.UpdatePasswordVO;
 import com.mli.lookgo.core.service.RedisService;
 
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -115,32 +120,36 @@ public class UserService {
      * 更新當前已驗證使用者的名稱。
      *
      * @param updateUsernameDTO
-     * @return MessageVO
-     * @throws UserNotFoundException 找不到對應使用者。
+     * @return UpdateUsernameVO
+     * @throws UserNotFoundException 找不到對應使用者，或更新時已被併發刪除。
      */
     @Transactional
-    public MessageVO updateUsername(UpdateUsernameDTO updateUsernameDTO) {
+    public UpdateUsernameVO updateUsername(UpdateUsernameDTO updateUsernameDTO) {
         String email = getAuthenticatedEmail();
         logger.debug("開始呼叫 API 來更新使用者名稱，email: {}", email);
 
         userDAO.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
-        userDAO.updateUsernameByEmail(email, updateUsernameDTO.getUsername(), LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = userDAO.updateUsernameByEmail(email, updateUsernameDTO.getUsername(), currentTime);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到當前使用者!");
+        }
 
-        return new MessageVO("使用者名稱更新成功!");
+        return new UpdateUsernameVO(updateUsernameDTO.getUsername(), toUTC(currentTime));
     }
 
     /**
      * 驗證舊密碼後更新當前已驗證使用者的密碼。
      *
      * @param updatePasswordDTO
-     * @return MessageVO
+     * @return UpdatePasswordVO
      * @throws InvalidCredentialsException 舊密碼錯誤。
-     * @throws UserNotFoundException       找不到對應使用者。
+     * @throws UserNotFoundException       找不到對應使用者，或更新時已被併發刪除。
      */
     @Transactional
-    public MessageVO updatePassword(UpdatePasswordDTO updatePasswordDTO) {
+    public UpdatePasswordVO updatePassword(UpdatePasswordDTO updatePasswordDTO) {
         String email = getAuthenticatedEmail();
         logger.debug("開始呼叫 API 來更新使用者密碼，email: {}", email);
 
@@ -152,9 +161,13 @@ public class UserService {
         }
 
         String hashedPassword = passwordEncoder.encode(updatePasswordDTO.getNewPassword());
-        userDAO.updatePasswordByEmail(email, hashedPassword, LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = userDAO.updatePasswordByEmail(email, hashedPassword, currentTime);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到當前使用者!");
+        }
 
-        return new MessageVO("密碼更新成功!");
+        return new UpdatePasswordVO(toUTC(currentTime));
     }
 
     /**
@@ -162,11 +175,11 @@ public class UserService {
      * 填寫出生日期即滿足升級條件，若目前會員等級為 BASIC，會在同一交易內自動升級為 PREMIUM。
      *
      * @param updateBirthDateDTO
-     * @return MessageVO
-     * @throws UserNotFoundException 找不到對應使用者。
+     * @return UpdateBirthDateVO，僅於本次觸發自動升級時才含 membershipTier
+     * @throws UserNotFoundException 找不到對應使用者，或更新時已被併發刪除。
      */
     @Transactional
-    public MessageVO updateBirthDate(UpdateBirthDateDTO updateBirthDateDTO) {
+    public UpdateBirthDateVO updateBirthDate(UpdateBirthDateDTO updateBirthDateDTO) {
         String email = getAuthenticatedEmail();
         logger.debug("開始呼叫 API 來更新使用者出生日期，email: {}", email);
 
@@ -174,36 +187,43 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
         LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
-        userDAO.updateBirthDateByEmail(email, updateBirthDateDTO.getBirthDate(), currentTime);
-
-        int upgradedRows = userDAO.updateMembershipTierByEmail(email, MembershipTier.PREMIUM.getId(), currentTime);
-        if (upgradedRows > 0) {
-            logger.debug("使用者 email: {} 已填寫出生日期，會員等級自動升級為 PREMIUM", email);
-
-            return new MessageVO("出生日期更新成功，會員等級已自動升級為 PREMIUM!");
+        int affectedRows = userDAO.updateBirthDateByEmail(email, updateBirthDateDTO.getBirthDate(), currentTime);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到當前使用者!");
         }
 
-        return new MessageVO("出生日期更新成功!");
+        int upgradedRows = userDAO.updateMembershipTierByEmail(email, MembershipTier.PREMIUM.getId(), currentTime);
+        MembershipTier upgradedTier = null;
+        if (upgradedRows > 0) {
+            logger.debug("使用者 email: {} 已填寫出生日期，會員等級自動升級為 PREMIUM", email);
+            upgradedTier = MembershipTier.PREMIUM;
+        }
+
+        return new UpdateBirthDateVO(updateBirthDateDTO.getBirthDate(), upgradedTier, toUTC(currentTime));
     }
 
     /**
      * 更新當前已驗證使用者的電話號碼。
      *
      * @param updateCellphoneDTO
-     * @return MessageVO
-     * @throws UserNotFoundException 找不到對應使用者。
+     * @return UpdateCellphoneVO
+     * @throws UserNotFoundException 找不到對應使用者，或更新時已被併發刪除。
      */
     @Transactional
-    public MessageVO updateCellphone(UpdateCellphoneDTO updateCellphoneDTO) {
+    public UpdateCellphoneVO updateCellphone(UpdateCellphoneDTO updateCellphoneDTO) {
         String email = getAuthenticatedEmail();
         logger.debug("開始呼叫 API 來更新使用者電話號碼，email: {}", email);
 
         userDAO.getByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
-        userDAO.updateCellphoneByEmail(email, updateCellphoneDTO.getCellphone(), LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = userDAO.updateCellphoneByEmail(email, updateCellphoneDTO.getCellphone(), currentTime);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到當前使用者!");
+        }
 
-        return new MessageVO("電話號碼更新成功!");
+        return new UpdateCellphoneVO(updateCellphoneDTO.getCellphone(), toUTC(currentTime));
     }
 
     /**
@@ -211,12 +231,12 @@ public class UserService {
      * 若狀態被修改為 DISABLED，會強制將其 Redis 中的 refresh token 移除。
      *
      * @param updateUserStatusDTO
-     * @return MessageVO
-     * @throws UserNotFoundException              找不到對應使用者。
+     * @return UpdateUserStatusVO
+     * @throws UserNotFoundException              找不到對應使用者，或更新時已被併發刪除。
      * @throws AdminStatusModificationException   目標使用者為管理員，不允許變更其帳號狀態。
      */
     @Transactional
-    public MessageVO updateStatus(UpdateUserStatusDTO updateUserStatusDTO) {
+    public UpdateUserStatusVO updateStatus(UpdateUserStatusDTO updateUserStatusDTO) {
         logger.debug("開始呼叫 API 來更新使用者狀態，userId: {}, status: {}",
                 updateUserStatusDTO.getUserId(), updateUserStatusDTO.getStatus());
 
@@ -230,29 +250,33 @@ public class UserService {
         UserStatus targetStatus = updateUserStatusDTO.getStatus();
 
         if (user.getStatus().equals(targetStatus.getCode())) {
-            return new MessageVO("使用者已經是指定的狀態，不需更新!");
+            return new UpdateUserStatusVO(user.getId(), targetStatus, toUTC(user.getUpdatedAt()));
         }
 
-        userDAO.updateStatusById(user.getId(), targetStatus.getCode(), LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = userDAO.updateStatusById(user.getId(), targetStatus.getCode(), currentTime);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到指定使用者!");
+        }
 
         if (targetStatus == UserStatus.DISABLED) {
             redisService.deleteRefreshTokenJti(user.getId().toString());
             logger.debug("使用者 id: {} 已被禁用，移除其 refresh token", user.getId());
         }
 
-        return new MessageVO("更新使用者狀態成功!");
+        return new UpdateUserStatusVO(user.getId(), targetStatus, toUTC(currentTime));
     }
 
     /**
      * 驗證並更新當前已驗證使用者的頭像（base64 data URI）。
      *
      * @param updateAvatarDTO
-     * @return 更新後的 UserVO（含新頭像）
-     * @throws UserNotFoundException  找不到對應使用者。
+     * @return UpdateAvatarVO（含新頭像與更新時間）
+     * @throws UserNotFoundException  找不到對應使用者，或更新時已被併發刪除。
      * @throws InvalidAvatarException 頭像格式不支援、非合法 base64 或超過大小上限。
      */
     @Transactional
-    public UserVO updateAvatar(UpdateAvatarDTO updateAvatarDTO) {
+    public UpdateAvatarVO updateAvatar(UpdateAvatarDTO updateAvatarDTO) {
         String email = getAuthenticatedEmail();
         logger.debug("開始呼叫 API 來更新使用者頭像，email: {}", email);
 
@@ -263,22 +287,22 @@ public class UserService {
         validateAvatar(avatar);
 
         LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
-        userDAO.updateAvatarById(user.getId(), avatar, currentTime);
+        int affectedRows = userDAO.updateAvatarById(user.getId(), avatar, currentTime);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到當前使用者!");
+        }
 
-        user.setAvatar(avatar);
-        user.setUpdatedAt(currentTime);
-
-        return toVO(user);
+        return new UpdateAvatarVO(avatar, toUTC(currentTime));
     }
 
     /**
      * 移除當前已驗證使用者的頭像，恢復為預設頭像。
      *
-     * @return 更新後的 UserVO（頭像恢復為預設 URL）
-     * @throws UserNotFoundException 找不到對應使用者。
+     * @return UpdateAvatarVO（頭像恢復為預設 URL 與更新時間）
+     * @throws UserNotFoundException 找不到對應使用者，或更新時已被併發刪除。
      */
     @Transactional
-    public UserVO removeAvatar() {
+    public UpdateAvatarVO removeAvatar() {
         String email = getAuthenticatedEmail();
         logger.debug("開始呼叫 API 來移除使用者頭像，email: {}", email);
 
@@ -286,12 +310,12 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("找不到當前使用者!"));
 
         LocalDateTime currentTime = LocalDateTime.now(ZoneOffset.UTC);
-        userDAO.updateAvatarById(user.getId(), UserConstants.DEFAULT_AVATAR_URL, currentTime);
+        int affectedRows = userDAO.updateAvatarById(user.getId(), UserConstants.DEFAULT_AVATAR_URL, currentTime);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到當前使用者!");
+        }
 
-        user.setAvatar(UserConstants.DEFAULT_AVATAR_URL);
-        user.setUpdatedAt(currentTime);
-
-        return toVO(user);
+        return new UpdateAvatarVO(UserConstants.DEFAULT_AVATAR_URL, toUTC(currentTime));
     }
 
     /**

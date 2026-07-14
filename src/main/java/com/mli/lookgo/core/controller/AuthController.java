@@ -16,7 +16,7 @@ import com.mli.lookgo.core.model.dto.ResetPasswordDTO;
 import com.mli.lookgo.core.model.dto.SignupDTO;
 import com.mli.lookgo.core.model.vo.AuthVO;
 import com.mli.lookgo.core.model.vo.ForgetPasswordVO;
-import com.mli.lookgo.core.result.MessageVO;
+import com.mli.lookgo.core.result.UpdatePasswordVO;
 import com.mli.lookgo.core.security.CookieUtil;
 import com.mli.lookgo.core.security.JwtUtil;
 import com.mli.lookgo.core.service.AuthService;
@@ -131,19 +131,19 @@ public class AuthController {
      *
      * @param token            重設密碼 token（由 forget-password 取得）
      * @param resetPasswordDTO
-     * @return ResponseEntity<MessageVO>
+     * @return ResponseEntity<UpdatePasswordVO>
      */
     @Operation(summary = "重設密碼", description = "傳入有效的重設密碼 token（query parameter）與新密碼，驗證通過後更新使用者密碼")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "密碼重設成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "200", description = "密碼重設成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatePasswordVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數格式錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "新密碼長度必須為 8-20 個字元!"))),
             @ApiResponse(responseCode = "401", description = "token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "重設密碼token無效或已過期!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/reset-password")
-    public ResponseEntity<MessageVO> resetPassword(
+    public ResponseEntity<UpdatePasswordVO> resetPassword(
             @Valid @RequestBody ResetPasswordDTO resetPasswordDTO) {
         logger.debug("收到重設密碼的請求");
-        MessageVO apiResult = authService.resetPassword(resetPasswordDTO);
+        UpdatePasswordVO apiResult = authService.resetPassword(resetPasswordDTO);
 
         return ResponseEntity.ok(apiResult);
     }

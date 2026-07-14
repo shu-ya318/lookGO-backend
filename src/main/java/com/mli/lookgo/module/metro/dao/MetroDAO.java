@@ -133,8 +133,9 @@ public interface MetroDAO {
          *
          * @param dto
          * @param updatedAt
+         * @return 影響筆數
          */
-        void updateStationById(@Param("dto") UpdateStationDTO dto, @Param("updatedAt") LocalDateTime updatedAt);
+        int updateStationById(@Param("dto") UpdateStationDTO dto, @Param("updatedAt") LocalDateTime updatedAt);
 
         // ----- 所有路線的車站 (同車站保留重複資料，因為 station_sequence 不同) -----
         /**

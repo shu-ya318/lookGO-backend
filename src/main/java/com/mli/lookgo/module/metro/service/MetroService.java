@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
 import com.mli.lookgo.module.metro.dao.MetroDAO;
 import com.mli.lookgo.module.metro.enums.StationFacilities;
@@ -37,6 +36,7 @@ import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
 import com.mli.lookgo.module.metro.model.vo.StationIdOptionVO;
 import com.mli.lookgo.module.metro.model.vo.StationOptionVO;
 import com.mli.lookgo.module.metro.model.vo.StationSummaryVO;
+import com.mli.lookgo.module.metro.model.vo.UpdateStationVO;
 
 /**
  * 處理前端查詢捷運資料相關的業務邏輯。
@@ -263,9 +263,10 @@ public class MetroService {
          * 更新指定車站的資料，僅限 ADMIN 角色存取，僅會更新有帶值的欄位；同步比對鍵 original_name_zh_tw 不受影響。
          *
          * @param updateStationDTO
-         * @return MessageVO
+         * @return UpdateStationVO 僅包含本次實際異動的欄位
+         * @throws StationNotFoundException 找不到指定車站，或更新時已被併發刪除。
          */
-        public MessageVO updateStation(UpdateStationDTO updateStationDTO) {
+        public UpdateStationVO updateStation(UpdateStationDTO updateStationDTO) {
                 if (!metroDAO.existsById(updateStationDTO.getId())) {
                         throw new StationNotFoundException("找不到id:" + updateStationDTO.getId() + "的車站!");
                 }
@@ -275,9 +276,29 @@ public class MetroService {
                 }
 
                 logger.debug("開始更新車站資料，updateStationDTO: {}", updateStationDTO);
-                metroDAO.updateStationById(updateStationDTO, LocalDateTime.now(ZoneOffset.UTC));
+                LocalDateTime updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+                int affectedRows = metroDAO.updateStationById(updateStationDTO, updatedAt);
+                if (affectedRows == 0) {
+                        throw new StationNotFoundException("找不到id:" + updateStationDTO.getId() + "的車站!");
+                }
 
-                return new MessageVO("車站資料更新成功!");
+                UpdateStationVO updateStationVO = new UpdateStationVO();
+                updateStationVO.setId(updateStationDTO.getId());
+                updateStationVO.setNameZhTw(updateStationDTO.getNameZhTw());
+                updateStationVO.setNameEn(updateStationDTO.getNameEn());
+                updateStationVO.setAtm(updateStationDTO.getAtm());
+                updateStationVO.setNursingRoom(updateStationDTO.getNursingRoom());
+                updateStationVO.setDiaperTable(updateStationDTO.getDiaperTable());
+                updateStationVO.setChargingStation(updateStationDTO.getChargingStation());
+                updateStationVO.setTicketMachine(updateStationDTO.getTicketMachine());
+                updateStationVO.setLocker(updateStationDTO.getLocker());
+                updateStationVO.setDrinkingWater(updateStationDTO.getDrinkingWater());
+                updateStationVO.setRestroom(updateStationDTO.getRestroom());
+                updateStationVO.setElevator(updateStationDTO.getElevator());
+                updateStationVO.setEscalator(updateStationDTO.getEscalator());
+                updateStationVO.setUpdatedAt(updatedAt);
+
+                return updateStationVO;
         }
 
         /**

@@ -24,6 +24,7 @@ import com.mli.lookgo.module.stationChat.model.dto.StationIdDTO;
 import com.mli.lookgo.module.stationChat.model.dto.UpdateAnnouncementDTO;
 import com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO;
 import com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO;
+import com.mli.lookgo.module.stationChat.model.vo.UpdateAnnouncementVO;
 import com.mli.lookgo.module.stationChat.service.StationChatService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -163,20 +164,20 @@ public class StationChatController {
          * 編輯指定公告的內容。
          *
          * @param updateAnnouncementDTO
-         * @return ResponseEntity<MessageVO>
+         * @return ResponseEntity<UpdateAnnouncementVO>
          */
         @Operation(summary = "編輯車站聊天公告", description = "更新指定公告 id 的內容")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "公告編輯成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+                        @ApiResponse(responseCode = "200", description = "公告編輯成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateAnnouncementVO.class))),
                         @ApiResponse(responseCode = "401", description = "Token 無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
                         @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
                         @ApiResponse(responseCode = "404", description = "找不到指定公告", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到 id:1 的公告!"))) })
         @PreAuthorize("hasRole('ADMIN')")
         @PostMapping("/update-announcement")
-        public ResponseEntity<MessageVO> updateAnnouncement(
+        public ResponseEntity<UpdateAnnouncementVO> updateAnnouncement(
                         @Valid @RequestBody UpdateAnnouncementDTO updateAnnouncementDTO) {
                 logger.debug("收到編輯車站聊天公告的請求，updateAnnouncementDTO: {}", updateAnnouncementDTO);
-                MessageVO apiResult = stationChatService.updateAnnouncement(updateAnnouncementDTO);
+                UpdateAnnouncementVO apiResult = stationChatService.updateAnnouncement(updateAnnouncementDTO);
 
                 return ResponseEntity.ok(apiResult);
         }

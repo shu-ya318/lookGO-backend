@@ -25,12 +25,13 @@ import com.mli.lookgo.core.model.dto.ResetPasswordDTO;
 import com.mli.lookgo.core.model.dto.SignupDTO;
 import com.mli.lookgo.core.model.vo.AuthVO;
 import com.mli.lookgo.core.model.vo.ForgetPasswordVO;
-import com.mli.lookgo.core.result.MessageVO;
+import com.mli.lookgo.core.result.UpdatePasswordVO;
 import com.mli.lookgo.core.security.JwtUtil;
 import com.mli.lookgo.module.user.dao.UserDAO;
 import com.mli.lookgo.module.user.enums.MembershipTier;
 import com.mli.lookgo.module.user.enums.UserRole;
 import com.mli.lookgo.module.user.enums.UserStatus;
+import com.mli.lookgo.module.user.exceptions.UserNotFoundException;
 import com.mli.lookgo.module.user.model.entity.User;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -197,11 +198,12 @@ public class AuthService {
      *
      * @param token            重設密碼 token（來自 forgetPassword 回應）
      * @param resetPasswordDTO
-     * @return MessageVO
+     * @return UpdatePasswordVO
      * @throws InvalidCredentialsException token 無效或已過期。
+     * @throws UserNotFoundException        更新時找不到對應使用者（已被併發刪除）。
      */
     @Transactional
-    public MessageVO resetPassword(ResetPasswordDTO resetPasswordDTO) {
+    public UpdatePasswordVO resetPassword(ResetPasswordDTO resetPasswordDTO) {
         logger.debug("開始呼叫 API 來重設使用者密碼");
 
         String email = redisService.getEmailByResetPasswordToken(resetPasswordDTO.getResetPasswordToken());
@@ -210,12 +212,16 @@ public class AuthService {
         }
 
         String newPassword = passwordEncoder.encode(resetPasswordDTO.getNewPassword());
-        authDAO.updatePasswordByEmail(email, newPassword, LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = authDAO.updatePasswordByEmail(email, newPassword, updatedAt);
+        if (affectedRows == 0) {
+            throw new UserNotFoundException("找不到對應使用者，密碼重設失敗!");
+        }
         redisService.deleteResetPasswordToken(resetPasswordDTO.getResetPasswordToken());
 
         logger.debug("密碼重設成功，email: {}", email);
 
-        return new MessageVO("密碼重設成功!");
+        return new UpdatePasswordVO(updatedAt.atZone(ZoneOffset.UTC));
     }
 
     /**

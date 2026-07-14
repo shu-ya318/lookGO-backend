@@ -36,6 +36,7 @@ import com.mli.lookgo.module.stationChat.model.entity.StationChatAnnouncement;
 import com.mli.lookgo.module.stationChat.model.entity.StationChatMessage;
 import com.mli.lookgo.module.stationChat.model.vo.StationChatAnnouncementVO;
 import com.mli.lookgo.module.stationChat.model.vo.StationChatMessageVO;
+import com.mli.lookgo.module.stationChat.model.vo.UpdateAnnouncementVO;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanAccessDeniedException;
 import com.mli.lookgo.module.tripPlan.exceptions.TripPlanNotFoundException;
 import com.mli.lookgo.module.user.dao.UserDAO;
@@ -183,10 +184,10 @@ public class StationChatService {
      * 編輯指定公告的內容。
      *
      * @param updateAnnouncementDTO
-     * @return MessageVO
-     * @throws StationChatNotFoundException 找不到指定公告或公告已刪除。
+     * @return UpdateAnnouncementVO
+     * @throws StationChatNotFoundException 找不到指定公告或公告已刪除，或更新時已被併發刪除。
      */
-    public MessageVO updateAnnouncement(UpdateAnnouncementDTO updateAnnouncementDTO) {
+    public UpdateAnnouncementVO updateAnnouncement(UpdateAnnouncementDTO updateAnnouncementDTO) {
         logger.debug("開始呼叫 API 來編輯車站聊天公告，updateAnnouncementDTO: {}", updateAnnouncementDTO);
 
         StationChatAnnouncement announcement = stationChatDAO
@@ -195,10 +196,14 @@ public class StationChatService {
                 .orElseThrow(() -> new StationChatNotFoundException(
                         "找不到 id:" + updateAnnouncementDTO.getAnnouncementId() + " 的公告!"));
 
-        stationChatDAO.updateAnnouncementContentById(announcement.getId(), updateAnnouncementDTO.getContent(),
-                LocalDateTime.now(ZoneOffset.UTC));
+        LocalDateTime updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+        int affectedRows = stationChatDAO.updateAnnouncementContentById(announcement.getId(),
+                updateAnnouncementDTO.getContent(), updatedAt);
+        if (affectedRows == 0) {
+            throw new StationChatNotFoundException("找不到 id:" + updateAnnouncementDTO.getAnnouncementId() + " 的公告!");
+        }
 
-        return new MessageVO("公告編輯成功!");
+        return new UpdateAnnouncementVO(announcement.getId(), updateAnnouncementDTO.getContent(), updatedAt);
     }
 
     /**

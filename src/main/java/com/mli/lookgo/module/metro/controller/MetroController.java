@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
 import com.mli.lookgo.module.metro.model.dto.StationIdDTO;
 import com.mli.lookgo.module.metro.model.dto.StationRouteDTO;
@@ -28,6 +27,7 @@ import com.mli.lookgo.module.metro.model.vo.StationDetailVO;
 import com.mli.lookgo.module.metro.model.vo.StationIdOptionVO;
 import com.mli.lookgo.module.metro.model.vo.StationOptionVO;
 import com.mli.lookgo.module.metro.model.vo.StationSummaryVO;
+import com.mli.lookgo.module.metro.model.vo.UpdateStationVO;
 import com.mli.lookgo.module.metro.service.MetroService;
 
 import jakarta.validation.Valid;
@@ -248,11 +248,11 @@ public class MetroController {
          * 更新指定車站的資料，僅限 ADMIN 角色存取，僅會更新有帶值的欄位（不含車站中文名稱）。
          *
          * @param updateStationDTO
-         * @return ResponseEntity<MessageVO>
+         * @return ResponseEntity<UpdateStationVO>
          */
         @Operation(summary = "更新車站資料", description = "更新指定車站的資料，僅限 ADMIN 角色存取，除 id 外皆為選填，僅會更新有帶值的欄位，車站中文名稱不開放更新")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "車站資料更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+                        @ApiResponse(responseCode = "200", description = "車站資料更新成功，回傳本次實際異動的欄位", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateStationVO.class))),
                         @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請至少提供一個要修改的欄位!"))),
                         @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
                         @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
@@ -260,9 +260,9 @@ public class MetroController {
                         @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
         @PreAuthorize("hasRole('ADMIN')")
         @PostMapping("/update-station")
-        public ResponseEntity<MessageVO> updateStation(@Valid @RequestBody UpdateStationDTO updateStationDTO) {
+        public ResponseEntity<UpdateStationVO> updateStation(@Valid @RequestBody UpdateStationDTO updateStationDTO) {
                 logger.debug("收到更新車站資料的請求，updateStationDTO: {}", updateStationDTO);
-                MessageVO apiResult = metroService.updateStation(updateStationDTO);
+                UpdateStationVO apiResult = metroService.updateStation(updateStationDTO);
 
                 return ResponseEntity.ok(apiResult);
         }

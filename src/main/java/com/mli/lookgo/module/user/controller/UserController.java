@@ -12,14 +12,19 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import com.mli.lookgo.core.result.MessageVO;
 import com.mli.lookgo.core.result.PaginatedVO;
+import com.mli.lookgo.core.result.UpdatePasswordVO;
 import com.mli.lookgo.module.user.model.dto.UpdateAvatarDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateBirthDateDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateCellphoneDTO;
 import com.mli.lookgo.module.user.model.dto.UpdatePasswordDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUsernameDTO;
 import com.mli.lookgo.module.user.model.dto.UpdateUserStatusDTO;
+import com.mli.lookgo.module.user.model.vo.UpdateAvatarVO;
+import com.mli.lookgo.module.user.model.vo.UpdateBirthDateVO;
+import com.mli.lookgo.module.user.model.vo.UpdateCellphoneVO;
+import com.mli.lookgo.module.user.model.vo.UpdateUserStatusVO;
+import com.mli.lookgo.module.user.model.vo.UpdateUsernameVO;
 import com.mli.lookgo.module.user.model.vo.UserVO;
 import com.mli.lookgo.module.user.service.UserService;
 
@@ -105,19 +110,19 @@ public class UserController {
      * 更新當前已驗證使用者的名稱。
      *
      * @param updateUsernameDTO
-     * @return ResponseEntity<MessageVO>
+     * @return ResponseEntity<UpdateUsernameVO>
      */
     @Operation(summary = "更新使用者名稱", description = "更新當前已驗證使用者的名稱")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "使用者名稱更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "200", description = "使用者名稱更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateUsernameVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "請輸入使用者名稱!"))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-username")
-    public ResponseEntity<MessageVO> updateUsername(@Valid @RequestBody UpdateUsernameDTO updateUsernameDTO) {
+    public ResponseEntity<UpdateUsernameVO> updateUsername(@Valid @RequestBody UpdateUsernameDTO updateUsernameDTO) {
         logger.debug("收到更新使用者名稱的請求");
-        MessageVO apiResult = userService.updateUsername(updateUsernameDTO);
+        UpdateUsernameVO apiResult = userService.updateUsername(updateUsernameDTO);
 
         return ResponseEntity.ok(apiResult);
     }
@@ -126,19 +131,19 @@ public class UserController {
      * 驗證舊密碼後更新當前已驗證使用者的密碼。
      *
      * @param updatePasswordDTO
-     * @return ResponseEntity<MessageVO>
+     * @return ResponseEntity<UpdatePasswordVO>
      */
     @Operation(summary = "更新使用者密碼", description = "驗證舊密碼後更新當前已驗證使用者的密碼")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "密碼更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "200", description = "密碼更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdatePasswordVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "密碼長度必須為 8-20 個字元!"))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期，或舊密碼錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "舊密碼錯誤!"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-password")
-    public ResponseEntity<MessageVO> updatePassword(@Valid @RequestBody UpdatePasswordDTO updatePasswordDTO) {
+    public ResponseEntity<UpdatePasswordVO> updatePassword(@Valid @RequestBody UpdatePasswordDTO updatePasswordDTO) {
         logger.debug("收到更新使用者密碼的請求");
-        MessageVO apiResult = userService.updatePassword(updatePasswordDTO);
+        UpdatePasswordVO apiResult = userService.updatePassword(updatePasswordDTO);
 
         return ResponseEntity.ok(apiResult);
     }
@@ -147,19 +152,19 @@ public class UserController {
      * 更新當前已驗證使用者的出生日期。若目前會員等級為 BASIC，會自動升級為 PREMIUM。
      *
      * @param updateBirthDateDTO
-     * @return ResponseEntity<MessageVO>
+     * @return ResponseEntity<UpdateBirthDateVO>
      */
     @Operation(summary = "更新出生日期", description = "更新當前已驗證使用者的出生日期；若目前會員等級為 BASIC，會自動升級為 PREMIUM")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "出生日期更新成功（若原為 BASIC 會員，會員等級已自動升級為 PREMIUM）", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "200", description = "出生日期更新成功（若原為 BASIC 會員，回應內容的 membershipTier 會是自動升級後的 PREMIUM）", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateBirthDateVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "出生日期不得大於今日!"))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-birth-date")
-    public ResponseEntity<MessageVO> updateBirthDate(@Valid @RequestBody UpdateBirthDateDTO updateBirthDateDTO) {
+    public ResponseEntity<UpdateBirthDateVO> updateBirthDate(@Valid @RequestBody UpdateBirthDateDTO updateBirthDateDTO) {
         logger.debug("收到更新出生日期的請求");
-        MessageVO apiResult = userService.updateBirthDate(updateBirthDateDTO);
+        UpdateBirthDateVO apiResult = userService.updateBirthDate(updateBirthDateDTO);
 
         return ResponseEntity.ok(apiResult);
     }
@@ -168,19 +173,19 @@ public class UserController {
      * 更新當前已驗證使用者的電話號碼。
      *
      * @param updateCellphoneDTO
-     * @return ResponseEntity<MessageVO>
+     * @return ResponseEntity<UpdateCellphoneVO>
      */
     @Operation(summary = "更新電話號碼", description = "更新當前已驗證使用者的電話號碼")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "電話號碼更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "200", description = "電話號碼更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateCellphoneVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "電話號碼格式不正確，須為0開頭之9～10碼數字!"))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-cellphone")
-    public ResponseEntity<MessageVO> updateCellphone(@Valid @RequestBody UpdateCellphoneDTO updateCellphoneDTO) {
+    public ResponseEntity<UpdateCellphoneVO> updateCellphone(@Valid @RequestBody UpdateCellphoneDTO updateCellphoneDTO) {
         logger.debug("收到更新電話號碼的請求");
-        MessageVO apiResult = userService.updateCellphone(updateCellphoneDTO);
+        UpdateCellphoneVO apiResult = userService.updateCellphone(updateCellphoneDTO);
 
         return ResponseEntity.ok(apiResult);
     }
@@ -189,51 +194,51 @@ public class UserController {
      * 更新當前已驗證使用者的頭像。
      *
      * @param updateAvatarDTO
-     * @return ResponseEntity<UserVO>
+     * @return ResponseEntity<UpdateAvatarVO>
      */
     @Operation(summary = "更新頭像", description = "驗證並更新當前已驗證使用者的頭像（base64 data URI，僅支援 PNG、JPEG、WEBP，解碼後大小上限 1MB）")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "頭像更新成功，回傳含新頭像的使用者資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
+            @ApiResponse(responseCode = "200", description = "頭像更新成功，回傳新頭像與更新時間", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateAvatarVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤（格式不支援 / 超過 1MB / 非合法 base64）", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "頭像圖片大小不得超過 1MB!"))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/update-avatar")
-    public ResponseEntity<UserVO> updateAvatar(@Valid @RequestBody UpdateAvatarDTO updateAvatarDTO) {
+    public ResponseEntity<UpdateAvatarVO> updateAvatar(@Valid @RequestBody UpdateAvatarDTO updateAvatarDTO) {
         logger.debug("收到更新頭像的請求");
-        UserVO userVO = userService.updateAvatar(updateAvatarDTO);
+        UpdateAvatarVO apiResult = userService.updateAvatar(updateAvatarDTO);
 
-        return ResponseEntity.ok(userVO);
+        return ResponseEntity.ok(apiResult);
     }
 
     /**
      * 移除當前已驗證使用者的頭像，恢復為預設頭像。
      *
-     * @return ResponseEntity<UserVO>
+     * @return ResponseEntity<UpdateAvatarVO>
      */
     @Operation(summary = "移除頭像", description = "移除當前已驗證使用者的頭像，恢復為預設頭像")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "頭像已恢復為預設，回傳更新後的使用者資訊", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserVO.class))),
+            @ApiResponse(responseCode = "200", description = "頭像已恢復為預設，回傳預設頭像與更新時間", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateAvatarVO.class))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "404", description = "找不到當前使用者", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到當前使用者!"))),
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PostMapping("/remove-avatar")
-    public ResponseEntity<UserVO> removeAvatar() {
+    public ResponseEntity<UpdateAvatarVO> removeAvatar() {
         logger.debug("收到移除頭像的請求");
-        UserVO userVO = userService.removeAvatar();
+        UpdateAvatarVO apiResult = userService.removeAvatar();
 
-        return ResponseEntity.ok(userVO);
+        return ResponseEntity.ok(apiResult);
     }
 
     /**
      * 更新指定使用者的狀態，僅限 ADMIN 角色存取。
      *
      * @param updateUserStatusDTO
-     * @return ResponseEntity<MessageVO>
+     * @return ResponseEntity<UpdateUserStatusVO>
      */
     @Operation(summary = "更新使用者狀態", description = "更新指定使用者的帳號狀態，僅限 ADMIN 角色存取。")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "使用者狀態更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MessageVO.class))),
+            @ApiResponse(responseCode = "200", description = "使用者狀態更新成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UpdateUserStatusVO.class))),
             @ApiResponse(responseCode = "400", description = "請求參數錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "無效的 UserStatus code"))),
             @ApiResponse(responseCode = "401", description = "存取token無效或已過期", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "未授權錯誤，token無效或已過期"))),
             @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
@@ -241,9 +246,9 @@ public class UserController {
             @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/update-status")
-    public ResponseEntity<MessageVO> updateStatus(@Valid @RequestBody UpdateUserStatusDTO updateUserStatusDTO) {
+    public ResponseEntity<UpdateUserStatusVO> updateStatus(@Valid @RequestBody UpdateUserStatusDTO updateUserStatusDTO) {
         logger.debug("收到更新使用者狀態的請求，updateUserStatusDTO: {}", updateUserStatusDTO);
-        MessageVO apiResult = userService.updateStatus(updateUserStatusDTO);
+        UpdateUserStatusVO apiResult = userService.updateStatus(updateUserStatusDTO);
 
         return ResponseEntity.ok(apiResult);
     }

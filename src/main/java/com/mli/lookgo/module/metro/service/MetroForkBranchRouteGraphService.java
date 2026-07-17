@@ -15,7 +15,8 @@ import com.mli.lookgo.module.metro.model.graph.Edge;
 /**
  * 處理捷運分岔路線的業務邏輯。改以人工維護的分岔站序覆蓋該區段，取代線性推導邏輯。
  * 避免因為 lines_stations 表以 (line_id, station_sequence) 唯一遞增排序，
- * 因此 {@link MetroRouteGraphService#buildAdjacencyList} 依 stationSequence 線性推導同線邊時，在分岔口錯誤連接（例如把兩條支線硬串成一直線）。
+ * 因此 {@link MetroRouteGraphService#buildAdjacencyList} 依 stationSequence
+ * 線性推導同線邊時，在分岔口錯誤連接（例如把兩條支線硬串成一直線）。
  * 目前涵蓋：
  * - 中和新蘆線（橘線 O）：大橋頭(O12) 分岔，蘆洲(O54)／迴龍(O21) 兩條支線
  * - 淡水信義線（紅線 R）：北投(R22) 單站支線，往新北投(R22A)
@@ -41,7 +42,6 @@ public class MetroForkBranchRouteGraphService {
      * 導致依序號排序後，分岔站在陣列中被錯誤地判定為與某個不相干的站（如 R28）相鄰。
      * 因此每條分岔路線中，除了分岔口本身（各支線清單的第一站，如大橋頭 O12／北投 R22／七張 G03）之外，
      * 其餘車站（secondary）一律排除於線性推導之外，一律由 {@link #addBranchEdges} 建立邊。
-     * 分岔口本身仍保留線性推導，因為它與幹線上「非分岔站」鄰站（如民權西路 O11、奇岩 R21、小新店 G02）的邊是正確且未被涵蓋的。
      */
     private final Set<String> secondaryBranchStationCodes = branchLineDefinitions.stream()
             .flatMap(definition -> {

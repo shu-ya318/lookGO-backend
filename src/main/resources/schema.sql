@@ -41,8 +41,7 @@ CREATE TABLE [dbo].[users] (
     [username]           NVARCHAR(100)   NOT NULL,
     [birth_date]         DATE            NULL,
     [cellphone]          NVARCHAR(20)    NOT NULL,
-    -- base64 data URI（1MB 圖檔約 1.4M 字元）遠超過 NVARCHAR(4000) 上限，須用 NVARCHAR(MAX)
-    [avatar]             NVARCHAR(MAX)   NULL CONSTRAINT [DF_users_avatar] DEFAULT N'/assets/default-avatar.png',
+    [avatar]             VARCHAR(MAX)   NULL CONSTRAINT [DF_users_avatar] DEFAULT N'/assets/default-avatar.png',
     [status]             TINYINT         NOT NULL,
     [created_at]         DATETIME2(0)    NOT NULL,
     [updated_at]         DATETIME2(0)    NOT NULL,

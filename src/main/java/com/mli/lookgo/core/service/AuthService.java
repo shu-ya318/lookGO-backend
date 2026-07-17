@@ -50,6 +50,7 @@ public class AuthService {
     private final UserDAO userDAO;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private static final SecureRandom secureRandom = new SecureRandom();
     private static final Base64.Encoder base64Encoder = Base64.getUrlEncoder().withoutPadding();

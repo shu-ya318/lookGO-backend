@@ -469,7 +469,7 @@ public class MetroService {
                                 strategy);
 
                 // 5a.收集起訖站的等價車站代碼，若起迄點是轉乘站，則收集其在所有路線下的代碼。
-                //     再 執行 Dijkstra 演算法，尋找最短路徑
+                // 再執行 Dijkstra 演算法，找最短路徑
                 // 避免使用者選到轉乘站的特定線別代碼（如 "O11"）時，被迫多算一段轉乘到該代碼才算抵達
                 Set<String> fromCodes = metroRouteGraphService.collectStationCodesByStationId(
                                 lineStationByCode, fromLineStation.getStationId());
@@ -477,7 +477,7 @@ public class MetroService {
                                 lineStationByCode, toLineStation.getStationId());
                 DijkstraResult dijkstraResult = metroRouteGraphService.findRoute(adjacencyList, fromCodes, toCodes);
 
-                // 6.完整組裝要回傳資訊 
+                // 6.完整組裝要回傳資訊
                 // 切分路線段 (RouteSegmentVO)：依轉乘標記將連續同線車站分段。
                 // 計算段車程：以段內相鄰站累計時間差逐一相加 (避免分岔站累計基準不同)。
                 // 計算總時間與轉乘時間：加總各段車程與轉乘時間的實際秒數。

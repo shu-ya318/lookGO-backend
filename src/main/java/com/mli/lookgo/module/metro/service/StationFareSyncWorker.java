@@ -79,8 +79,8 @@ public class StationFareSyncWorker {
             stateHolder.markSuccess();
             logger.debug("票價資料背景同步完成");
         } catch (Exception exception) {
-            logger.error("票價資料背景同步失敗", exception);
-            stateHolder.markFailed("票價資料同步失敗: " + exception.getMessage());
+            logger.error("票價資料背景同步失敗", exception.getMessage());
+            stateHolder.markFailed("票價資料同步失敗");
         }
     }
 
@@ -133,7 +133,7 @@ public class StationFareSyncWorker {
         }
 
         // 批次寫入資料庫（階段二：70–100%）
-        stateHolder.updateProgress(FETCH_PHASE_MAX, "票價資料取得完成，開始批次寫入資料庫...");
+        stateHolder.updateProgress(FETCH_PHASE_MAX, "票價資料即將同步完成...");
         if (stationFares.isEmpty()) {
             logger.warn("[StationFare] 未取得任何票價資料，略過寫入");
             return;

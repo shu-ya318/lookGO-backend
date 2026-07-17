@@ -293,7 +293,7 @@ public class MetroSyncService {
                 continue;
             }
 
-            // 7. 計算局部相對時間: 
+            // 7. 計算局部相對時間:
             // (1) 依路線資料原始順序，起點站以 0 秒起算
             // (2) 逐站累加「前站的停站秒數 + 兩站間行駛秒數」
             // (3) 獨立分支站（新北投、小碧潭）特殊處理: 額外加上月台轉乘秒數
@@ -403,7 +403,8 @@ public class MetroSyncService {
     /**
      * 觸發背景同步票價資料。
      * 透過 {@link StationFareSyncStateHolder#tryStart()} 確保同時只有一個同步在執行，
-     * 若已有同步進行中則拋出 {@link SyncInProgressException}；否則交由 {@link StationFareSyncWorker} 於獨立執行緒非同步執行，方法本身立即返回。
+     * 若已有同步進行中則拋出 {@link SyncInProgressException}；否則交由
+     * {@link StationFareSyncWorker} 於獨立執行緒非同步執行，方法本身立即返回。
      * 手動觸發與排程共用的起始點，確保兩者不會並發執行同步。
      *
      * @throws SyncInProgressException 已有票價同步進行中時拋出（由 GlobalExceptionHandler 轉為 409）
@@ -412,7 +413,7 @@ public class MetroSyncService {
         if (!stationFareSyncStateHolder.tryStart()) {
             throw new SyncInProgressException("票價同步正在進行中，請勿重複觸發!");
         }
-        
+
         logger.debug("已取得票價同步啟動權，交由背景執行緒執行");
         stationFareSyncWorker.doSyncAllStationFare();
     }

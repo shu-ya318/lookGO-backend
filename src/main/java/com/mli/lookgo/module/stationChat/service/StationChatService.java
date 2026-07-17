@@ -59,7 +59,7 @@ public class StationChatService {
 
     /** data URI 前綴（不分大小寫），如 data:image/png;base64,xxxx */
     private static final Pattern DATA_URI_PATTERN = Pattern.compile("(?i)data:[\\w.+-]+/[\\w.+-]+;base64,");
-    /** 連續 200 字元以上的 base64 字元序列，攔截未帶前綴的裸 base64 */
+    /** 連續 200 字元以上的 base64 字元序列，攔截未帶前綴的 base64 */
     private static final Pattern LONG_BASE64_PATTERN = Pattern.compile("[A-Za-z0-9+/=]{200,}");
     /** HTML 標籤，如 <img src=...>、<script> */
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("(?i)<\\s*(img|script|iframe|svg|object|embed)\\b");

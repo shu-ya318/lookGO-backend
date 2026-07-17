@@ -235,7 +235,6 @@ public class MetroController {
                         @ApiResponse(responseCode = "403", description = "權限不足", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "權限不足，無法操作!"))),
                         @ApiResponse(responseCode = "404", description = "找不到指定車站", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "找不到id:1的車站!"))),
                         @ApiResponse(responseCode = "500", description = "伺服器內部錯誤", content = @Content(mediaType = "application/json", schema = @Schema(implementation = String.class, example = "伺服器端錯誤!"))) })
-        @PreAuthorize("hasRole('ADMIN')")
         @PostMapping("/get-station-by-id")
         public ResponseEntity<Station> getStationById(@Valid @RequestBody StationIdDTO stationIdDTO) {
                 logger.debug("收到依車站 id 查詢車站詳細資料的請求，id: {}", stationIdDTO.getId());

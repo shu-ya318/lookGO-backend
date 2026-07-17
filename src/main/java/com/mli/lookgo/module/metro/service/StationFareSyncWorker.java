@@ -87,6 +87,7 @@ public class StationFareSyncWorker {
     /**
      * 0. 需先同步路線車站資料，以確保 station_code 存在。
      * 1. 從 TDX 票價 (StationFare) API 取得任意兩站間票價，再同步寫入資料庫。
+     * 2. 跳過 CitizenCode 城市優惠票 (FareClass=3)，因資料表無對應欄位可區分。
      */
     private void runSync() {
         logger.debug("開始從 TDX 票價 (StationFare) 同步票價資料");
@@ -116,7 +117,10 @@ public class StationFareSyncWorker {
             }
 
             for (StationFareVO.FareDetail fareDetail : stationFareVO.getFares()) {
-
+                // 跳過含有 CitizenCode 的市民優惠票種（CitizenCode 城市優惠票 (FareClass=3) 因資料表無對應欄位，同步時跳過）
+                if (fareDetail.getCitizenCode() != null) {
+                    continue;
+                }
 
                 // 將起迄站 id、票種與票價封裝成 StationFare Entity 並加入清單（例如：淡水至台北車站，普通票 50 元）
                 stationFares.add(new StationFare(

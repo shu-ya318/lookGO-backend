@@ -43,7 +43,7 @@ app:
     email: admin@example.com
     username: admin
     password: ${ADMIN_PASSWORD}
-    cellphone: "0123456789"
+    cellphone: '0123456789'
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   # sendgrid:
@@ -60,11 +60,14 @@ frontend:
 
 logging:
   level:
-    com.mli: DEBUG
-    # 塞入大量資料時，Dao 層印出 INFO 即可
+    # 業務邏輯，用 DEBUG 方便看開發情形（例如：票價背景同步更新）
+    com.mli.lookgo: DEBUG
+    # Dao 層用 INFO ，避免塞入大量資料時過多 log
     com.mli.lookgo.module.metro.dao: INFO
     com.mli.lookgo.module.user.dao: INFO
     com.mli.lookgo.module.auth.dao: INFO
-    org.springframework.security: DEBUG
+    # 安全層級變更：用 WARN，過濾（例如：K8s）頻繁的匿名健康檢查 debug 紀錄
+    org.springframework.security: WARN
+    # 網路通訊，用　DEBUG　方便除錯
     org.springframework.web.cors: DEBUG
     org.springframework.web.socket: DEBUG

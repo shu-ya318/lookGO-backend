@@ -3,6 +3,7 @@ package com.mli.lookgo.module.metro.service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -139,20 +140,42 @@ public class StationFareSyncWorker {
             return;
         }
 
+        /*
+         * 去重：TDX 以 station_code 為起迄點，轉乘站一個實體站有多個 code（例如台北車站 = R10 + BL12），
+         * 經 stationCodeToIdMap 對應後會簡化為相同 (from_station_id, to_station_id, fare_type) 鍵。
+         * 這些重複鍵在資料庫端被 MERGE 收斂成同一列，故先在記憶體以 LinkedHashMap 去重（保留最後一筆），
+         * 讓寫入筆數 == 資料庫最終筆數，使進度分母、批次 log 與 SELECT COUNT(*) 三者一致，並省去多餘的 MERGE。
+         */
+        Map<String, StationFare> dedupedMap = new LinkedHashMap<>();
+
+        for (StationFare stationFare : stationFares) {
+            String key = stationFare.getFromStationId() + "-" + stationFare.getToStationId()
+                    + "-" + stationFare.getFareType();
+            dedupedMap.put(key, stationFare);
+        }
+        
+        List<StationFare> dedupedStationFares = new ArrayList<>(dedupedMap.values());
+
+        // 對照原始筆數與去重後相異鍵值數，去重後筆數應等於 SELECT COUNT(*) FROM station_fares
+        logger.debug("[StationFare] 去重後相異鍵值 {} 筆（原始 {} 筆，簡化為 {} 筆）",
+                dedupedStationFares.size(), stationFares.size(),
+                stationFares.size() - dedupedStationFares.size());
+
         final int batchSize = 400;
         int totalInserted = 0;
-        for (int i = 0; i < stationFares.size(); i += batchSize) {
-            List<StationFare> batch = stationFares.subList(i, Math.min(i + batchSize, stationFares.size()));
+        for (int i = 0; i < dedupedStationFares.size(); i += batchSize) {
+            List<StationFare> batch = dedupedStationFares.subList(i,
+                    Math.min(i + batchSize, dedupedStationFares.size()));
             metroDAO.upsertAllStationFare(batch);
             totalInserted += batch.size();
 
             int progress = FETCH_PHASE_MAX
-                    + (int) ((100L - FETCH_PHASE_MAX) * totalInserted / stationFares.size());
+                    + (int) ((100L - FETCH_PHASE_MAX) * totalInserted / dedupedStationFares.size());
             stateHolder.updateProgress(progress, "票價資料更新中... (" + progress + "%)");
-            logger.debug("票價資料批次寫入進度：{} / {} 筆", totalInserted, stationFares.size());
+            logger.debug("票價資料批次寫入進度：{} / {} 筆", totalInserted, dedupedStationFares.size());
         }
 
-        logger.debug("票價資料同步完成，共 {} 筆", stationFares.size());
+        logger.debug("票價資料同步完成，共 {} 筆", dedupedStationFares.size());
     }
 
     /*
@@ -185,8 +208,14 @@ public class StationFareSyncWorker {
             int pageNumber = (skip / pageSize) + 1;
             logger.debug("[StationFare] 發送第 {} 頁請求 ($skip={}, $top={})", pageNumber, skip, pageSize);
 
+            /*
+             * $orderby 必要：OData 的 $skip/$top 不保證跨頁穩定排序，
+             * 本同步跨時逾一小時，若來源排序漂移會造成部分 offset 區間「靜默漏抓」。
+             * 以 OriginStationID, DestinationStationID 這組穩定且唯一的鍵排序，確保分頁完整不重不漏。
+             */
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.setAll(Map.of("$format", "JSON", "$top", String.valueOf(pageSize), "$skip", String.valueOf(skip)));
+            params.setAll(Map.of("$format", "JSON", "$top", String.valueOf(pageSize), "$skip", String.valueOf(skip),
+                    "$orderby", "OriginStationID,DestinationStationID"));
 
             List<StationFareVO> page = tdxApiClientConfig.sendGetRequest("/ODFare",
                     new ParameterizedTypeReference<List<StationFareVO>>() {

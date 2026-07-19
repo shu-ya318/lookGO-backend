@@ -199,7 +199,7 @@ lookGo-backend/
 ### 安全性設定
 
 - JWT Token 認證：`JwtFilter` 攔截所有請求驗證 `Authorization: Bearer <token>`
-- Access Token 有效期短（開發環境 15 分鐘）；Refresh Token 存於 Redis（開發環境 7 天），過期後需重新登入
+- Access Token 有效期短（開發環境 1 小時）；Refresh Token 存於 Redis（開發環境 7 天），過期後需重新登入
 - 角色權限控管：管理員端點以 `@PreAuthorize("hasRole('ADMIN')")` 保護
 - 密碼使用 `BCryptPasswordEncoder` 加密儲存
 - CORS 跨域支援：允許來源由 `CORS_ALLOWED_ORIGINS` 設定

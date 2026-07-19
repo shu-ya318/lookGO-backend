@@ -33,7 +33,12 @@ public class MetroRouteGraphService {
 
     private final MetroForkBranchRouteGraphService metroForkBranchRouteGraphService;
 
-    public static final BigDecimal SAME_STATION_FARE = BigDecimal.valueOf(20);
+    // 起訖同站（進出同一車站）的手續費：全票 20 元，其餘優惠票種（學生、兒童、愛心）一律 8 元
+    public static final BigDecimal SAME_STATION_FULL_FARE = BigDecimal.valueOf(20);
+    public static final BigDecimal SAME_STATION_CONCESSION_FARE = BigDecimal.valueOf(8);
+
+    // 全票票種代碼，用於區分同站手續費適用的費率
+    private static final int FULL_FARE_TYPE = 1;
 
     // 策略 1（最少轉乘）轉乘邊權重的主要成分，遠大於任何實際車程秒數，確保轉乘次數為主要比較依據，
     // 實際秒數只在轉乘次數相同時作為次要比較依據
@@ -50,7 +55,8 @@ public class MetroRouteGraphService {
 
     /**
      * 起終點相同時，直接組成只含單一車站的回傳結果。
-     * farePrice 固定為同站票價 {@link #SAME_STATION_FARE}；未傳入 fareType 時不計算票價。
+     * farePrice 依票種帶入同站手續費：全票為 {@link #SAME_STATION_FULL_FARE}，
+     * 其餘優惠票種為 {@link #SAME_STATION_CONCESSION_FARE}；未傳入 fareType 時不計算票價。
      */
     public OriginDestinationDetailVO buildSameStationResult(
             String stationCode,
@@ -76,10 +82,24 @@ public class MetroRouteGraphService {
                 line != null ? line.getColor() : null,
                 Collections.singletonList(stationInfo), 0);
 
-        BigDecimal farePrice = fareType != null ? SAME_STATION_FARE : null;
+        BigDecimal farePrice = resolveSameStationFare(fareType);
 
         return new OriginDestinationDetailVO(stationCode, stationCode, fareType, strategy,
                 Collections.singletonList(segment), 0, 0, 0, farePrice);
+    }
+
+    /**
+     * 依票種取得起訖同站的手續費。
+     *
+     * @param fareType 票種 (1=全票, 4=學生, 5=兒童, 7=愛心)，為 null 時代表不計算票價
+     * @return 全票為 20 元，其餘優惠票種為 8 元；fareType 為 null 時回傳 null
+     */
+    private BigDecimal resolveSameStationFare(Integer fareType) {
+        if (fareType == null) {
+            return null;
+        }
+
+        return fareType == FULL_FARE_TYPE ? SAME_STATION_FULL_FARE : SAME_STATION_CONCESSION_FARE;
     }
 
     /**

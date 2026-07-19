@@ -499,6 +499,12 @@ public class MetroService {
                                 ? metroDAO.getFareByStationCodesAndType(fromCode, toCode, fareType)
                                 : null;
 
+                // 有指定票種卻查無票價，代表票價資料缺漏（同步未執行或來源缺該組合），需留下紀錄供維運追查
+                if (fareType != null && farePrice == null) {
+                        logger.warn("查無票價資料，fromStationCode: {}，toStationCode: {}，fareType: {}",
+                                        fromCode, toCode, fareType);
+                }
+
                 logger.debug("起終點站詳細資料查詢完成，轉乘次數: {}，總行駛時間: {} 秒，轉乘時間: {} 秒",
                                 transferCount, totalTime, transferTime);
 

@@ -1,19 +1,21 @@
 package com.mli.lookgo.module.metro.model.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 對應 DataTaipei 台北市開放資料 車站設施 API 回傳的 JSON 結構。
+ * 對應 DataTaipei 台北市開放資料 車站設施 CSV 的每一列，欄位以 CSV 表頭名稱對應。
  *
  * @author D5042101
  * @since 2026.06.25
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StationFacilityVO {
 
     @JsonProperty("車站名稱")
     private String stationName;
 
-    @JsonProperty("銀行atm")
+    @JsonProperty("銀行ATM")
     private String atm;
 
     @JsonProperty("哺集乳室")

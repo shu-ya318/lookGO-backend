@@ -94,6 +94,11 @@
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
         </dependency>
+		<!-- Jackson CSV: 版本由 Spring Boot 的 jackson-bom 管理，與 jackson-databind 同版，不需指定 version -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-csv</artifactId>
+		</dependency>
         <!-- Websocket -->
 		<dependency>
 		    <groupId>org.springframework.boot</groupId>

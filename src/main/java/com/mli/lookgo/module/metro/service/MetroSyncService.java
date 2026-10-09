@@ -3,7 +3,6 @@ package com.mli.lookgo.module.metro.service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,7 +33,6 @@ import com.mli.lookgo.module.metro.model.entity.Station;
 import com.mli.lookgo.module.metro.model.vo.LineStationVO;
 import com.mli.lookgo.module.metro.model.vo.LineTransferVO;
 import com.mli.lookgo.module.metro.model.vo.LineVO;
-import com.mli.lookgo.module.metro.model.vo.StationFacilityApiVO;
 import com.mli.lookgo.module.metro.model.vo.StationFacilityVO;
 import com.mli.lookgo.module.metro.model.vo.StationTravelTimeVO;
 import com.mli.lookgo.module.metro.model.vo.StationVO;
@@ -591,16 +589,6 @@ public class MetroSyncService {
 
     // ----- DataTaipei API 請求定義 -----
     private List<StationFacilityVO> fetchAllStationFacility() {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.setAll(Map.of("scope", "resourceAquire", "limit", "1000"));
-
-        StationFacilityApiVO response = dataTaipeiApiClientConfig.sendGetRequest(
-                DATA_TAIPEI_STATION_DATASET_id, StationFacilityApiVO.class, params);
-
-        if (response == null) {
-            return Collections.emptyList();
-        }
-
-        return response.getAllStation();
+        return dataTaipeiApiClientConfig.sendGetCsvRequest(DATA_TAIPEI_STATION_DATASET_id, StationFacilityVO.class);
     }
 }
